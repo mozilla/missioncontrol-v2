@@ -1,0 +1,43 @@
+name: Demo Visualizations Need for Mission Control
+navbar:
+  title: Home
+  left:
+  - text: Release
+    menu:
+    - text: Summary
+      href: "release.html#summary"
+    - text: Adoption
+    - text: average crash
+      href: "release.html#average-crash"
+    - text: main crash
+      href: "release.html#main-crash"
+    - text: content crash
+      href: "release.html#content-crash"
+    - text: Trend
+    - text: average crash
+      href: "release.html#trend-average"
+    - text: main crash
+      href: "release.html#trend-main"
+    - text: content crash
+      href: "release.html#trend-content"
+  - text: Beta
+    menu:
+    - text: Summary
+      href: "beta.html#summary"
+    - text: Adoption
+    - text: average crash
+      href: "beta.html#average-crash"
+    - text: main crash
+      href: "beta.html#main-crash"
+    - text: content crash
+      href: "beta.html#content-crash"
+    - text: Trend
+    - text: average crash
+      href: "release.html#trend-average"
+    - text: main crash
+      href: "release.html#trend-main"
+    - text: content crash
+      href: "release.html#trend-content"
+    
+    
+

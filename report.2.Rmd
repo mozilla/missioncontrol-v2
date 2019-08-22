@@ -274,7 +274,7 @@ builds <- data.table(versions=c("65.0b3","65.0b4","65.0b5","65.0b6","65.0b7","65
                       "66.0b3","66.0b4","66.0b5","66.0b6","66.0b7","66.0b8","66.0b9","66.0b10","66.0b11","66.0b12","66.0b13","66.0b14",
                       "67.0b3","67.0b4","67.0b5","67.0b6","67.0b7","67.0b8","67.0b9","67.0b10","67.0b11","67.0b12","67.0b13","67.0b14","67.0b15","67.0b16","67.0b17","67.0b18","67.0b19",
                       "68.0b3","68.0b4","68.0b5","68.0b6","68.0b7","68.0b8","68.0b9","68.0b10","68.0b11",'68.0b12','68.0b13','68.0b14',
-                      '69.0b3','69.0b4',"69.0b5","69.0b6","69.0b7","69.0b8","69.0b9","69.0b10","69.0b11",'69.0b12','69.0b13'
+                      '69.0b3','69.0b4',"69.0b5","69.0b6","69.0b7","69.0b8","69.0b9","69.0b10","69.0b11",'69.0b12','69.0b13',"69.0b14","69.0b15"
                                  ),
                      buildid = c('20181210164452','20181211223337','20181217180946','20181220174318','20181227144402','20190103150357','20190107180200','20190110221328','20190114172331',
                                  '20190117232427'
@@ -286,7 +286,7 @@ builds <- data.table(versions=c("65.0b3","65.0b4","65.0b5","65.0b6","65.0b7","65
                                  '20190521110747','20190523115432','20190527103257','20190529145824','20190603181408','20190606101422','20190610153228','20190613141208','20190617172838',
                                  '20190619234730','20190624133534','20190627143605',
                                  '20190708182549','20190711205826,20190712011116','20190715173502','20190718172058','20190722201635','20190725174626','20190729190604,20190730004747',
-                                 '20190801185445','20190805120428','20190807220259','20190812173625'
+                                 '20190801185445','20190805120428','20190807220259','20190812173625',"20190815163925","20190819184224"
                                   ))
 u2[d > '2019-06-18',crash_src := 'telemetry.crash_summary_v2']
 u2 <- merge(u2,builds, by='versions')
@@ -322,6 +322,7 @@ dall.beta <- rbindlist(lapply(c('66','67','68','69'),function(xx){
       add_fields(qff,.BY$versions,d,till)
   },by=versions]
 }))
+
 
 ```
 
@@ -416,11 +417,14 @@ make.a.model <- function(data,wh,skew=FALSE){
   ffunc(M0,data)
 }
 
-getPredictions <- function(M,D, wh,givenx=NULL){
+getPredictions <- function(M,D, wh,givenx=NULL,COUNT=FALSE){
   if(is.null(givenx)){
     x <- predict(M,newdata=D,summary=FALSE)
   }else{
     x <- givenx
+  }
+  if(COUNT){
+    return (exp(t(x)-1))
   }
   if(wh=='cmr'){
     r <- exp( t(x) - D[, log( usage_cm_crasher_cversion+1/60)])
@@ -491,9 +495,47 @@ getLowsAndHighs <- function(D,mdl.rm,mdl.rc,mdl.im,mdl.ic){
   cbind(cmrpreds,ccrpreds,cavgrpreds, cmipreds, ccipreds, cavgipreds)
 }
 
+CENT <- function(s)  median(s) #mean(s, trim=TR)
+getBetaTrend <- function(D,mdl.rm,mdl.rc,mdl.im,mdl.ic){
+  getLowHi <- function(x,names,trans){
+    x <- rbindlist(apply(x,1,function(s){
+      data.table(lo90 = trans(quantile(s,0.05)), mean = CENT(trans(s)), hi90=quantile(trans(s),0.95))
+    }))
+    setnames(x,names)
+  }
+  cversions  = D[, list(l=1),by=list(os,c_version)][,l := NULL]
+  pm <- cbind(D[, list(os,c_version, usage_cm_crasher_cversion)],data.table(getPredictions(mdl.rm, D, 'cmr',COUNT=TRUE)))[, {
+    f <- data.table(t(apply(.SD,2,sum,drop=FALSE)))
+    (1+f[,2:ncol(f), with=FALSE])/ (1/60+f[,1,with=FALSE][[1]])
+  },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
+  print("cmr done")
+  pc <- cbind(D[, list(os,c_version, usage_cc_crasher_cversion)],data.table(getPredictions(mdl.rc, D, 'ccr',COUNT=TRUE)))[, {
+    f <- data.table(t(apply(.SD,2,sum,drop=FALSE)))
+    (1+f[,2:ncol(f), with=FALSE])/ (1/60+f[,1,with=FALSE][[1]])
+  },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
+  print("ccr done")
+  cmrpreds <- getLowHi(pm,trans=function(s) s,names=c("cmr.lo90","cmr.mean","cmr.hi90"))
+  ccrpreds <- getLowHi(pc,trans=function(s) s,names=c("ccr.lo90","ccr.mean","ccr.hi90"))
+  cavgrpreds <- getLowHi((pm+pc)/2,trans=function(s) s,names=c("cavgr.lo90","cavgr.mean","cavgr.hi90"))
+  pm <- cbind(D[, list(os,c_version, dau_cversion)],data.table(getPredictions(mdl.im, D, 'cmi',COUNT=TRUE)))[, {
+    f <- data.table(t(apply(.SD,2,sum,drop=FALSE)))
+    (1+f[,2:ncol(f), with=FALSE])/ f[,1,with=FALSE][[1]]
+  },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
+  print("cmi done")
+  pc <- cbind(D[, list(os,c_version,dau_cversion )],data.table(getPredictions(mdl.ic, D, 'cci',COUNT=TRUE)))[, {
+    f <- data.table(t(apply(.SD,2,sum,drop=FALSE)))
+    (1+f[,2:ncol(f), with=FALSE])/ f[,1,with=FALSE][[1]]
+  },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
+  print("cci done")
+  cmipreds <- getLowHi(pm,trans=function(s) s,names=c("cmi.lo90","cmi.mean","cmi.hi90"))
+  ccipreds <- getLowHi(pc,trans=function(s) s,names=c("cci.lo90","cci.mean","cci.hi90"))
+  cavgipreds <- getLowHi((pm+pc)/2,trans=function(s) s,names=c("cavgi.lo90","cavgi.mean","cavgi.hi90"))
+  cbind(cversions,cmrpreds,ccrpreds,cavgrpreds, cmipreds, ccipreds, cavgipreds)
+}
+
 getRelDiff <- function(crm.model,crc.model,cim.model,cic.model,current.data,current.data.modified,CUT=0.35){
   H <- function(S,names){
-    x <- data.table(h=apply(S,1,function(s) { a <-mean(s >= CUT); if(is.na(a)) 0 else a}))
+    x <- data.table(h=apply(S,1,function(s) { a <-mean(s > CUT); if(is.na(a)) 0 else a}))
     setnames(x,names)
     x
   }
@@ -538,7 +580,7 @@ rel.posts <- merge(rel.posts,reldiff.rel,all.x=TRUE,by=c("os","date","c_version"
 rel.summary <- rel.posts[c_version==rel.current.version,][date==max(date),]
 
 H0 <- function(nvc,l,h){
-  return( 1/(h-l))
+  return( nvc > 0.2)
 }
 SPAN_L <- 2
 rel.posts <- merge(rel.posts,rel.posts[,{
@@ -558,8 +600,8 @@ rel.posts <- merge(rel.posts,rel.posts[,{
 ###################################################
 ## For Beta
 ###################################################
-beta.current.version <- '69.0b12'
-beta.prev.version <- '69.0b11'
+beta.current.version <- '69.0b15'
+beta.prev.version <- '69.0b14'
 beta.current.major <- '69'
 beta.prev.major <- '68'
 beta.current.data <- d.beta[c_version==beta.current.version,][order(os, date),]
@@ -571,19 +613,25 @@ beta.posts <- cbind(d.beta[,list(date,cmr.wt,ccr.wt,c_version, os,nvc,cmr,ccr,cm
 beta.posts <- merge(beta.posts,reldiff.beta,all.x=TRUE,by=c("os","date","c_version"))
 
 beta.summary <- beta.posts[c_version==beta.current.version,][date==max(date),]
+beta.trend3 <- getBetaTrend(d.beta,cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta)
+beta.trend3[, ":="(major =  (sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1))),
+                   minor = (sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]
+beta.trend2 <- beta.trend3[major %in% c(beta.current.major,beta.prev.major),][order(os,as.numeric(as.character(major)),as.numeric(as.character(minor))),]
+beta.trend2 <- merge(beta.trend4,  beta.posts[, {
+  tail(.SD,1)[, list(nvc=nvc)]
+},by=list(os,c_version)], by=c("os","c_version"))[order(os,as.numeric(as.character(major)),as.numeric(as.character(minor))),]
 
-beta.trend <- beta.posts[, {
-  tail(.SD,1)
-},by=list(os,c_version)]
-beta.trend[, major := (sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1)))]
-beta.trend[, minor := (sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1)))]
-beta.trend <- beta.trend[c_version != '69.0b13',] #hack
-beta.trend2 <-  beta.trend[major %in% c(beta.current.major,beta.prev.major),][order(as.numeric(major),as.numeric(minor)),]
+#beta.trend <- beta.posts[, {
+#  tail(.SD,1)
+#},by=list(os,c_version)]
+#beta.trend[, major := (sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1)))]
+#beta.trend[, minor := (sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1)))]
+#beta.trend2 <-  beta.trend[major %in% c(beta.current.major,beta.prev.major),][order(as.numeric(as.character(major)),as.numeric(as.character(minor))),]
 
 
 ## SAVE
 u <- getwd()
-setwd("visual_demo/_site/data/")
+setwd("visual_demo/data/")
 write.csv(rel.posts, "rel.posts.csv")
 write.csv(rel.summary,"rel.summary.csv")
 write.csv(beta.posts,"beta.posts.csv")

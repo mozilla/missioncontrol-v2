@@ -259,7 +259,7 @@ grid_plot(fig7)
 #### Incidence Pct
 
 ```{r}
-t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=cavgi.lo90,mn=cavgi.mean,hi90=cavgi.hi90)]
+t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=100*cavgi.lo90,mn=100*cavgi.mean,hi90=100*cavgi.hi90)]
 fig8 <- list(
   makeBetaTrend(t.temp[os=='Linux',], xlab='Avg Crash', ylab='Linux'),
   makeBetaTrend(t.temp[os=='Darwin',], xlab='Avg Crash', ylab='Darwin'),
@@ -288,7 +288,7 @@ grid_plot(fig9)
 #### Incidence Pct
 
 ```{r}
-t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=cmi.lo90,mn=cmi.mean,hi90=cmi.hi90)]
+t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=100*cmi.lo90,mn=100*cmi.mean,hi90=100*cmi.hi90)]
 fig10<- list(
   makeBetaTrend(t.temp[os=='Linux',], xlab='Main Crash', ylab='Linux'),
   makeBetaTrend(t.temp[os=='Darwin',], xlab='Main Crash', ylab='Darwin'),
@@ -316,7 +316,7 @@ grid_plot(fig9)
 #### Incidence Pct
 
 ```{r}
-t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=cci.lo90,mn=cci.mean,hi90=cci.hi90)]
+t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=100*cci.lo90,mn=100*cci.mean,hi90=100*cci.hi90)]
 fig10<- list(
   makeBetaTrend(t.temp[os=='Linux',], xlab='Content Crash', ylab='Linux'),
   makeBetaTrend(t.temp[os=='Darwin',], xlab='Content Crash', ylab='Darwin'),

@@ -33,11 +33,11 @@ navbar:
       href: "beta.html#content-crash"
     - text: Trend
     - text: average crash
-      href: "release.html#trend-average"
+      href: "beta.html#trend-average"
     - text: main crash
-      href: "release.html#trend-main"
+      href: "beta.html#trend-main"
     - text: content crash
-      href: "release.html#trend-content"
+      href: "beta.html#trend-content"
     
     
 

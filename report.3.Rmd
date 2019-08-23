@@ -440,8 +440,11 @@ getPredictions <- function(M,D, wh,givenx=NULL,COUNT=FALSE){
   r
 }
  
+```
 
+Release model
 
+```{r}
 slackr("RELEASE CHAINS STARTING")
 cr.cm.rel.f <- future({ make.a.model(d.rel,'cmr') })
 cr.cc.rel.f <- future({ make.a.model(d.rel,'ccr') })
@@ -453,7 +456,11 @@ cr.cc.rel <- value(cr.cc.rel.f)
 ci.cm.rel <- value(ci.cm.rel.f)
 ci.cc.rel <- value(ci.cc.rel.f)
 slackr("RELEASE CHAINS DONE")
+```
 
+Beta Model
+
+```{r}
 slackr("BETA CHAINS STARTING")
 cr.cm.beta.f <- future({ make.a.model(d.beta,'cmr') })
 cr.cc.beta.f <- future({ make.a.model(d.beta,'ccr') })
@@ -464,12 +471,13 @@ cr.cc.beta <- value(cr.cc.beta.f)
 ci.cm.beta <- value(ci.cm.beta.f)
 ci.cc.beta <- value(ci.cc.beta.f)
 slackr("BETA CHAINS DONE!")
+```
 
 
+I use a 1% trimmed mean because some of the posterios especially when nvc is
+small have crazy large outliers.
 
-## I use a 1% trimmed mean because some of the posterios especially when nvc is small
-## jave crazy large outliers.
-
+```{r}
 TR <- 1/100/2
 CENT <- function(s)  mean(s, trim=TR)
 getLowsAndHighs <- function(D,mdl.rm,mdl.rc,mdl.im,mdl.ic){
@@ -557,14 +565,18 @@ getRelDiff <- function(crm.model,crc.model,cim.model,cic.model,current.data,curr
   cbind(current.data[,list(os,date,c_version)],cmr, ccr,cavgr, cmi,cci,cavgi)
 }
 
+```
 
 
-##################################################
-## For Release
-##################################################
 
-rel.current.version <- '68.0.1'
-rel.prev.version <- '68.0'
+
+For Release data structures
+
+
+```{r}
+release.releases.for.model <- release.releases.for.model[order(major,minor),]
+rel.current.version <- tail(release.releases.for.model,2)[2,]
+rel.prev.version <- tail(release.releases.for.model,2)[1,]
 rel.current.data <- d.rel[c_version==rel.current.version,][order(os, date),]
 rel.current.data.modified <- data.table(data.frame(rel.current.data))[, c_version := rel.prev.version]
 
@@ -594,13 +606,16 @@ rel.posts <- merge(rel.posts,rel.posts[,{
        cmi.loess=cmi.fit, cci.loess=cci.fit, cavgi.loess=cavgi.fit)
   }, by=os], by=c("os","date","c_version"))
 
-###################################################
-## For Beta
-###################################################
-beta.current.version <- '69.0b15'
-beta.prev.version <- '69.0b14'
-beta.current.major <- '69'
-beta.prev.major <- '68'
+```
+
+For beta data structures
+
+```{r}
+beta.releases.for.model <- beta.releases.for.model[order(major,minor),]
+beta.current.version <- tail(beta.releases.for.model,2)[2,] 
+beta.prev.version <- tail(beta.releases.for.model,2)[1,]
+beta.current.major <- tail(beta.releases.for.model,2)[2,major]
+beta.prev.major <- beta.current.major-1
 beta.current.data <- d.beta[c_version==beta.current.version,][order(os, date),]
 beta.current.data.modified <- data.table(data.frame(beta.current.data))[, c_version := beta.prev.version]
 
@@ -636,6 +651,6 @@ setwd(u);rm(u)
 render_site("./visual_demo/")
 system(glue("mkdir -p ./visual_demo/older/{today}/", today=(j <- Sys.Date())))
 system(glue("rsync -avz ./visual_demo/ ./visual_demo/older/{today}/",today=j))
-system("rsync -av ~/mz/missioncontrol/ex1/visual_demo/ ~/pubsguha/visual_demo/")
+#system("rsync -av ~/mz/missioncontrol/ex1/visual_demo/ ~/pubsguha/visual_demo/")
 ```
 

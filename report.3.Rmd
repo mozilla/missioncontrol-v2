@@ -32,11 +32,18 @@ pre code, pre, code {
 
 </style>
 
-This is work for [this](https://docs.google.com/document/d/1xfGbJw90hRHdlg-dd0flAK5KlOLIElH1IRnxW7lll98/edit#)
-Google doc.
-
 ```{r}
-knitr::opts_chunk$set(eval=FALSE)
+library(parallel)
+library(brms)
+library(glue)
+library(data.table)
+library(rjson)
+library(future)
+library(reticulate)
+plan(multicore)
+slack.start() ##requires prefix.R
+knitr::opts_chunk$set(eval=TRUE)
+
 ```
 
 ```{r eval=TRUE,echo=TRUE}
@@ -179,123 +186,45 @@ on b.date=A.date and b.os=A.os
 )
 select * from d order by os, date
 "
-
-v65 <- list(
-  list(v='65.0', d = "2019-01-29", till = '2019-02-28',c="release",ndays=72,app_version_field='app_version', build_version_field='build_version'),
-  list(v='65.0.1', d = "2019-02-28", till='2019-03-19',c="release",ndays=72,app_version_field='app_version', build_version_field='build_version'))
- 
-v66 <- list(
-  list(v='66.0', d = "2019-03-19", till = '2019-03-22',c="release",ndays=72,app_version_field='app_version', build_version_field='build_version'),
-  list(v='66.0.1', d = "2019-03-22", till='2019-03-27',c="release",ndays=72,app_version_field='app_version', build_version_field='build_version'),
-  list(v='66.0.2', d = "2019-03-27", till='2019-04-10',c="release",ndays=72,app_version_field='app_version', build_version_field='build_version'),
-  list(v='66.0.3', d = "2019-04-10", till='2019-05-05', c="release",ndays=72,app_version_field='app_version', build_version_field='build_version'),
-  list(v='66.0.4', d = "2019-05-05", till='2019-05-07',c="release",ndays=72,app_version_field='app_version', build_version_field='build_version'),
-  list(v='66.0.5', d = "2019-05-07", till='2019-05-21',c="release",ndays=72,app_version_field='app_version', build_version_field='build_version'))
-
-  
-v67 <- list(
-  list(v='67.0', d = "2019-05-21", till='2019-06-04',c="release",ndays=72,app_version_field='app_version', build_version_field='build_version'),
-  list(v='67.0.1', d = "2019-06-04", till='2019-06-11',c="release",ndays=72,app_version_field='app_version', build_version_field='build_version'),
-  list(v='67.0.2', d = "2019-06-11", till='2019-06-17',c="release",ndays=72,app_version_field='app_version', build_version_field='build_version'),
-  list(v='67.0.3', d = "2019-06-18", till ='2019-06-19',c="release",ndays=72,crash_src='telemetry.crash_summary_v2',app_version_field='app_version', build_version_field='build_version'),
-  list(v='67.0.4', d = "2019-06-20", till='2019-07-07', c='release',ndays=72, crash_src='telemetry.crash_summary_v2',app_version_field='app_version', build_version_field='build_version'))
-
-v68 <- list(
-  list(v='68.0', d = "2019-07-07", till = '2019-07-18',c="release",ndays=72,crash_src='telemetry.crash_summary_v2',app_version_field='app_version', build_version_field='build_version'),
-  list(v='68.0.1', d = "2019-07-18", till = '2019-08-14',c="release",ndays=72,crash_src='telemetry.crash_summary_v2',app_version_field='app_version', build_version_field='build_version'),
-  list(v='68.0.2', d = "2019-08-14", till = '2019-12-28',c="release",ndays=72,crash_src='telemetry.crash_summary_v2',app_version_field='app_version', build_version_field='build_version'))
-  
-g <- bq()
-
 ```
 
-The above SQL query has some interesting features
+## RELEASE DATA
 
-- different sampling rates (100% for everything except Release/Windows which is
-  33%)
-- Data is pulled for a version number and for data between a start date (`d`)
-  and for 72 days there after (`ndays`)
-- the `till` variable above is used to define when that version is current. In
-  other words, 68.0.1 is current from 2019-07-18 till 2019-08-14. We overlap by
-  one day
-- for beta we need to query by build\_version since this field is not present in
-  crash summary
-- we make some transformations in R code (see below after `g$q(...)`)
-  -  define if the version is latest or not based on `till` variable
-  - define crash rate e.g. ( 1 + main crashes)/total main hours experienced by
-    main crashers (note total hours for if less than a minute we round to 0)
-  - crash incidence is (1+ number of crashers)/total on that version 
-  - `nvc` is hours proportion of total active hours on the current version a measure
-  of adoption)  
-
-
-```{r getData1,cache=TRUE,eval=FALSE,results='hide',message=FALSE, warning=FALSE}
-
+```{r}
 library(glue) 
 library(data.table)
 isn <- function(s,r = 'telemetry.crash_summary_v1') if(is.null(s) || length(s)==0) r else s
 
-dall.rel <- rbindlist(lapply(list(v65,v66,v67,v68),function(V){
-  rbindlist(lapply(V,function(l){
-    print(l)
-    qrx <- glue(qr, app_version_field=l$app_version_field,current_version=l$v,current_version_crash=l$v,
-                current_version_release=l$d, build_version_field=l$build_version_field,norm_channel = l$c,nday=l$ndays,crash_src=isn(l$crash_src),NBUCKS=3  )
-    VVV<<-qrx
-  f <- g$q(qrx,-1)
-  f <- f[,":="(date=as.Date(date))]
-  f[,":="(c_version = l$v, c_version_rel = l$d, isLatest=date<=l$till,t =as.numeric(date - as.Date(l$d)))][,]
-  f <- f[, ":="(
-    cmi=  (1+dau_cm_crasher_cversion)/dau_cversion,
-    cmr = (1+cmain) / sapply(usage_cm_crasher_cversion,function(s) if( s< 60/3600){ 0 } else{ s}),
-    cci = (1+dau_cc_crasher_cversion)/dau_cversion,
-    ccr = (1+ccontent)/sapply(usage_cc_crasher_cversion,function(s) if(s< 60/3600){ 0}  else {s}),
-    nvc=usage_cversion/usage_all,
-    os=factor(os, levels=c("Linux","Darwin","Windows_NT"))
-  )]
-  f
-}))}))
+fxv <- local({
+  r <- fromJSON(file="https://product-details.mozilla.org/1.0/firefox.json")
+  rbindlist(lapply(r$releases,function(s){
+    data.table(build.number=s$build_number, categ=s$category, date=as.Date(s$date),
+               description = isn(s$description,NA), is.security = s$is_security_driven,
+               product = s$product,version=s$version)
+  }))
+})
+
+fxv.releases <- fxv[grepl("(major|stability)",categ),][date >='2019-01-01',]
+fxv.releases <- fxv.releases[, ":="(major = as.numeric(sapply(version,function(s) head(strsplit(s,"\\.")[[1]],1))),
+                                    minor = as.numeric(sapply(version,function(s) tail(strsplit(s,"\\.")[[1]],1))))]
+fxv.releases <- fxv.releases[order(major,minor),]
+release.the.current.release <- tail(fxv.releases,1)[, list(version, major,minor, date)]
+release.releases.for.model <- fxv.releases[major %in% c(release.the.current.release$major,release.the.current.release$major-1,release.the.current.release$major-2),]
 
 
+release.what.i.need <- fxv.releases[major %in% release.the.current.release$major,]
+release.what.i.need <- release.what.i.need[,list(v=version,d=date, till=date, c='release',ndays=72, crash_src='telemetry.crash_summary_v2',
+                                                                         app_version_field='app_version', build_version_field='build_version')]
+release.what.i.need$till= c(tail(release.what.i.need$d,-1),Sys.Date()+365)
+g <- bq()
 
 ```
 
-```{r betadata}
 
-u <- local({
-  u <- fromJSON(file="https://product-details.mozilla.org/1.0/firefox_history_development_releases.json")
-  u <- data.table(versions=names(u), d= as.Date(unlist(u)),ndays=14,c='beta',crash_src='telemetry.crash_summary_v1')
-  u$till= c(tail(u$d,-1),Sys.Date()+7)
-  u[order(d),][grepl("b",versions),]
-})
-
-u2 <- u[grepl("(66|67|68|69)", versions),]
-
-builds <- data.table(versions=c("65.0b3","65.0b4","65.0b5","65.0b6","65.0b7","65.0b8","65.0b9","65.0b10","65.0b11","65.0b12",
-                      "66.0b3","66.0b4","66.0b5","66.0b6","66.0b7","66.0b8","66.0b9","66.0b10","66.0b11","66.0b12","66.0b13","66.0b14",
-                      "67.0b3","67.0b4","67.0b5","67.0b6","67.0b7","67.0b8","67.0b9","67.0b10","67.0b11","67.0b12","67.0b13","67.0b14","67.0b15","67.0b16","67.0b17","67.0b18","67.0b19",
-                      "68.0b3","68.0b4","68.0b5","68.0b6","68.0b7","68.0b8","68.0b9","68.0b10","68.0b11",'68.0b12','68.0b13','68.0b14',
-                      '69.0b3','69.0b4',"69.0b5","69.0b6","69.0b7","69.0b8","69.0b9","69.0b10","69.0b11",'69.0b12','69.0b13',"69.0b14","69.0b15"
-                                 ),
-                     buildid = c('20181210164452','20181211223337','20181217180946','20181220174318','20181227144402','20190103150357','20190107180200','20190110221328','20190114172331',
-                                 '20190117232427'
-                                 , '20190128143734','20190131191227','20190204181317','20190207161357','20190211185957','20190214195736','20190218131312','20190221160854','20190225143245',
-                                  '20190228180200','20190304101322','20190307095232',
-                                  '20190318154932','20190321164326,20190322012752','20190325125126','20190328152334','20190331141835','20190404040123,20190404130536','20190408123043',
-                                  '20190411084603','20190415085659','20190418160535','20190422163745','20190424140259','20190429125729','20190502224831,20190502232159','20190505015947',
-                                  '20190506235559','20190509185224',
-                                 '20190521110747','20190523115432','20190527103257','20190529145824','20190603181408','20190606101422','20190610153228','20190613141208','20190617172838',
-                                 '20190619234730','20190624133534','20190627143605',
-                                 '20190708182549','20190711205826,20190712011116','20190715173502','20190718172058','20190722201635','20190725174626','20190729190604,20190730004747',
-                                 '20190801185445','20190805120428','20190807220259','20190812173625',"20190815163925","20190819184224"
-                                  ))
-u2[d > '2019-06-18',crash_src := 'telemetry.crash_summary_v2']
-u2 <- merge(u2,builds, by='versions')
-u2 <- u2[order(d),]
-
-
+```{r getData1,cache=TRUE,results='hide',message=FALSE, warning=FALSE}
 add_fields <- function(x, current_version, d,till ){
   x <- x[,":="(date=as.Date(date))]
-  x[,":="(date=as.Date(date),c_version = current_version, c_version_rel = d, isLatest=date<=till,t =as.numeric(date - as.Date(d)))][,]
+  x[,":="(date=as.Date(date),c_version = current_version, c_version_rel = as.Date(d), isLatest=date<=till,t =as.numeric(date - as.Date(d)))][,]
   x<- x[, ":="(
     cmi=  (1+dau_cm_crasher_cversion)/dau_cversion,
     cmr = (1+cmain) / sapply(usage_cm_crasher_cversion,function(s) {if( s< 60/3600){ 0 } else{ s}}),
@@ -309,34 +238,29 @@ add_fields <- function(x, current_version, d,till ){
 }
 
 
-dall.beta <- rbindlist(lapply(c('67','68','69'),function(xx){
-  u2[grepl(xx,versions),][, {
+######################################################################
+## GET NEW DATA FOR CURRENT MAJOR FOR RELEASE
+######################################################################
+
+dall.release.new <-   release.what.i.need[,{
     print(.SD);print(.BY)
-    qf <- glue(qr, current_version=.BY$versions,current_version_crash=buildid,
-               current_version_release=d, norm_channel = c,
-               app_version_field = 'app_display_version', build_version_field='build_id',
-               nday=ndays,crash_src=isn(crash_src),NBUCKS=1
-               )
+    qf <- glue(qr,
+               current_version=.BY$v,
+               current_version_crash=.BY$v,
+               current_version_release=d,
+               norm_channel = c,
+               app_version_field = app_version_field,
+               build_version_field=build_version_field,
+               nday=ndays,
+               crash_src=isn(crash_src),
+               NBUCKS=1
+              )
     qff <- g$q(qf,-1)
     if(nrow(qff) > 0)
-      add_fields(qff,.BY$versions,d,till)
-  },by=versions]
-}))
-dall.beta <- rbind(dall.beta,dall.beta1)
+      add_fields(qff,.BY$v,d,till)
+},by=v]
 
-```
-
-We only want to use data where `nvc` is before the peak. Profiles adopt to  a
-version, `nvc` increases and then decreases. We want data _before_ we reach the
-peak. We take data upto this max. if the version is current but the max is
-before the end of last day we use data while it's current.
-
-
-
-```{r}
-## Data was missing in may
-
-dall.rel2 <- dall.rel[date<'2019-08-14',][!c_version %in% c('66.0.4','66.0.5'),][, {
+dall.release.new <- dall.release.new[, {
   ## Take the last day we saw the max
   index <- which.max(nvc)
   s <- (1:.N)[ isLatest]
@@ -346,9 +270,67 @@ dall.rel2 <- dall.rel[date<'2019-08-14',][!c_version %in% c('66.0.4','66.0.5'),]
   if(index<whenStoppedBeingLatest) index <- whenStoppedBeingLatest
   .SD[1:whenStoppedBeingLatest,]
   .SD[1:index,]
-  },by=list(os,c_version)]
+},by=list(os,c_version)]
 
-dall.beta2 <- dall.beta[!c_version %in% c('67.0b17','67.0b18'),][, {
+dall.release.new <- dall.release.new[, ":="( major = as.numeric(sapply(c_version,function(s) head(strsplit(s,"\\.")[[1]],1))),
+                                            minor = as.numeric((sapply(c_version,function(s) tail(strsplit(s,"\\.")[[1]],1)))))]
+
+```
+
+## BETA: DATA
+
+FOR BETA NOW: GET BUILD MAPPING WHICH WILL GET REPLACED BY PYTHON CODE
+
+```{r}
+
+buildhub <- import("buildhub_bid")
+builds <- local({
+  x <-  buildhub$pull_build_id_docs()
+  x <- buildhub$version2build_ids(x)
+  x=rbindlist(Map(function(n,b){
+    data.table(versions=n, builds=paste(b,collapse=","))
+  },names(x),x))[order(versions),]
+})
+  
+
+######################################################################
+## GET OLD DATA FROM BQ
+## NEEDED FOR MODEL
+######################################################################
+
+fxv.beta <- fxv[grepl("(dev)",categ),][date >='2019-01-01',]
+fxv.beta <- fxv.beta[, ":="( major=  as.numeric(sapply(version,function(s) head(strsplit(s,"\\.0b")[[1]],1))),
+                            minor = as.numeric(sapply(version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]
+fxv.beta <- fxv.beta[order(major,minor),]
+beta.the.current.release <- tail(fxv.beta,1)[, list(version, major,minor, date)]
+beta.releases.for.model <- fxv.beta[major %in% c(beta.the.current.release$major,beta.the.current.release$major-1,beta.the.current.release$major-2),]
+
+beta.what.i.need <- fxv.beta[major %in% beta.the.current.release$major,][,list(v=version,d=date, till=date, c='beta',ndays=14, crash_src='telemetry.crash_summary_v2',
+                                                                         app_version_field='app_display_version', build_version_field='build_id')]
+beta.what.i.need$till= c(tail(beta.what.i.need$d,-1),Sys.Date()+7)
+beta.what.i.need <- merge(beta.what.i.need,builds[, list(v=versions, buildid)],by=c('v'),all.x=TRUE)
+```
+
+```{r betadata}
+dall.beta.new <-   beta.what.i.need[,{
+    print(.SD);print(.BY)
+    qf <- glue(qr,
+               current_version=.BY$v,
+               current_version_crash=buildid,
+               current_version_release=d,
+               norm_channel = c,
+               app_version_field = app_version_field,
+               build_version_field=build_version_field,
+               nday=ndays,
+               crash_src=isn(crash_src),
+               NBUCKS=1
+              )
+    qff <- g$q(qf,-1)
+    if(nrow(qff) > 0)
+      add_fields(qff,.BY$v,d,till)
+},by=v]
+
+dall.beta.new <- dall.beta.new[, {
   ## Take the last day we saw the max
   index <- which.max(nvc)
   s <- (1:.N)[ isLatest]
@@ -357,43 +339,60 @@ dall.beta2 <- dall.beta[!c_version %in% c('67.0b17','67.0b18'),][, {
   } else whenStoppedBeingLatest <- -1
   if(index<whenStoppedBeingLatest) index <- whenStoppedBeingLatest
   .SD[1:whenStoppedBeingLatest,]
-  },by=list(os,c_version)]
-
-dall.rel2[, major := factor(sapply(c_version,function(s) head(strsplit(s,"\\.")[[1]],1)))]
-dall.rel2[, minor := factor(sapply(c_version,function(s) tail(strsplit(s,"\\.")[[1]],1)))]
-
-dall.beta2[, major
-           := factor(sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1)))]
-dall.beta2[, minor := factor(sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1)))]
+  .SD[1:index,]
+},by=list(os,c_version)]
+dall.beta.new <- dall.beta.new[,":="( major=  as.numeric(sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1))),
+                                      minor = as.numeric(sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]
+dall.new <- rbind(dall.beta.new[,":="(channel='beta')],dall.release.new[,":="(channel='release')])[,":="(v=NULL)]
 
 ```
+
+
+```{r}
+## What versions, channels, and os did we read today?
+unq <- dall.new[, list(n=.N),by=list(major, channel)]
+
+## delete them from BQ table
+res <- unq[,{
+  del.q <- glue("delete  from analysis.sguha_crash_rate_raw  where major={major} and channel='{channel}'",major=major, channel=.BY$channel)
+  g$q(del.q)
+},by=channel]
+
+## Upload new data
+atemp <- tempfile()
+write.csv(dall.new, file=atemp)
+system(glue("bq load --noreplace --project_id moz-fx-data-derived-datasets --source_format=CSV --skip_leading_rows=1 --null_marker=NA",
+            " analysis.sguha_crash_rate_raw {atemp}"))
+
+## Created FIRST TABLE via
+## bq load --autodetect --source_format=CSV --project_id moz-fx-data-derived-datasets --skip_leading_rows=1 --null_marker=NA analysis.sguha_crash_rate_raw ~/tmp/dall.all
+
+```
+
+
+
+
+
+## GET MODEL DATA
 
 
 Current and last two versions:
 
 ```{r}
+dall.rel2 <- g$q(glue("select * from analysis.sguha_crash_rate_raw where channel = 'release' and major in ({whichv})",
+         whichv = paste(unique(release.releases.for.model[,major]),collapse=",")),-1)
+dall.rel2 <- dall.rel2[nvc > 0][,":="(nvc.logit=boot::logit(nvc),cmr.wt = 1*(cmain >0), ccr.wt = 1*(ccontent > 0))]
 
-d.rel <- dall.rel2[major %in% c("66","67","68"),][,idx := 1:.N]
-d.beta <- dall.beta2[major %in% c('67','68','69'),][,idx := 1:.N]
-d.rel <- d.rel[nvc > 0,]
-d.beta <- d.beta[nvc > 0]
-d.rel[, ":="(nvc.logit=boot::logit(nvc),cmr.wt = 1*(cmain >0), ccr.wt = 1*(ccontent > 0))]
-d.beta[, ":="(nvc.logit=boot::logit(nvc),cmr.wt = 1*(cmain >0), ccr.wt = 1*(ccontent > 0))]
-
+dall.beta2 <- g$q(glue("select * from analysis.sguha_crash_rate_raw where channel = 'beta' and major in ({whichv})",
+         whichv = paste(unique(beta.releases.for.model[,major]),collapse=",")),-1)
+dall.beta2 <- dall.beta2[nvc > 0][,":="(nvc.logit=boot::logit(nvc),cmr.wt = 1*(cmain >0), ccr.wt = 1*(ccontent > 0))]
 
 ```
 
 
-Commented models appear to overfit. In future:
-
-- do we need two older versions?
-- Can i use the output of this model to perform something like posterior passing
-  on a smaller data set .e.g this version and last version?)
-
+## BUILD MODELS
 
 ```{r}
-
-library(parallel)
 
 
 ffunc <- function(M,D)  brm(M,data=D, chains = 4, control = list(adapt_delta = 0.999, max_treedepth=12), cores = 4)
@@ -442,8 +441,6 @@ getPredictions <- function(M,D, wh,givenx=NULL,COUNT=FALSE){
 }
  
 
-library(future)
-plan(multicore)
 
 slackr("RELEASE CHAINS STARTING")
 cr.cm.rel.f <- future({ make.a.model(d.rel,'cmr') })
@@ -621,12 +618,6 @@ beta.trend2 <- merge(beta.trend2,  beta.posts[, {
   tail(.SD,1)[, list(nvc=nvc)]
 },by=list(os,c_version)], by=c("os","c_version"))[order(os,as.numeric(as.character(major)),as.numeric(as.character(minor))),]
 
-#beta.trend <- beta.posts[, {
-#  tail(.SD,1)
-#},by=list(os,c_version)]
-#beta.trend[, major := (sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1)))]
-#beta.trend[, minor := (sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1)))]
-#beta.trend2 <-  beta.trend[major %in% c(beta.current.major,beta.prev.major),][order(as.numeric(as.character(major)),as.numeric(as.character(minor))),]
 
 
 ## SAVE
@@ -642,118 +633,9 @@ setwd(u);rm(u)
 ```
 
 ```{r eval=FALSE}
-render("./report.2.Rmd")
 render_site("./visual_demo/")
+system(glue("mkdir -p ./visual_demo/older/{today}/", today=(j <- Sys.Date())))
+system(glue("rsync -avz ./visual_demo/ ./visual_demo/older/{today}/",today=j))
+system("rsync -av ~/mz/missioncontrol/ex1/visual_demo/ ~/pubsguha/visual_demo/")
 ```
 
-
-```{r}
-## Random Plots
-
-
-H1 <- rel.posts[os=='Darwin' & date %between% c("2019-07-27","2019-08-12") ,]
-ggplot(H1, aes(date,cmr.mean))+geom_point()+geom_line()+ geom_ribbon(data=H1,aes(x=date, ymin=cmr.lo90,ymax=cmr.hi90),alpha=0.3)
-dev.off()
-
-
-H1 <- beta.posts[os=='Windows_NT' & date %between% c("2019-07-25","2019-08-12") ,]
-ggplot(H1, aes(date,cmr.mean))+geom_point()+geom_line()+ geom_ribbon(data=H1,aes(x=date, ymin=cmr.lo90,ymax=cmr.hi90),alpha=0.3)
-ggplot(H1, aes(date,cmr))+geom_point()+geom_line()
-dev.off()
-
-H1 <- rel.posts[os=='Windows_NT',]
-ggplot(H1, aes(date,cci.mean))+geom_line()+ geom_ribbon(data=H1,aes(x=date, ymin=cci.lo90,ymax=cci.hi90),alpha=0.3)+
-  geom_line(data=H1,aes(date,cci.loess),color='red')
-dev.off()
-
-H2 <- H1[!is.na(cmi.rd.m),]
-ggplot(H2, aes(date,cmr.rd.m))+geom_line()+ geom_ribbon(data=H2,aes(x=date, ymin=cmr.rd.lo,ymax=cmr.rd.hi),alpha=0.3)
-dev.off()
-
-A <- rel.posts[os=='Windows_NT' & c_version=='68.0.1',][order(nvc),][nvc > 0.1,]
-B <- rel.posts[os=='Windows_NT' & c_version=='68.0',][order(nvc),][nvc > 0.1,]
-
-ggplot()+
-  geom_line(data=A,aes(nvc,cmr.mean),color='blue')+
-  geom_ribbon(data=A,aes(x=nvc, ymin=cmr.lo90,ymax=cmr.hi90),alpha=0.3)+
-  geom_line(data=B,aes(nvc,cmr.mean),color='red')+
-  geom_ribbon(data=B,aes(x=nvc, ymin=cmr.lo90,ymax=cmr.hi90),alpha=0.3)
-ggplot(A, aes(date,cmr.rd.m))+geom_line()+ geom_ribbon(data=A,aes(x=date, ymin=cmr.rd.lo,ymax=cmr.rd.hi),alpha=0.3)
-dev.off()
-
-A <- beta.posts[os=='Darwin' & c_version=='69.0b12',][order(nvc),]
-B <- beta.posts[os=='Darwin' & c_version=='69.0b11',][order(nvc),]
-
-ggplot()+
-  geom_line(data=A,aes(nvc,cmr.mean),color='blue')+
-  geom_ribbon(data=A,aes(x=nvc, ymin=cmr.lo90,ymax=cmr.hi90),alpha=0.3)+
-  geom_line(data=B,aes(nvc,cmr.mean),color='red')
-  geom_ribbon(data=B,aes(x=nvc, ymin=cmr.lo90,ymax=cmr.hi90),alpha=0.3)
-ggplot(A, aes(date,cmr.rd.m))+geom_line()+ geom_ribbon(data=A,aes(x=date, ymin=cmr.rd.lo,ymax=cmr.rd.hi),alpha=0.3)
-dev.off()
-```
-
-
-```{r pp1,eval=TRUE}
-pp_check(cr.cc.rel, type='stat_grouped', group='os')
-pp_check(cr.cm.rel, type='stat_grouped', group='os')
-pp_check(cr.cm.beta, type='stat_grouped', group='os')
-pp_check(cr.cc.beta, type='stat_grouped', group='os')
-```
-
-
-```{r pp2,eval=TRUE}
-pp_check(ci.cm.rel, type='stat_grouped', group='os')
-pp_check(ci.cc.rel, type='stat_grouped', group='os')
-pp_check(ci.cm.beta, type='stat_grouped', group='os') 
-pp_check(ci.cc.beta, type='stat_grouped', group='os')
-```
-
-```{r echo=TRUE,eval=TRUE}
-rel.posts[!is.na(cmr) & cmr !=Inf & cmr<10,cor(cmr,cmr.mean),by=os]
-rel.posts[!is.na(ccr) & ccr !=Inf & ccr<10,cor(ccr,ccr.mean),by=os]
-beta.posts[!is.na(cmr) & cmr !=Inf & cmr<10,cor(cmr,cmr.mean),by=os]
-beta.posts[!is.na(ccr) & ccr !=Inf & ccr<10,cor(ccr,ccr.mean),by=os]
-
-
-rel.posts[,cor(cmi,cmi.mean),by=os]
-rel.posts[,cor(cci,cci.mean),by=os]
-beta.posts[,cor(cmi,cmi.mean),by=os]
-beta.posts[,cor(cci,cci.mean),by=os]
-
-
-```
-
-
-
-## Quick Plots
-
-We see the mean content and main crash rate relationship vs. nvc
-
-- change in means (shape changes with os / metric)
-- variance drops also (irrespective of os or metric)
-
-
-```{r}
-x <- dall.rel2[, list(c_version,major,minor,os,nvc, cmr, ccr,cmi,cci)]
-
-pdf("Rplots.pdf",width=10)
-ggplot(x[ccr<quantile(ccr,0.95) &os=='Windows_NT',], aes(nvc, ccr,color=os))+geom_point()+geom_smooth()+labs(title='Content CR')
-ggplot(x[cmr<quantile(cmr,0.95),], aes(nvc, cmr,color=os))+geom_point()+geom_smooth()+labs(title='MAIN CR')
-ggplot(x[cmi<quantile(cmi,0.95),], aes(nvc, cmi,color=os))+geom_point()+geom_smooth()+labs(title='Content CI')
-ggplot(x[cci<quantile(cci,0.95),], aes(nvc, cci,color=os))+geom_point()+geom_smooth()+labs(title='Main CI')
-
-z <- x[, list(x=mean(ccr), s=sd(ccr)),by=list(nvc.cut=as.numeric(cut(nvc, quantile(nvc,0:10/10))))]
-ggplot(z, aes(nvc.cut, x))+geom_point()+geom_smooth()
-ggplot(z, aes(nvc.cut, s))+geom_point()+geom_smooth()
-z <- x[, list(x=mean(cmr), s=sd(cmr)),by=list(nvc.cut=as.numeric(cut(nvc, quantile(nvc,0:10/10))))]
-ggplot(z, aes(nvc.cut, x))+geom_point()+geom_smooth()
-ggplot(z, aes(nvc.cut, s))+geom_point()+geom_smooth()
-z <- x[, list(x=mean(cmi), s=sd(cmi)),by=list(nvc.cut=as.numeric(cut(nvc, quantile(nvc,0:10/10))))]
-ggplot(z, aes(nvc.cut, x))+geom_point()+geom_smooth()
-ggplot(z, aes(nvc.cut, s))+geom_point()+geom_smooth()
-z <- x[, list(x=mean(cci), s=sd(cci)),by=list(nvc.cut=as.numeric(cut(nvc, quantile(nvc,0:10/10))))]
-ggplot(z, aes(nvc.cut, x))+geom_point()+geom_smooth()
-ggplot(z, aes(nvc.cut, s))+geom_point()+geom_smooth()
-
-```

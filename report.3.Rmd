@@ -446,6 +446,7 @@ Release model
 
 ```{r}
 slackr("RELEASE CHAINS STARTING")
+d.rel <- dall.rel2
 cr.cm.rel.f <- future({ make.a.model(d.rel,'cmr') })
 cr.cc.rel.f <- future({ make.a.model(d.rel,'ccr') })
 ci.cm.rel.f <- future({ make.a.model(d.rel,'cmi') })
@@ -462,6 +463,7 @@ Beta Model
 
 ```{r}
 slackr("BETA CHAINS STARTING")
+d.beta <- dall.beta2
 cr.cm.beta.f <- future({ make.a.model(d.beta,'cmr') })
 cr.cc.beta.f <- future({ make.a.model(d.beta,'ccr') })
 ci.cm.beta.f <- future({ make.a.model(d.beta,'cmi') })
@@ -474,7 +476,7 @@ slackr("BETA CHAINS DONE!")
 ```
 
 
-I use a 1% trimmed mean because some of the posterios especially when nvc is
+I use a 1% trimmed mean because some of the posteriors especially when nvc is
 small have crazy large outliers.
 
 ```{r}
@@ -575,8 +577,8 @@ For Release data structures
 
 ```{r}
 release.releases.for.model <- release.releases.for.model[order(major,minor),]
-rel.current.version <- tail(release.releases.for.model,2)[2,]
-rel.prev.version <- tail(release.releases.for.model,2)[1,]
+rel.current.version <- tail(release.releases.for.model,2)[2,version]
+rel.prev.version <- tail(release.releases.for.model,2)[1,version]
 rel.current.data <- d.rel[c_version==rel.current.version,][order(os, date),]
 rel.current.data.modified <- data.table(data.frame(rel.current.data))[, c_version := rel.prev.version]
 
@@ -612,8 +614,8 @@ For beta data structures
 
 ```{r}
 beta.releases.for.model <- beta.releases.for.model[order(major,minor),]
-beta.current.version <- tail(beta.releases.for.model,2)[2,] 
-beta.prev.version <- tail(beta.releases.for.model,2)[1,]
+beta.current.version <- '69.0b15' #tail(beta.releases.for.model,2)[2,version] 
+beta.prev.version <- '69.0b14' #tail(beta.releases.for.model,2)[1,version]
 beta.current.major <- tail(beta.releases.for.model,2)[2,major]
 beta.prev.major <- beta.current.major-1
 beta.current.data <- d.beta[c_version==beta.current.version,][order(os, date),]
@@ -633,9 +635,11 @@ beta.trend2 <- merge(beta.trend2,  beta.posts[, {
   tail(.SD,1)[, list(nvc=nvc)]
 },by=list(os,c_version)], by=c("os","c_version"))[order(os,as.numeric(as.character(major)),as.numeric(as.character(minor))),]
 
+```
 
 
 ## SAVE
+```{r eval=FALSE}
 u <- getwd()
 setwd("visual_demo/data/")
 write.csv(rel.posts, "rel.posts.csv")
@@ -645,12 +649,9 @@ write.csv(beta.summary,"beta.summary.csv")
 write.csv(beta.trend2, "beta.trend.csv")
 setwd(u);rm(u)
 
-```
-
-```{r eval=FALSE}
 render_site("./visual_demo/")
 system(glue("mkdir -p ./visual_demo/older/{today}/", today=(j <- Sys.Date())))
 system(glue("rsync -avz ./visual_demo/ ./visual_demo/older/{today}/",today=j))
-#system("rsync -av ~/mz/missioncontrol/ex1/visual_demo/ ~/pubsguha/visual_demo/")
+system("rsync -av ~/mz/missioncontrol/ex1/visual_demo/ ~/pubsguha/visual_demo/")
 ```
 

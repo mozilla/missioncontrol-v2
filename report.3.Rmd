@@ -640,20 +640,30 @@ beta.trend2 <- merge(beta.trend2,  beta.posts[, {
 
 
 ## SAVE
-```{r eval=FALSE}
-u <- getwd()
-setwd("visual_demo/data/")
-write.csv(rel.posts, "rel.posts.csv")
-write.csv(rel.summary,"rel.summary.csv")
-write.csv(beta.posts,"beta.posts.csv")
-write.csv(beta.summary,"beta.summary.csv")
-write.csv(beta.trend2, "beta.trend.csv")
-setwd(u);rm(u)
+```{r eval=TRUE}
+zq <- expression({
+  
+  u <- getwd()
+  setwd("visual_demo/data/")
+  write.csv(rel.posts, "rel.posts.csv")
+  write.csv(rel.summary,"rel.summary.csv")
+  write.csv(beta.posts,"beta.posts.csv")
+  write.csv(beta.summary,"beta.summary.csv")
+  write.csv(beta.trend2, "beta.trend.csv")
+  setwd(u);rm(u)
+  
+  clean_site("./visual_demo")
+  render_site("./visual_demo/")
+  system(glue("mkdir -p ./visual_demo/older/{today}/", today=(j <- Sys.Date())))
+  system(glue("rsync -avz ./visual_demo/_site/ ./visual_demo/older/{today}/",today=j))
+  system("rsync -av ~/mz/missioncontrol/ex1/visual_demo/ ~/pubsguha/visual_demo/")
 
-clean_site("./visual_demo")
-render_site("./visual_demo/")
-system(glue("mkdir -p ./visual_demo/older/{today}/", today=(j <- Sys.Date())))
-system(glue("rsync -avz ./visual_demo/_site/ ./visual_demo/older/{today}/",today=j))
-system("rsync -av ~/mz/missioncontrol/ex1/visual_demo/ ~/pubsguha/visual_demo/")
+})
+```
+
+```{r eval=FALSE}
+
+eval(zq)
+
 ```
 

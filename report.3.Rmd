@@ -281,14 +281,14 @@ dall.release.new <- dall.release.new[, ":="( major = as.numeric(sapply(c_version
 
 FOR BETA NOW: GET BUILD MAPPING WHICH WILL GET REPLACED BY PYTHON CODE
 
-```{r}
+```{r getBetaData}
 
 buildhub <- import("buildhub_bid")
 builds <- local({
   x <-  buildhub$pull_build_id_docs()
   x <- buildhub$version2build_ids(x)
   x=rbindlist(Map(function(n,b){
-    data.table(versions=n, builds=paste(b,collapse=","))
+    data.table(versions=n, buildid=paste(b,collapse=","))
   },names(x),x))[order(versions),]
 })
   
@@ -348,7 +348,7 @@ dall.new <- rbind(dall.beta.new[,":="(channel='beta')],dall.release.new[,":="(ch
 ```
 
 
-```{r}
+```{r writeData}
 ## What versions, channels, and os did we read today?
 unq <- dall.new[, list(n=.N),by=list(major, channel)]
 
@@ -444,7 +444,7 @@ getPredictions <- function(M,D, wh,givenx=NULL,COUNT=FALSE){
 
 Release model
 
-```{r}
+```{r releaseModel}
 slackr("RELEASE CHAINS STARTING")
 d.rel <- dall.rel2
 cr.cm.rel.f <- future({ make.a.model(d.rel,'cmr') })
@@ -461,7 +461,7 @@ slackr("RELEASE CHAINS DONE")
 
 Beta Model
 
-```{r}
+```{r betaModel}
 slackr("BETA CHAINS STARTING")
 d.beta <- dall.beta2
 cr.cm.beta.f <- future({ make.a.model(d.beta,'cmr') })
@@ -575,7 +575,7 @@ getRelDiff <- function(crm.model,crc.model,cim.model,cic.model,current.data,curr
 For Release data structures
 
 
-```{r}
+```{r releaseDataStructure}
 release.releases.for.model <- release.releases.for.model[order(major,minor),]
 rel.current.version <- tail(release.releases.for.model,2)[2,version]
 rel.prev.version <- tail(release.releases.for.model,2)[1,version]
@@ -612,10 +612,10 @@ rel.posts <- merge(rel.posts,rel.posts[,{
 
 For beta data structures
 
-```{r}
+```{r betaDataStructure}
 beta.releases.for.model <- beta.releases.for.model[order(major,minor),]
 beta.current.version <- '69.0b15' #tail(beta.releases.for.model,2)[2,version] 
-beta.prev.version <- '69.0b14' #tail(beta.releases.for.model,2)[1,version]
+beta.prev.version <-  '69.0b14' #tail(beta.releases.for.model,2)[1,version]
 beta.current.major <- tail(beta.releases.for.model,2)[2,major]
 beta.prev.major <- beta.current.major-1
 beta.current.data <- d.beta[c_version==beta.current.version,][order(os, date),]

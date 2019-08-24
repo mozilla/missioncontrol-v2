@@ -49,7 +49,7 @@ makeSummaryPlot <- function(dd,xlab,ylab,width=NULL){
 }
 figs <- list(
   makeSummaryPlot(beta.summary[, list(fac=as.character(os),lo90=cmr.lo90,mn=cmr.mean,hi90=cmr.hi90)],
-                  "Current Main Crash", ""),
+                  "Current Browser Crash", ""),
   makeSummaryPlot(beta.summary[, list(fac=as.character(os),lo90=ccr.lo90,mn=ccr.mean,hi90=ccr.hi90)],
                 "Current Content Crash",""),
   makeSummaryPlot(beta.summary[, list(fac=as.character(os),lo90=cavgr.lo90,mn=cavgr.mean,hi90=cavgr.hi90)],
@@ -65,7 +65,7 @@ Defined as percentage of DAU that experience a crash
 ```{r}
 figs <- list(
   makeSummaryPlot(beta.summary[, list(fac=as.character(os),lo90=100*cmi.lo90,mn=100*cmi.mean,hi90=100*cmi.hi90)],
-                  "Current Main Crash", ""),
+                  "Current Browser Crash", ""),
   makeSummaryPlot(beta.summary[, list(fac=as.character(os),lo90=100*cci.lo90,mn=100*cci.mean,hi90=100*cci.hi90)],
                 "Current Content Crash",""),
   makeSummaryPlot(beta.summary[, list(fac=as.character(os),lo90=100*cavgi.lo90,mn=100*cavgi.mean,hi90=100*cavgi.hi90)],
@@ -113,73 +113,78 @@ makeRelPlot <- function(dita,xlab,ylab){
 
 #### Rates
 
-```{r}
+```{r x4}
 temp.t <- beta.posts[ccr.wt > 0 | cmr.wt > 0, list(os=os,date=date,version=c_version,adoption=nvc*100,lo90=cavgr.lo90,mn=cavgr.mean,hi90=cavgr.hi90,regProb=100*cavgr.reg.prob)]
-figs4 <- list(makeAdoptionPlot(temp.t[os=='Linux',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Linux'),
-              makeAdoptionPlot(temp.t[os=='Darwin',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Darwin'),
-              makeAdoptionPlot(temp.t[os=='Windows_NT',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Windows_NT')
-              )
+figs4 <- list(
+  makeAdoptionPlot(temp.t[os=='Windows_NT',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Windows_NT'),
+  makeAdoptionPlot(temp.t[os=='Darwin',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Darwin'),
+  makeAdoptionPlot(temp.t[os=='Linux',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Linux'))
+
 grid_plot(figs4)
 ```
 
 
 #### Incidence Pct
 
-```{r}
+```{r x3}
 temp.t <- beta.posts[, list(os=os,date=date,version=c_version,adoption=nvc*100,lo90=100*cavgi.lo90,mn=100*cavgi.mean,hi90=100*cavgi.hi90,regProb=100*cavgi.reg.prob)]
-figs5 <- list(makeAdoptionPlot(temp.t[os=='Linux',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Linux'),
-              makeAdoptionPlot(temp.t[os=='Darwin',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Darwin'),
-              makeAdoptionPlot(temp.t[os=='Windows_NT',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Windows_NT')
-              )
+figs5 <- list(
+  makeAdoptionPlot(temp.t[os=='Windows_NT',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Windows_NT'),
+  makeAdoptionPlot(temp.t[os=='Darwin',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Darwin'),
+  makeAdoptionPlot(temp.t[os=='Linux',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Linux'))
+
 grid_plot(figs5)
 ```
 
 
 
 
-### Main Crash {.tabset}
+### Browser Crash {.tabset}
 
 #### Rates 
-```{r}
+```{r x2}
 
 
-figs1 <- list(makeAdoptionPlot(beta.posts[os=='Linux' & cmr.wt > 0,
+figs1 <- list(
+  makeAdoptionPlot(beta.posts[os=='Windows_NT' & cmr.wt > 0,
                            list(version=c_version,date=date,adoption=nvc*100,lo90=cmr.lo90,mn=cmr.mean,hi90=cmr.hi90,regProb=100*cmr.reg.prob)]
                , cver=beta.current.version,over=beta.prev.version
-               , xlab='Adoption %', ylab='Linux'
+               , xlab='Adoption %', ylab='Windows_NT'
                  ),
-              makeAdoptionPlot(beta.posts[os=='Darwin' & cmr.wt > 0,
+  makeAdoptionPlot(beta.posts[os=='Darwin' & cmr.wt > 0,
                            list(version=c_version,date=date,adoption=nvc*100,lo90=cmr.lo90,mn=cmr.mean,hi90=cmr.hi90,regProb=100*cmr.reg.prob)]
                , cver=beta.current.version,over=beta.prev.version
                , xlab='Adoption %', ylab='Darwin'
                  ),
-              makeAdoptionPlot(beta.posts[os=='Windows_NT' & cmr.wt > 0,
+  makeAdoptionPlot(beta.posts[os=='Linux' & cmr.wt > 0,
                            list(version=c_version,date=date,adoption=nvc*100,lo90=cmr.lo90,mn=cmr.mean,hi90=cmr.hi90,regProb=100*cmr.reg.prob)]
                , cver=beta.current.version,over=beta.prev.version
-               , xlab='Adoption %', ylab='Windows_NT'
+               , xlab='Adoption %', ylab='Linux'
                  )
-              )
+)
 grid_plot(figs1)
 ```
 
 #### Incidence Pct
 
-```{r}
-figs2 <- list(makeAdoptionPlot(beta.posts[os=='Linux',
+```{r x1}
+figs2 <- list(
+              makeAdoptionPlot(beta.posts[os=='Windows_NT',
                            list(version=c_version,date=date,adoption=nvc*100,lo90=100*cmi.lo90,mn=100*cmi.mean,hi90=100*cmi.hi90,regProb=100*cmi.reg.prob)]
                , cver=beta.current.version,over=beta.prev.version
-               , xlab='Adoption %', ylab='Linux'
-                 ),
+               , xlab='Adoption %', ylab='Windows_NT'
+                 )             ,
               makeAdoptionPlot(beta.posts[os=='Darwin',
                            list(version=c_version,date=date,adoption=nvc*100,lo90=100*cmi.lo90,mn=100*cmi.mean,hi90=100*cmi.hi90,regProb=100*cmi.reg.prob)]
                , cver=beta.current.version,over=beta.prev.version
                , xlab='Adoption %', ylab='Darwin'
                  ),
-              makeAdoptionPlot(beta.posts[os=='Windows_NT',
+              makeAdoptionPlot(beta.posts[os=='Linux',
                            list(version=c_version,date=date,adoption=nvc*100,lo90=100*cmi.lo90,mn=100*cmi.mean,hi90=100*cmi.hi90,regProb=100*cmi.reg.prob)]
                , cver=beta.current.version,over=beta.prev.version
-               , xlab='Adoption %', ylab='Windows_NT'
+               , xlab='Adoption %', ylab='Linux'
                  )
+  
               )
 grid_plot(figs2)
 ```
@@ -194,22 +199,23 @@ grid_plot(figs2)
 
 ```{r}
 temp.t <- beta.posts[ccr.wt > 0, list(os=os,date=date,version=c_version,adoption=nvc*100,lo90=ccr.lo90,mn=ccr.mean,hi90=ccr.hi90,regProb=100*ccr.reg.prob)]
-figs4 <- list(makeAdoptionPlot(temp.t[os=='Linux',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Linux'),
-              makeAdoptionPlot(temp.t[os=='Darwin',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Darwin'),
-              makeAdoptionPlot(temp.t[os=='Windows_NT',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Windows_NT')
-              )
+figs4 <- list(
+  makeAdoptionPlot(temp.t[os=='Windows_NT',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Windows_NT'),
+  makeAdoptionPlot(temp.t[os=='Darwin',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Darwin'),
+  makeAdoptionPlot(temp.t[os=='Linux',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Linux'))
+
 grid_plot(figs4)
 ```
 
 
 #### Incidence %
 
-```{r}
+```{r }
 temp.t <- beta.posts[, list(os=os,date=date,version=c_version,adoption=nvc*100,lo90=100*cci.lo90,mn=100*cci.mean,hi90=100*cci.hi90,regProb=100*cci.reg.prob)]
-figs5 <- list(makeAdoptionPlot(temp.t[os=='Linux',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Linux'),
-              makeAdoptionPlot(temp.t[os=='Darwin',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Darwin'),
-              makeAdoptionPlot(temp.t[os=='Windows_NT',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Windows_NT')
-              )
+figs5 <- list(
+  makeAdoptionPlot(temp.t[os=='Windows_NT',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Windows_NT'),
+  makeAdoptionPlot(temp.t[os=='Darwin',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Darwin'),
+  makeAdoptionPlot(temp.t[os=='Linux',] , cver=beta.current.version,over=beta.prev.version , xlab='Adoption %', ylab='Linux'))
 grid_plot(figs5)
 ```
 
@@ -249,9 +255,11 @@ makeBetaTrend <- function(dd,xlab,ylab,width=NULL){
 ```{r}
 t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=cavgr.lo90,mn=cavgr.mean,hi90=cavgr.hi90)]
 fig7 <- list(
-  makeBetaTrend(t.temp[os=='Linux',], xlab='Avg Crash', ylab='Linux'),
+  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Avg Crash', ylab='Windows_NT'),
   makeBetaTrend(t.temp[os=='Darwin',], xlab='Avg Crash', ylab='Darwin'),
-  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Avg Crash', ylab='Windows_NT'))
+  makeBetaTrend(t.temp[os=='Linux',], xlab='Avg Crash', ylab='Linux'))
+
+
 grid_plot(fig7)
   
 ```
@@ -261,16 +269,18 @@ grid_plot(fig7)
 ```{r}
 t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=100*cavgi.lo90,mn=100*cavgi.mean,hi90=100*cavgi.hi90)]
 fig8 <- list(
-  makeBetaTrend(t.temp[os=='Linux',], xlab='Avg Crash', ylab='Linux'),
+  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Avg Crash', ylab='Windows_NT'),
   makeBetaTrend(t.temp[os=='Darwin',], xlab='Avg Crash', ylab='Darwin'),
-  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Avg Crash', ylab='Windows_NT'))
+  makeBetaTrend(t.temp[os=='Linux',], xlab='Avg Crash', ylab='Linux'))
+
+
 grid_plot(fig8)
   
 ```
 
 
 
-### Main Crash {.tabset id='trend-main'}
+### Browser Crash {.tabset id='trend-main'}
 
 
 #### Rates
@@ -278,9 +288,11 @@ grid_plot(fig8)
 ```{r}
 t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=cmr.lo90,mn=cmr.mean,hi90=cmr.hi90)]
 fig9 <- list(
-  makeBetaTrend(t.temp[os=='Linux',], xlab='Main Crash', ylab='Linux'),
-  makeBetaTrend(t.temp[os=='Darwin',], xlab='Main Crash', ylab='Darwin'),
-  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Main Crash', ylab='Windows_NT'))
+  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Browser Crash', ylab='Windows_NT'),
+  makeBetaTrend(t.temp[os=='Darwin',], xlab='Browser Crash', ylab='Darwin'),
+  makeBetaTrend(t.temp[os=='Linux',], xlab='Browser Crash', ylab='Linux'))
+
+
 grid_plot(fig9)
   
 ```
@@ -290,9 +302,11 @@ grid_plot(fig9)
 ```{r}
 t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=100*cmi.lo90,mn=100*cmi.mean,hi90=100*cmi.hi90)]
 fig10<- list(
-  makeBetaTrend(t.temp[os=='Linux',], xlab='Main Crash', ylab='Linux'),
-  makeBetaTrend(t.temp[os=='Darwin',], xlab='Main Crash', ylab='Darwin'),
-  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Main Crash', ylab='Windows_NT'))
+  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Browser Crash', ylab='Windows_NT'),
+  makeBetaTrend(t.temp[os=='Darwin',], xlab='Browser Crash', ylab='Darwin'),
+  makeBetaTrend(t.temp[os=='Linux',], xlab='Browser Crash', ylab='Linux'))
+
+
 grid_plot(fig10)
   
 ```
@@ -306,9 +320,11 @@ grid_plot(fig10)
 ```{r}
 t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=ccr.lo90,mn=ccr.mean,hi90=ccr.hi90)]
 fig9 <- list(
-  makeBetaTrend(t.temp[os=='Linux',], xlab='Content Crash', ylab='Linux'),
+  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Content Crash', ylab='Windows_NT'),
   makeBetaTrend(t.temp[os=='Darwin',], xlab='Content Crash', ylab='Darwin'),
-  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Content Crash', ylab='Windows_NT'))
+  makeBetaTrend(t.temp[os=='Linux',], xlab='Content Crash', ylab='Linux'))
+
+
 grid_plot(fig9)
   
 ```
@@ -318,9 +334,11 @@ grid_plot(fig9)
 ```{r}
 t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=100*cci.lo90,mn=100*cci.mean,hi90=100*cci.hi90)]
 fig10<- list(
-  makeBetaTrend(t.temp[os=='Linux',], xlab='Content Crash', ylab='Linux'),
+  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Content Crash', ylab='Windows_NT'),
   makeBetaTrend(t.temp[os=='Darwin',], xlab='Content Crash', ylab='Darwin'),
-  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Content Crash', ylab='Windows_NT'))
+  makeBetaTrend(t.temp[os=='Linux',], xlab='Content Crash', ylab='Linux'))
+
+
 grid_plot(fig10)
   
 ```

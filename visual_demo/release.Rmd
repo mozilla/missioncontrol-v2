@@ -37,7 +37,7 @@ kable_styling(
                       "Average" = round(100*cavgi.mean,2)
                       )])
    ,caption = "Current  Levels",full.width=FALSE,)
-) %>% pack_rows("Activation", 2, 2) %>% pack_rows("Crash Rates", 3, 5) %>% pack_rows("Crash Incidence %", 6, 8)
+) %>% pack_rows("Adoption", 2, 2) %>% pack_rows("Crash Rate/Active Hr", 3, 5) %>% pack_rows("Crash Incidence %", 6, 8)
 ```
 
 ### Crash Rates

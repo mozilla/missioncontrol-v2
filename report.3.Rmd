@@ -649,9 +649,10 @@ write.csv(beta.summary,"beta.summary.csv")
 write.csv(beta.trend2, "beta.trend.csv")
 setwd(u);rm(u)
 
+clean_site("./visual_demo")
 render_site("./visual_demo/")
 system(glue("mkdir -p ./visual_demo/older/{today}/", today=(j <- Sys.Date())))
-system(glue("rsync -avz ./visual_demo/ ./visual_demo/older/{today}/",today=j))
+system(glue("rsync -avz ./visual_demo/_site/ ./visual_demo/older/{today}/",today=j))
 system("rsync -av ~/mz/missioncontrol/ex1/visual_demo/ ~/pubsguha/visual_demo/")
 ```
 

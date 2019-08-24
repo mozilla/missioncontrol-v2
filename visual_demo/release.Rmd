@@ -322,6 +322,5 @@ fig12 <- list(
   makeTrend(t.temp[os=='Darwin',], xlab='Date',ylab='Darwin',markers=rel.dates.versions),
   makeTrend(t.temp[os=='Linux',], xlab='Date',ylab='Linux',markers=rel.dates.versions))
 
-
 grid_plot(fig12)
 ```

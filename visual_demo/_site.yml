@@ -38,6 +38,7 @@ navbar:
       href: "beta.html#trend-main"
     - text: content crash
       href: "beta.html#trend-content"
-    
+exclude: ["older"]
+include: ["data"]
     
 

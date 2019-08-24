@@ -26,8 +26,18 @@ AS OF NOW: `r max(rel.summary$date)`
 
 ```{r x1,echo=FALSE}
 kable_styling(
-  kable(t(rel.summary[,list(os,"% Active Hours Adoption"=round(nvc*100,2))]),caption = "Current Adoption Levels")
-)
+  kable(t(
+    rel.summary[,list(os,
+                      "% Active Hours Adoption"=round(nvc*100,2),
+                      "Browser" = round(cmr.mean,3),
+                      "Content" = round(ccr.mean,3),
+                      "Average" = round(cavgr.mean,3),
+                      "Browser" = round(100*cmi.mean,2),
+                      "Content" = round(100*cci.mean,2),
+                      "Average" = round(100*cavgi.mean,2)
+                      )])
+   ,caption = "Current  Levels",full.width=FALSE,)
+) %>% pack_rows("Activation", 2, 2) %>% pack_rows("Crash Rates", 3, 5) %>% pack_rows("Crash Incidence %", 6, 8)
 ```
 
 ### Crash Rates

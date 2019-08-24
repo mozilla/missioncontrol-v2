@@ -39,6 +39,7 @@ library(glue)
 library(data.table)
 library(rjson)
 library(future)
+library(kableExtra)
 library(reticulate)
 plan(multicore)
 slack.start() ##requires prefix.R
@@ -614,8 +615,8 @@ For beta data structures
 
 ```{r betaDataStructure}
 beta.releases.for.model <- beta.releases.for.model[order(major,minor),]
-beta.current.version <- '69.0b15' #tail(beta.releases.for.model,2)[2,version] 
-beta.prev.version <-  '69.0b14' #tail(beta.releases.for.model,2)[1,version]
+beta.current.version <- tail(beta.releases.for.model,2)[2,version] 
+beta.prev.version <-  tail(beta.releases.for.model,2)[1,version]
 beta.current.major <- tail(beta.releases.for.model,2)[2,major]
 beta.prev.major <- beta.current.major-1
 beta.current.data <- d.beta[c_version==beta.current.version,][order(os, date),]

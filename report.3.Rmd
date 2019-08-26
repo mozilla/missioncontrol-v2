@@ -388,6 +388,9 @@ dall.beta2 <- g$q(glue("select * from analysis.sguha_crash_rate_raw where channe
          whichv = paste(unique(beta.releases.for.model[,major]),collapse=",")),-1)
 dall.beta2 <- dall.beta2[nvc > 0][,":="(nvc.logit=boot::logit(nvc),cmr.wt = 1*(cmain >0), ccr.wt = 1*(ccontent > 0))]
 
+dall.rel2[, wts := nvc/sum(nvc)*100*3,by=os]
+dall.beta2[, wts :=  nvc/sum(nvc)*100*3,by=os]
+
 ```
 
 
@@ -395,33 +398,43 @@ dall.beta2 <- dall.beta2[nvc > 0][,":="(nvc.logit=boot::logit(nvc),cmr.wt = 1*(c
 
 ```{r}
 
-
 ffunc <- function(M,D)  brm(M,data=D, chains = 4, control = list(adapt_delta = 0.999, max_treedepth=12), cores = 4)
+      # M0 <- bf( log(1+cmain) | weights(cmr.wt)   ~  os + os*poly(log(usage_cm_crasher_cversion+1/60),2)+os*poly(nvc.logit,2)  + (1+os|c_version), sigma ~   os + s(nvc.logit, m=1))
 make.a.model <- function(data,wh,skew=FALSE){
   if(wh=="cmr"){
-      M0 <- bf( log(cmain+1) |weights(cmr.wt)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
-      # M0 <- bf( log(1+cmain) | weights(cmr.wt)   ~  os + os*poly(log(usage_cm_crasher_cversion+1/60),2)+os*poly(nvc.logit,2)  + (1+os|c_version), sigma ~   os + s(nvc.logit, m=1))
+    M0 <- bf( log(cmain+1) |weights(cmr.wt)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1)) 
+    if(alter){
+      M0 <- bf( cmain+1 |weights(cmr.wt)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + (1+os|c_version), shape ~ os+s(nvc,m=1))+negbinomial()
+      }
   }
   if(wh=='ccr'){
-      M0 <- bf( log(ccontent+1) | weights(ccr.wt)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
-      # M0 <- bf( log(1+ccontent) | weights(cmr.wt)   ~  os + os*poly(log(usage_cc_crasher_cversion+1/60),2)+os*poly(nvc.logit,2)  + (1+os|c_version), sigma ~   os + s(nvc.logit, m=1))
+    M0 <- bf( log(ccontent+1) | weights(ccr.wt)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+    if(alter){
+      M0 <- bf( ccontent+1 | weights(ccr.wt)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))   + (1+os|c_version), shape ~  os+s(nvc,m=1))+negbinomial()
+    }
   }
   if(wh=='cmi'){
-       M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
-       # M0 <- bf( log(1+dau_cm_crasher_cversion)    ~  os + os*poly(log(dau_cversion),2)+os*poly(nvc.logit,2)  + (1+os|c_version), sigma ~   os + s(nvc.logit, m=1))
+    M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
   }
   if(wh=='cci'){
-     M0<- bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
-     # M0 <- bf( log(1+dau_cc_crasher_cversion)    ~  os + os*poly(log(dau_cversion),2)+os*poly(nvc.logit,2)  + (1+os|c_version), sigma ~   os + s(nvc.logit, m=1))
+    M0<- bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
   }
   ffunc(M0,data)
 }
 
+Predict <- function(M,...){
+  p <- predict(M,...)
+  fa <- family(M)$fam
+  if(fa=="gaussian") return(p)
+  if(fa=="negbinomial") {return(log(p))}
+}
+    
+  
 getPredictions <- function(M,D, wh,givenx=NULL,COUNT=FALSE){
   if(is.null(givenx)){
-    x <- predict(M,newdata=D,summary=FALSE)
+    x <-Predict(M,newdata=D,summary=FALSE)
   }else{
-    x <- givenx
+    x <-givenx
   }
   if(COUNT){
     return (exp(t(x)-1))
@@ -547,19 +560,19 @@ getRelDiff <- function(crm.model,crc.model,cim.model,cic.model,current.data,curr
     setnames(x,names)
     x
   }
-  tvm <- getPredictions(NULL, current.data,'cmr',given=predict(crm.model,summary=FALSE, newdata=current.data))
-  pvm <- getPredictions(NULL, current.data.modified, 'cmr',given=predict(crm.model,summary=FALSE, newdata=current.data.modified))
-  tvc <- getPredictions(NULL, current.data, 'ccr', given=predict(crc.model,summary=FALSE, newdata=current.data))
-  pvc <- getPredictions(NULL, current.data.modified, 'ccr', given=predict(crc.model,summary=FALSE, newdata=current.data.modified))
+  tvm <- getPredictions(NULL, current.data,'cmr',given=Predict(crm.model,summary=FALSE, newdata=current.data))
+  pvm <- getPredictions(NULL, current.data.modified, 'cmr',given=Predict(crm.model,summary=FALSE, newdata=current.data.modified))
+  tvc <- getPredictions(NULL, current.data, 'ccr', given=Predict(crc.model,summary=FALSE, newdata=current.data))
+  pvc <- getPredictions(NULL, current.data.modified, 'ccr', given=Predict(crc.model,summary=FALSE, newdata=current.data.modified))
   trans <- function(s) s  #function(x) x
   cmr=H(  (trans(tvm) - trans(pvm))/trans(pvm),names=c("cmr.reg.prob"))
   ccr=H(  (trans(tvc) - trans(pvc))/trans(pvc),names=c("ccr.reg.prob"))
   tv1 <- (tvc+tvm)/2;pv1 <- (pvc+pvm)/2
   cavgr <- H( (trans(tv1) - trans(pv1))/trans(pv1),names=c("cavgr.reg.prob"))
-  tvm <- getPredictions(NULL, current.data,'cmr',given=predict(cim.model,summary=FALSE, newdata=current.data))
-  pvm <- getPredictions(NULL, current.data.modified, 'cmr',given=predict(cim.model,summary=FALSE, newdata=current.data.modified))
-  tvc <- getPredictions(NULL, current.data, 'ccr', given=predict(cic.model,summary=FALSE, newdata=current.data))
-  pvc <- getPredictions(NULL, current.data.modified, 'ccr', given=predict(cic.model,summary=FALSE, newdata=current.data.modified))
+  tvm <- getPredictions(NULL, current.data,'cmr',given=Predict(cim.model,summary=FALSE, newdata=current.data))
+  pvm <- getPredictions(NULL, current.data.modified, 'cmr',given=Predict(cim.model,summary=FALSE, newdata=current.data.modified))
+  tvc <- getPredictions(NULL, current.data, 'ccr', given=Predict(cic.model,summary=FALSE, newdata=current.data))
+  pvc <- getPredictions(NULL, current.data.modified, 'ccr', given=Predict(cic.model,summary=FALSE, newdata=current.data.modified))
   trans <- function(x) x
   cmi=H(  (trans(tvm) - trans(pvm))/trans(pvm),names=c("cmi.reg.prob"))
   cci=H(  (trans(tvc) - trans(pvc))/trans(pvc),names=c("cci.reg.prob"))
@@ -654,16 +667,60 @@ zq <- expression({
   
   clean_site("./visual_demo")
   render_site("./visual_demo/")
+  
   system(glue("mkdir -p ./visual_demo/older/{today}/", today=(j <- Sys.Date())))
   system(glue("rsync -avz ./visual_demo/_site/ ./visual_demo/older/{today}/",today=j))
   system("rsync -av ~/mz/missioncontrol/ex1/visual_demo/ ~/pubsguha/visual_demo/")
-
+  system("ls ~/pubsguha/visual_demo/older/ | cat ~/pubsguha/visual_demo/older/index.html")
+  system("ls ~/pubsguha/visual_demo/older/ > ~/pubsguha/visual_demo/older/index.html")
+  system("ls ~/pubsguha/visual_demo/data/ > ~/pubsguha/visual_demo/data/index.html")
 })
 ```
 
 ```{r eval=FALSE}
 
+#alter=TRUE;render("report.3.Rmd");clean_site("./visual_demo");  render_site("./visual_demo/")a
+alter=TRUE;render("report.3.Rmd");
 eval(zq)
+
 
 ```
 
+## PLOTS
+
+### Crash Rate
+
+```{r pp3}
+
+pp_check(cr.cc.rel, type='stat_grouped', group='os')
+pp_check(cr.cm.rel, type='stat_grouped', group='os')
+pp_check(cr.cm.beta, type='stat_grouped', group='os')
+pp_check(cr.cc.beta, type='stat_grouped', group='os')
+```
+
+
+### Crash Incidence
+
+```{r pp2}
+pp_check(ci.cm.rel, type='stat_grouped', group='os')
+pp_check(ci.cc.rel, type='stat_grouped', group='os')
+pp_check(ci.cm.beta, type='stat_grouped', group='os') 
+pp_check(ci.cc.beta, type='stat_grouped', group='os')
+```
+
+### Correlations
+
+```{r}
+
+rel.posts[!is.na(cmr) & cmr !=Inf, cor(cmr,cmr.mean),by=os]
+rel.posts[!is.na(ccr) & ccr !=Inf ,cor(ccr,ccr.mean),by=os]
+beta.posts[!is.na(cmr) & cmr !=Inf,cor(cmr,cmr.mean),by=os]
+beta.posts[!is.na(ccr) & ccr !=Inf,cor(ccr,ccr.mean),by=os]
+
+
+rel.posts[,cor(cmi,cmi.mean),by=os]
+rel.posts[,cor(cci,cci.mean),by=os]
+beta.posts[,cor(cmi,cmi.mean),by=os]
+beta.posts[,cor(cci,cci.mean),by=os]
+
+```

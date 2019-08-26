@@ -9,14 +9,14 @@ navbar:
     - text: Adoption
     - text: average crash
       href: "release.html#average-crash"
-    - text: main crash
+    - text: browser crash
       href: "release.html#main-crash"
     - text: content crash
       href: "release.html#content-crash"
     - text: Trend
     - text: average crash
       href: "release.html#trend-average"
-    - text: main crash
+    - text: browser crash
       href: "release.html#trend-main"
     - text: content crash
       href: "release.html#trend-content"
@@ -27,17 +27,20 @@ navbar:
     - text: Adoption
     - text: average crash
       href: "beta.html#average-crash"
-    - text: main crash
+    - text: browser crash
       href: "beta.html#main-crash"
     - text: content crash
       href: "beta.html#content-crash"
     - text: Trend
     - text: average crash
       href: "beta.html#trend-average"
-    - text: main crash
+    - text: browser crash
       href: "beta.html#trend-main"
     - text: content crash
       href: "beta.html#trend-content"
+  - text: FAQ
+    href: faq.html
+    
 exclude: ["older"]
 include: ["data"]
     

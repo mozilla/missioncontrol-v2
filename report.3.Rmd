@@ -404,13 +404,13 @@ make.a.model <- function(data,wh,skew=FALSE){
   if(wh=="cmr"){
     M0 <- bf( log(cmain+1) |weights(cmr.wt)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1)) 
     if(alter){
-      M0 <- bf( cmain+1 |weights(cmr.wt)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + (1+os|c_version), shape ~ os+s(nvc,m=1))+negbinomial()
+      M0 <- bf( cmain+1 |weights(cmr.wt)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os)+(1+os|c_version), shape ~ os+s(nvc,m=1))+negbinomial()
     }
   }
   if(wh=='ccr'){
     M0 <- bf( log(ccontent+1) | weights(ccr.wt)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
     if(alter){
-      M0 <- bf( ccontent+1 | weights(ccr.wt)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))   + (1+os|c_version), shape ~  os+s(nvc,m=1))+negbinomial()
+      M0 <- bf( ccontent+1 | weights(ccr.wt)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), shape ~  os+s(nvc,m=1))+negbinomial()
     }
   }
   if(wh=='cmi'){

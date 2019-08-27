@@ -84,7 +84,6 @@ and submission_date_s3 <= DATE_ADD(DATE '{current_version_release}', INTERVAL {n
 and os  in ('Linux','Windows_NT','Darwin')
 and app_name='Firefox'
 and normalized_channel = '{norm_channel}'
--- and profile_creation_date>=12418 and profile_creation_date<=20089 
 and  MOD(ABS(FARM_FINGERPRINT(MD5(client_id))), SAMPLING.NBUCKS)=0
 group by 1,2
 ),
@@ -312,7 +311,7 @@ beta.what.i.need$till= c(tail(beta.what.i.need$d,-1),Sys.Date()+7)
 beta.what.i.need <- merge(beta.what.i.need,builds[, list(v=versions, buildid)],by=c('v'),all.x=TRUE)
 ```
 
-```{r betadata}
+```{r betadata}d
 dall.beta.new <-   beta.what.i.need[,{
     print(.SD);print(.BY)
     qf <- glue(qr,
@@ -331,7 +330,7 @@ dall.beta.new <-   beta.what.i.need[,{
       add_fields(qff,.BY$v,d,till)
 },by=v]
 
-dall.beta.new <- dall.beta.new[, {
+all.beta.new <- dall.beta.new[, {
   ## Take the last day we saw the max
   index <- which.max(nvc)
   s <- (1:.N)[ isLatest]
@@ -349,15 +348,76 @@ dall.new <- rbind(dall.beta.new[,":="(channel='beta')],dall.release.new[,":="(ch
 ```
 
 
+## NIGHTLY
+
+Nightly is slightly different. We get the dates of a version and then each
+YYYYMMDD is a minor version. For each minor version we get 7 days of data (we'll
+lop of days later).
+
+```{r}
+## This ideally ought be done via buildhub
+nightly <- fxv.beta[minor==3,list(version=substr(version,1,4), date)]
+nightly[, ":="(till=c(tail(date,-1),Sys.Date()),
+               version = paste(as.numeric(version) +1,".0a1",sep=""))]
+nightly.what.i.need <- tail(nightly,1) #tail(nightly,1)
+nightly.what.i.need <- nightly.what.i.need[, data.frame(buildid = strftime(seq(from=date, to=till,by=1),'%Y%m%d')),
+                    by=list(v=version)]
+nightly.what.i.need[, ":="(d=as.character(strptime(buildid,'%Y%m%d')),
+                           c = 'nightly',
+                           ndays = 7, crash_src = 'telemetry.crash_summary_v2',
+                           app_version_field='substr(app_build_id,1,8)',
+                           build_version_field='substr(build_id,1,8)')][, till:=as.Date(d)+7]
+nightly.what.i.need <- nightly.what.i.need[d<'2019-06-18', crash_src := 'telemetry.crash_summary_v1']
+
+dall.nightly.new <-   nightly.what.i.need[,{
+  print(.SD);print(.BY)
+    qf <- glue(qr,
+               current_version=.BY$buildid,
+               current_version_crash=.BY$buildid,
+               current_version_release=d,
+               norm_channel = c,
+               app_version_field = app_version_field,
+               build_version_field=build_version_field,
+               nday=ndays,
+               crash_src=isn(crash_src),
+               NBUCKS=1
+               )
+  #writeLines(qf, "/tmp/xx")
+    qff <- g$q(qf,-1)
+    if(nrow(qff) > 0)
+      add_fields(qff,.BY$buildid,d,till)
+},by=list(v,buildid)]
+
+
+dall.nightly.new <- dall.nightly.new[, {
+  ## Take the last day we saw the max
+  index <- which.max(nvc)
+  .SD[1:index,]
+},by=list(os,c_version)]
+
+dall.nightly.new <- dall.nightly.new[,":="( major=  as.numeric(sapply(v,function(s) head(strsplit(s,"\\.0a")[[1]],1))),
+                                           minor =  as.numeric(c_version)
+                                           ),by=v][,buildid:=NULL]
+
+dall.new <- rbind(dall.beta.new[,":="(channel='beta')],
+                  dall.release.new[,":="(channel='release')],
+                  dall.nightly.new[,":="(channel='nightly')]
+                  )[,":="(v=NULL)]
+
+```
+
+
+
 ```{r writeData}
+
 ## What versions, channels, and os did we read today?
 unq <- dall.new[, list(n=.N),by=list(major, channel)]
 
 ## delete them from BQ table
 res <- unq[,{
-  del.q <- glue("delete  from analysis.sguha_crash_rate_raw  where major={major} and channel='{channel}'",major=major, channel=.BY$channel)
+  del.q <- glue("delete  from analysis.sguha_crash_rate_raw  where major={major} and channel='{channel}'",major=.BY$major, channel=.BY$channel)
   g$q(del.q)
-},by=channel]
+},by=list(major,channel)]
 
 ## Upload new data
 atemp <- tempfile()
@@ -608,7 +668,7 @@ reldiff.rel <- getRelDiff(cr.cm.rel,cr.cc.rel,ci.cm.rel,ci.cc.rel, rel.current.d
 rel.posts <- cbind(d.rel[,list(date,cmr.wt,ccr.wt,c_version, os,nvc,cmr,ccr,cmi,cci)],lowhigh.rel)
 rel.posts <- merge(rel.posts,reldiff.rel,all.x=TRUE,by=c("os","date","c_version"))
 
-rel.summary <- rel.posts[c_version==rel.current.version,][date==max(date),][, os:=reorder(os, levels=c("Windows_NT","Darwin","Linux"))]
+rel.summary <- rel.posts[c_version==rel.current.version,][date==max(date),][, os:=factor(os, levels=c("Windows_NT","Darwin","Linux"))]
 
 H0 <- function(nvc,l,h){
   return( nvc > 0.2)
@@ -646,7 +706,7 @@ reldiff.beta <- getRelDiff(cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta, beta.cur
 beta.posts <- cbind(d.beta[,list(date,cmr.wt,ccr.wt,c_version, os,nvc,cmr,ccr,cmi,cci)],lowhigh.beta)
 beta.posts <- merge(beta.posts,reldiff.beta,all.x=TRUE,by=c("os","date","c_version"))
 
-beta.summary <- beta.posts[c_version==beta.current.version,][date==max(date),][, os:=reorder(os, levels=c("Windows_NT","Darwin","Linux"))]
+beta.summary <- beta.posts[c_version==beta.current.version,][date==max(date),][, os:=factor(os, levels=c("Windows_NT","Darwin","Linux"))]
 beta.trend3 <- getBetaTrend(d.beta,cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta)
 beta.trend3[, ":="(major =  (sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1))),
                    minor = (sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]

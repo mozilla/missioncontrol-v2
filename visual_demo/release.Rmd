@@ -50,20 +50,21 @@ makeSummaryPlot <- function(dd,xlab,ylab,width=NULL){
   ylim <- dd$fac
   figure(ylim = ylim,width=if(is.null(width)) 330 else width,height=300) %>%
     ly_segments(lo90, fac, hi90, fac, data = dd ,color = NULL, width = 2) %>%
-    ly_points(mn, fac, glyph = 16, data=dd,hover = list(value=mn,lo90=lo90,hi90=hi90)) %>%
+    ly_points(mn, fac, glyph = 16, data=dd,hover = list(value=mn,lo90=lo90,hi90=hi90,regressionProb=100*regProb)) %>%
     x_axis(label = xlab) %>%
     y_axis(label = ylab) %>%
     theme_axis(c("x", "y"), 
                axis_label_text_font_size = "8pt",
-               major_label_text_font_size = "8pt")
+               major_label_text_font_size = "8pt") %>%
+    theme_legend(background_fill_alpha=.3)  %>% theme_grid(c("x", "y"), grid_line_color = "white")
 }
 figs <- list(
-  makeSummaryPlot(rel.summary[, list(fac=as.character(os),lo90=cmr.lo90,mn=cmr.mean,hi90=cmr.hi90)],
+  makeSummaryPlot(rel.summary[, list(fac=as.character(os),lo90=cavgr.lo90,mn=cavgr.mean,hi90=cavgr.hi90,regProb=cavgr.reg.prob)],
+                  "Current Average Crash",""),
+  makeSummaryPlot(rel.summary[, list(fac=as.character(os),lo90=cmr.lo90,mn=cmr.mean,hi90=cmr.hi90,regProb=cmr.reg.prob)],
                   "Current Browser Crash", ""),
-  makeSummaryPlot(rel.summary[, list(fac=as.character(os),lo90=ccr.lo90,mn=ccr.mean,hi90=ccr.hi90)],
-                "Current Content Crash",""),
-  makeSummaryPlot(rel.summary[, list(fac=as.character(os),lo90=cavgr.lo90,mn=cavgr.mean,hi90=cavgr.hi90)],
-                  "Current Average Crash","")
+  makeSummaryPlot(rel.summary[, list(fac=as.character(os),lo90=ccr.lo90,mn=ccr.mean,hi90=ccr.hi90,regProb=ccr.reg.prob)],
+                "Current Content Crash","")
 )
 grid_plot(figs)
 ```
@@ -74,11 +75,11 @@ Defined as percentage of DAU that experience a crash
 
 ```{r x3}
 figs <- list(
-  makeSummaryPlot(rel.summary[, list(fac=as.character(os),lo90=100*cmi.lo90,mn=100*cmi.mean,hi90=100*cmi.hi90)],
+  makeSummaryPlot(rel.summary[, list(fac=as.character(os),lo90=100*cmi.lo90,mn=100*cmi.mean,hi90=100*cmi.hi90,regProb=cmi.reg.prob)],
                   "Current Browser Crash", ""),
-  makeSummaryPlot(rel.summary[, list(fac=as.character(os),lo90=100*cci.lo90,mn=100*cci.mean,hi90=100*cci.hi90)],
+  makeSummaryPlot(rel.summary[, list(fac=as.character(os),lo90=100*cci.lo90,mn=100*cci.mean,hi90=100*cci.hi90,regProb=cci.reg.prob)],
                 "Current Content Crash",""),
-  makeSummaryPlot(rel.summary[, list(fac=as.character(os),lo90=100*cavgi.lo90,mn=100*cavgi.mean,hi90=100*cavgi.hi90)],
+  makeSummaryPlot(rel.summary[, list(fac=as.character(os),lo90=100*cavgi.lo90,mn=100*cavgi.mean,hi90=100*cavgi.hi90,regProb=cavgi.reg.prob)],
                   "Current Average Crash","")
 )
 grid_plot(figs)
@@ -102,7 +103,8 @@ makeAdoptionPlot <- function(dita,cver,over,xlab,ylab){
     ly_points(data=AB,adoption, mn, color=version,hover = AB) %>%
     ly_lines(data=AB,adoption, mn, color=version) %>%
     x_axis(label = xlab) %>%
-    y_axis(label = ylab)
+    y_axis(label = ylab)%>%
+    theme_legend(background_fill_alpha=.3) %>% theme_grid(c("x", "y"), grid_line_color = "white")
 
 }
 
@@ -113,7 +115,8 @@ makeRelPlot <- function(dita,xlab,ylab){
     ly_lines(data=dita,adoption, mn) %>%
     ly_polygons(data=dita, xs=c(adoption,rev(adoption)),ys=c(lo90,rev(hi90))) %>%
     x_axis(label = xlab) %>%
-    y_axis(label = ylab)
+    y_axis(label = ylab)%>%
+    theme_legend(background_fill_alpha=.3)
 
 }
 
@@ -237,7 +240,10 @@ grid_plot(figs5)
 ## Trends
 
 Long term view across versions, removing points where adoption is less than 10%
-(i.e. first few days of release) which improves graph legibility.
+(i.e. first few days of release) which improves graph legibility. 
+
+Look for lines that are generally increasing (or decreasing) over time. If increasing, the
+crash statistic is getting worse.
 
 
 
@@ -246,7 +252,7 @@ makeTrend <- function(dita,xlab,ylab,markers=NULL){
   dita <- dita[order(date),]
   f <- figure(width=500,height=300) %>%
     ly_points(data=dita,date, mn, hover = dita,size=8) %>%
-    ly_lines(data=dita,date, smooth,width=2) %>%
+    ly_lines(data=dita,date, smooth,width=3,color='red') %>%
     x_axis(label = xlab) %>%
     y_axis(label = ylab)
   if(!is.null(markers)){

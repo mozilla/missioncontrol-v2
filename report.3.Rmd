@@ -398,7 +398,7 @@ dall.beta2[, wts :=  nvc/sum(nvc)*100*3,by=os]
 
 ```{r}
 
-ffunc <- function(M,D)  brm(M,data=D, chains = 4, control = list(adapt_delta = 0.999, max_treedepth=12), cores = 4)
+ffunc <- function(M,D)  brm(M,data=D, chains = 6, control = list(adapt_delta = 0.999, max_treedepth=12), cores = 6)
       # M0 <- bf( log(1+cmain) | weights(cmr.wt)   ~  os + os*poly(log(usage_cm_crasher_cversion+1/60),2)+os*poly(nvc.logit,2)  + (1+os|c_version), sigma ~   os + s(nvc.logit, m=1))
 make.a.model <- function(data,wh,skew=FALSE){
   if(wh=="cmr"){
@@ -414,12 +414,12 @@ make.a.model <- function(data,wh,skew=FALSE){
     }
   }
   if(wh=='cmi'){
-    #M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
-    M0<- bf( cmi.logit   ~   os + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+    M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+    #M0<- bf( cmi.logit   ~   os + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
   }
   if(wh=='cci'){
-    #M0<- bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
-    M0<- bf( cci.logit   ~   os  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+    M0<- bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+    #M0<- bf( cci.logit   ~   os  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
   }
   ffunc(M0,data)
 }
@@ -448,12 +448,14 @@ getPredictions <- function(M,D, wh,givenx=NULL,COUNT=FALSE){
     r <- exp(t(x) -  D[, log( usage_cc_crasher_cversion+1/60)])
   }
   if(wh=='cmi'){
-    #r <- exp(t(x) -  D[, log( dau_cversion)])
-    r <- boot::inv.logit(t(x))
+    r <- exp(t(x) -  D[, log( dau_cversion)])
+    r[r>1]  <- 1
+    #r <- boot::inv.logit(t(x))
     }
   if(wh=='cci'){
-    #r <- exp(t(x) - D[, log( dau_cversion)])
-    r <- boot::inv.logit(t(x))
+    r <- exp(t(x) -  D[, log( dau_cversion)])
+    r[r>1] <- 1
+    #r <- boot::inv.logit(t(x))
   }
   r
 }
@@ -559,8 +561,8 @@ getBetaTrend <- function(D,mdl.rm,mdl.rc,mdl.im,mdl.ic){
 }
 
 getRelDiff <- function(crm.model,crc.model,cim.model,cic.model,current.data,current.data.modified,CUT=0.35,CUT.I=0.15){
-  H <- function(S,names,CUT=CUT){
-    x <- data.table(h=apply(S,1,function(s) { a <-mean(s > CUT); if(is.na(a)) 0 else a}))
+  H <- function(S,names,CUTa=CUT){
+    x <- data.table(h=apply(S,1,function(s) { a <-mean(s > CUTa); if(is.na(a)) 0 else a}))
     setnames(x,names)
     x
   }
@@ -684,7 +686,7 @@ zq <- expression({
 ```{r eval=FALSE}
 
 #alter=TRUE;render("report.3.Rmd");
-clean_site("./visual_demo");  render_site("./visual_demo/")a
+#clean_site("./visual_demo");  render_site("./visual_demo/")
 alter=TRUE;render("report.3.Rmd");
 eval(zq)
 

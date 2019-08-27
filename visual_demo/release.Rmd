@@ -246,7 +246,7 @@ makeTrend <- function(dita,xlab,ylab,markers=NULL){
   dita <- dita[order(date),]
   f <- figure(width=500,height=300) %>%
     ly_points(data=dita,date, mn, hover = dita,size=8) %>%
-    ly_lines(data=dita,date, smooth) %>%
+    ly_lines(data=dita,date, smooth,width=2) %>%
     x_axis(label = xlab) %>%
     y_axis(label = ylab)
   if(!is.null(markers)){

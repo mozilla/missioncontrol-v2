@@ -311,7 +311,7 @@ beta.what.i.need$till= c(tail(beta.what.i.need$d,-1),Sys.Date()+7)
 beta.what.i.need <- merge(beta.what.i.need,builds[, list(v=versions, buildid)],by=c('v'),all.x=TRUE)
 ```
 
-```{r betadata}d
+```{r betadata}
 dall.beta.new <-   beta.what.i.need[,{
     print(.SD);print(.BY)
     qf <- glue(qr,
@@ -358,7 +358,7 @@ lop of days later).
 ## This ideally ought be done via buildhub
 nightly <- fxv.beta[minor==3,list(version=substr(version,1,4), date)]
 nightly[, ":="(till=c(tail(date,-1),Sys.Date()),
-               version = paste(as.numeric(version) +1,".0a1",sep=""))]
+               version = paste(as.numeric(version) +1,".0a1",sep=""))] #HACK
 nightly.what.i.need <- tail(nightly,1) #tail(nightly,1)
 nightly.what.i.need <- nightly.what.i.need[, data.frame(buildid = strftime(seq(from=date, to=till,by=1),'%Y%m%d')),
                     by=list(v=version)]

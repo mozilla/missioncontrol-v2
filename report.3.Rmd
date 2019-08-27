@@ -382,11 +382,11 @@ Current and last two versions:
 ```{r}
 dall.rel2 <- g$q(glue("select * from analysis.sguha_crash_rate_raw where channel = 'release' and major in ({whichv})",
          whichv = paste(unique(release.releases.for.model[,major]),collapse=",")),-1)
-dall.rel2 <- dall.rel2[nvc > 0][,":="(nvc.logit=boot::logit(nvc),cmr.wt = 1*(cmain >0), ccr.wt = 1*(ccontent > 0))]
+dall.rel2 <- dall.rel2[nvc > 0][,":="(cmi.logit=boot::logit(cmi),cci.logit=boot::logit(cci),nvc.logit=boot::logit(nvc),cmr.wt = 1*(cmain >0), ccr.wt = 1*(ccontent > 0))]
 
 dall.beta2 <- g$q(glue("select * from analysis.sguha_crash_rate_raw where channel = 'beta' and major in ({whichv})",
          whichv = paste(unique(beta.releases.for.model[,major]),collapse=",")),-1)
-dall.beta2 <- dall.beta2[nvc > 0][,":="(nvc.logit=boot::logit(nvc),cmr.wt = 1*(cmain >0), ccr.wt = 1*(ccontent > 0))]
+dall.beta2 <- dall.beta2[nvc > 0][,":="(cmi.logit=boot::logit(cmi),cci.logit=boot::logit(cci),nvc.logit=boot::logit(nvc),cmr.wt = 1*(cmain >0), ccr.wt = 1*(ccontent > 0))]
 
 dall.rel2[, wts := nvc/sum(nvc)*100*3,by=os]
 dall.beta2[, wts :=  nvc/sum(nvc)*100*3,by=os]
@@ -414,10 +414,12 @@ make.a.model <- function(data,wh,skew=FALSE){
     }
   }
   if(wh=='cmi'){
-    M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+    #M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+    M0<- bf( cmi.logit   ~   os + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
   }
   if(wh=='cci'){
-    M0<- bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+    #M0<- bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+    M0<- bf( cci.logit   ~   os  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
   }
   ffunc(M0,data)
 }
@@ -446,10 +448,12 @@ getPredictions <- function(M,D, wh,givenx=NULL,COUNT=FALSE){
     r <- exp(t(x) -  D[, log( usage_cc_crasher_cversion+1/60)])
   }
   if(wh=='cmi'){
-    r <- exp(t(x) -  D[, log( dau_cversion)])
+    #r <- exp(t(x) -  D[, log( dau_cversion)])
+    r <- boot::inv.logit(t(x))
     }
   if(wh=='cci'){
-    r <- exp(t(x) - D[, log( dau_cversion)])
+    #r <- exp(t(x) - D[, log( dau_cversion)])
+    r <- boot::inv.logit(t(x))
   }
   r
 }
@@ -554,8 +558,8 @@ getBetaTrend <- function(D,mdl.rm,mdl.rc,mdl.im,mdl.ic){
   cbind(cversions,cmrpreds,ccrpreds,cavgrpreds, cmipreds, ccipreds, cavgipreds)
 }
 
-getRelDiff <- function(crm.model,crc.model,cim.model,cic.model,current.data,current.data.modified,CUT=0.35){
-  H <- function(S,names){
+getRelDiff <- function(crm.model,crc.model,cim.model,cic.model,current.data,current.data.modified,CUT=0.35,CUT.I=0.15){
+  H <- function(S,names,CUT=CUT){
     x <- data.table(h=apply(S,1,function(s) { a <-mean(s > CUT); if(is.na(a)) 0 else a}))
     setnames(x,names)
     x
@@ -574,10 +578,10 @@ getRelDiff <- function(crm.model,crc.model,cim.model,cic.model,current.data,curr
   tvc <- getPredictions(NULL, current.data, 'ccr', given=Predict(cic.model,summary=FALSE, newdata=current.data))
   pvc <- getPredictions(NULL, current.data.modified, 'ccr', given=Predict(cic.model,summary=FALSE, newdata=current.data.modified))
   trans <- function(x) x
-  cmi=H(  (trans(tvm) - trans(pvm))/trans(pvm),names=c("cmi.reg.prob"))
-  cci=H(  (trans(tvc) - trans(pvc))/trans(pvc),names=c("cci.reg.prob"))
+  cmi=H(  (trans(tvm) - trans(pvm))/trans(pvm),names=c("cmi.reg.prob"),CUT=CUT.I)
+  cci=H(  (trans(tvc) - trans(pvc))/trans(pvc),names=c("cci.reg.prob"),CUT=CUT.I)
   tv1 <- (tvm+tvc)/2;pv1 <- (pvm+pvc)/2
-  cavgi <- H( (trans(tv1) - trans(pv1))/trans(pv1),names=c("cavgi.reg.prob"))
+  cavgi <- H( (trans(tv1) - trans(pv1))/trans(pv1),names=c("cavgi.reg.prob"),CUT=CUT.I)
   cbind(current.data[,list(os,date,c_version)],cmr, ccr,cavgr, cmi,cci,cavgi)
 }
 
@@ -679,7 +683,8 @@ zq <- expression({
 
 ```{r eval=FALSE}
 
-#alter=TRUE;render("report.3.Rmd");clean_site("./visual_demo");  render_site("./visual_demo/")a
+#alter=TRUE;render("report.3.Rmd");
+clean_site("./visual_demo");  render_site("./visual_demo/")a
 alter=TRUE;render("report.3.Rmd");
 eval(zq)
 

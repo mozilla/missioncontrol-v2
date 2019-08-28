@@ -121,7 +121,9 @@ client_id,
 submission_date as date,
 os_name as os, 
 sum(case when payload.processType IS NULL OR payload.processType = 'main' then 1 else 0 end) as cmain,
-sum(case when payload.processType = 'content' and (udf.get_key(payload.metadata, 'ipc_channel_error') is null or (udf.get_key(payload.metadata, 'ipc_channel_error') is not null  and udf.get_key(payload.metadata, 'ipc_channel_error') !='ShutdownKill')) then 1 else 0 end) as ccontent
+sum(case when payload.processType = 'content' and (udf.get_key(payload.metadata, 'ipc_channel_error') is null
+       or (udf.get_key(payload.metadata, 'ipc_channel_error') is not null  and udf.get_key(payload.metadata, 'ipc_channel_error') !='ShutdownKill'))
+     then 1 else 0 end) as ccontent
 from {crash_src} JJ left join SAMPLING
 on JJ.os_name = SAMPLING.sos and JJ.normalized_channel = SAMPLING.chan
 where submission_date >='{current_version_release}'
@@ -173,6 +175,7 @@ sum(cplugin) as cplugin,
 sum(cmain)+sum(ccontent) + sum(cplugin) as call
 from b1 join b2 
 on b1.client_id = b2.client_id and b1.os=b2.os and b1.date = b2.date
+where (b1.ccontent+b1.cmain)< 350 -- see https://sql.telemetry.mozilla.org/queries/64354/source
 group by 1,2
 ),
 d as (
@@ -212,16 +215,17 @@ release.the.current.release <- tail(fxv.releases,1)[, list(version, major,minor,
 release.releases.for.model <- fxv.releases[major %in% c(release.the.current.release$major,release.the.current.release$major-1,release.the.current.release$major-2),]
 
 
-release.what.i.need <- fxv.releases[major %in% release.the.current.release$major,]
+release.what.i.need <- fxv.releases[major %in%  release.the.current.release$major,]
 release.what.i.need <- release.what.i.need[,list(v=version,d=date, till=date, c='release',ndays=72, crash_src='telemetry.crash_summary_v2',
-                                                                         app_version_field='app_version', build_version_field='build_version')]
+                                                 app_version_field='app_version', build_version_field='build_version')]
+release.what.i.need <- release.what.i.need[d<'2019-06-18', crash_src := 'telemetry.crash_summary_v1']
 release.what.i.need$till= c(tail(release.what.i.need$d,-1),Sys.Date()+365)
 g <- bq()
 
 ```
 
 
-```{r getData1,cache=TRUE,results='hide',message=FALSE, warning=FALSE}
+```{r getData1,results='hide',message=FALSE, warning=FALSE}
 add_fields <- function(x, current_version, d,till ){
   x <- x[,":="(date=as.Date(date))]
   x[,":="(date=as.Date(date),c_version = current_version, c_version_rel = as.Date(d), isLatest=date<=till,t =as.numeric(date - as.Date(d)))][,]
@@ -260,7 +264,7 @@ dall.release.new <-   release.what.i.need[,{
       add_fields(qff,.BY$v,d,till)
 },by=v]
 
-dall.release.new <- dall.release.new[, {
+dall.release.new <- dall.release.new[!c_version %in% c('66.0.4','66.0.5'),][, {
   ## Take the last day we saw the max
   index <- which.max(nvc)
   s <- (1:.N)[ isLatest]
@@ -269,7 +273,7 @@ dall.release.new <- dall.release.new[, {
   } else whenStoppedBeingLatest <- -1
   if(index<whenStoppedBeingLatest) index <- whenStoppedBeingLatest
   .SD[1:whenStoppedBeingLatest,]
-  .SD[1:index,]
+    .SD[1:index,]
 },by=list(os,c_version)]
 
 dall.release.new <- dall.release.new[, ":="( major = as.numeric(sapply(c_version,function(s) head(strsplit(s,"\\.")[[1]],1))),
@@ -305,9 +309,11 @@ fxv.beta <- fxv.beta[order(major,minor),]
 beta.the.current.release <- tail(fxv.beta,1)[, list(version, major,minor, date)]
 beta.releases.for.model <- fxv.beta[major %in% c(beta.the.current.release$major,beta.the.current.release$major-1,beta.the.current.release$major-2),]
 
-beta.what.i.need <- fxv.beta[major %in% beta.the.current.release$major,][,list(v=version,d=date, till=date, c='beta',ndays=14, crash_src='telemetry.crash_summary_v2',
+beta.what.i.need <- fxv.beta[major %in%  beta.the.current.release$major,]
+beta.what.i.need <- beta.what.i.need[,list(v=version,d=date, till=date, c='beta',ndays=14, crash_src='telemetry.crash_summary_v2',
                                                                          app_version_field='app_display_version', build_version_field='build_id')]
 beta.what.i.need$till= c(tail(beta.what.i.need$d,-1),Sys.Date()+7)
+beta.what.i.need <- beta.what.i.need[d<'2019-06-18', crash_src := 'telemetry.crash_summary_v1']
 beta.what.i.need <- merge(beta.what.i.need,builds[, list(v=versions, buildid)],by=c('v'),all.x=TRUE)
 ```
 
@@ -330,7 +336,7 @@ dall.beta.new <-   beta.what.i.need[,{
       add_fields(qff,.BY$v,d,till)
 },by=v]
 
-all.beta.new <- dall.beta.new[, {
+all.beta.new <- dall.beta.new[!c_version %in% c('67.0b17','67.0b18'),][, {
   ## Take the last day we saw the max
   index <- which.max(nvc)
   s <- (1:.N)[ isLatest]
@@ -343,6 +349,7 @@ all.beta.new <- dall.beta.new[, {
 },by=list(os,c_version)]
 dall.beta.new <- dall.beta.new[,":="( major=  as.numeric(sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1))),
                                       minor = as.numeric(sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]
+
 dall.new <- rbind(dall.beta.new[,":="(channel='beta')],dall.release.new[,":="(channel='release')])[,":="(v=NULL)]
 
 ```
@@ -354,7 +361,7 @@ Nightly is slightly different. We get the dates of a version and then each
 YYYYMMDD is a minor version. For each minor version we get 7 days of data (we'll
 lop of days later).
 
-```{r}
+```{r }
 ## This ideally ought be done via buildhub
 nightly <- fxv.beta[minor==3,list(version=substr(version,1,4), date)]
 nightly[, ":="(till=c(tail(date,-1),Sys.Date()),
@@ -421,13 +428,13 @@ res <- unq[,{
 
 ## Upload new data
 atemp <- tempfile()
-write.csv(dall.new, file=atemp)
+write.csv(dall.new, file=atemp,row.names=FALSE)
 system(glue("bq load --noreplace --project_id moz-fx-data-derived-datasets --source_format=CSV --skip_leading_rows=1 --null_marker=NA",
             " analysis.sguha_crash_rate_raw {atemp}"))
 
 ## Created FIRST TABLE via
-## bq load --autodetect --source_format=CSV --project_id moz-fx-data-derived-datasets --skip_leading_rows=1 --null_marker=NA analysis.sguha_crash_rate_raw ~/tmp/dall.all
-
+system(glue("bq load  --project_id moz-fx-data-derived-datasets --autodetect --replace  --source_format=CSV --skip_leading_rows=1 --null_marker=NA",
+            " analysis.sguha_crash_rate_raw {atemp}"))
 ```
 
 
@@ -435,6 +442,8 @@ system(glue("bq load --noreplace --project_id moz-fx-data-derived-datasets --sou
 
 
 ## GET MODEL DATA
+
+
 
 
 Current and last two versions:
@@ -525,6 +534,7 @@ getPredictions <- function(M,D, wh,givenx=NULL,COUNT=FALSE){
 Release model
 
 ```{r releaseModel}
+slack.start("cryptojoy2")
 slackr("RELEASE CHAINS STARTING")
 d.rel <- dall.rel2
 cr.cm.rel.f <- future({ make.a.model(d.rel,'cmr') })
@@ -709,12 +719,14 @@ beta.posts <- merge(beta.posts,reldiff.beta,all.x=TRUE,by=c("os","date","c_versi
 beta.summary <- beta.posts[c_version==beta.current.version,][date==max(date),][, os:=factor(os, levels=c("Windows_NT","Darwin","Linux"))]
 beta.trend3 <- getBetaTrend(d.beta,cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta)
 beta.trend3[, ":="(major =  (sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1))),
-                   minor = (sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]
+                  minor = (sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]
 beta.trend2 <- beta.trend3[major %in% c(beta.current.major,beta.prev.major),][order(os,as.numeric(as.character(major)),as.numeric(as.character(minor))),]
 beta.trend2 <- merge(beta.trend2,  beta.posts[, {
-  tail(.SD,1)[, list(nvc=nvc)]
+ tail(.SD,1)[, list(nvc=nvc)]
 },by=list(os,c_version)], by=c("os","c_version"))[order(os,as.numeric(as.character(major)),as.numeric(as.character(minor))),]
-
+#beta.trend2 <- beta.posts[, tail(.SD[order(nvc),],1),by=list(os,c_version)]
+#beta.trend2[, ":="(major =  (sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1))),
+#                   minor = (sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]
 ```
 
 

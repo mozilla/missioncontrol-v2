@@ -721,7 +721,7 @@ beta.trend3 <- getBetaTrend(d.beta,cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta)
 beta.trend3[, ":="(major =  (sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1))),
                   minor = (sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]
 beta.trend2 <- beta.trend3[major %in% c(beta.current.major,beta.prev.major),][order(os,as.numeric(as.character(major)),as.numeric(as.character(minor))),]
-beta.trend2 <- merge(beta.trend2,  beta.posts[, {
+beta.trend2 <- merge(beta.trend2,  beta.posts[order(c_version,nvc),][, {
  tail(.SD,1)[, list(nvc=nvc)]
 },by=list(os,c_version)], by=c("os","c_version"))[order(os,as.numeric(as.character(major)),as.numeric(as.character(minor))),]
 #beta.trend2 <- beta.posts[, tail(.SD[order(nvc),],1),by=list(os,c_version)]

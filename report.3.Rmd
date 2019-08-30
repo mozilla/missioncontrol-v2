@@ -44,6 +44,7 @@ library(reticulate)
 plan(multicore)
 slack.start() ##requires prefix.R
 knitr::opts_chunk$set(eval=TRUE)
+get.dataq=TRUE
 
 ```
 
@@ -193,7 +194,7 @@ select * from d order by os, date
 
 ## RELEASE DATA
 
-```{r}
+```{r eval=get.dataq}
 library(glue) 
 library(data.table)
 isn <- function(s,r = 'telemetry.crash_summary_v1') if(is.null(s) || length(s)==0) r else s
@@ -225,7 +226,7 @@ g <- bq()
 ```
 
 
-```{r getData1,results='hide',message=FALSE, warning=FALSE}
+```{r getData1,eval=get.dataq,results='hide',message=FALSE, warning=FALSE}
 add_fields <- function(x, current_version, d,till ){
   x <- x[,":="(date=as.Date(date))]
   x[,":="(date=as.Date(date),c_version = current_version, c_version_rel = as.Date(d), isLatest=date<=till,t =as.numeric(date - as.Date(d)))][,]
@@ -272,8 +273,8 @@ dall.release.new <- dall.release.new[!c_version %in% c('66.0.4','66.0.5'),][, {
    whenStoppedBeingLatest <- max( s )
   } else whenStoppedBeingLatest <- -1
   if(index<whenStoppedBeingLatest) index <- whenStoppedBeingLatest
-  .SD[1:whenStoppedBeingLatest,]
-    .SD[1:index,]
+  # .SD[1:whenStoppedBeingLatest,]
+  .SD[1:index,]
 },by=list(os,c_version)]
 
 dall.release.new <- dall.release.new[, ":="( major = as.numeric(sapply(c_version,function(s) head(strsplit(s,"\\.")[[1]],1))),
@@ -285,7 +286,7 @@ dall.release.new <- dall.release.new[, ":="( major = as.numeric(sapply(c_version
 
 FOR BETA NOW: GET BUILD MAPPING WHICH WILL GET REPLACED BY PYTHON CODE
 
-```{r getBetaData}
+```{r getBetaData,eval=get.dataq}
 
 buildhub <- import("buildhub_bid")
 builds <- local({
@@ -313,11 +314,13 @@ beta.what.i.need <- fxv.beta[major %in%  beta.the.current.release$major,]
 beta.what.i.need <- beta.what.i.need[,list(v=version,d=date, till=date, c='beta',ndays=14, crash_src='telemetry.crash_summary_v2',
                                                                          app_version_field='app_display_version', build_version_field='build_id')]
 beta.what.i.need$till= c(tail(beta.what.i.need$d,-1),Sys.Date()+7)
+beta.what.i.need[v=='69.0b16', till := as.Date('2019-08-27')] ## I need this because we dont get data for RC builds
 beta.what.i.need <- beta.what.i.need[d<'2019-06-18', crash_src := 'telemetry.crash_summary_v1']
 beta.what.i.need <- merge(beta.what.i.need,builds[, list(v=versions, buildid)],by=c('v'),all.x=TRUE)
+
 ```
 
-```{r betadata}
+```{r betadata, eval=get.dataq}
 dall.beta.new <-   beta.what.i.need[,{
     print(.SD);print(.BY)
     qf <- glue(qr,
@@ -336,7 +339,7 @@ dall.beta.new <-   beta.what.i.need[,{
       add_fields(qff,.BY$v,d,till)
 },by=v]
 
-all.beta.new <- dall.beta.new[!c_version %in% c('67.0b17','67.0b18'),][, {
+dall.beta.new <- dall.beta.new[!c_version %in% c('67.0b17','67.0b18'),][, {
   ## Take the last day we saw the max
   index <- which.max(nvc)
   s <- (1:.N)[ isLatest]
@@ -350,7 +353,7 @@ all.beta.new <- dall.beta.new[!c_version %in% c('67.0b17','67.0b18'),][, {
 dall.beta.new <- dall.beta.new[,":="( major=  as.numeric(sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1))),
                                       minor = as.numeric(sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]
 
-dall.new <- rbind(dall.beta.new[,":="(channel='beta')],dall.release.new[,":="(channel='release')])[,":="(v=NULL)]
+#dall.new <- rbind(dall.beta.new[,":="(channel='beta')],dall.release.new[,":="(channel='release')])[,":="(v=NULL)]
 
 ```
 
@@ -361,7 +364,7 @@ Nightly is slightly different. We get the dates of a version and then each
 YYYYMMDD is a minor version. For each minor version we get 7 days of data (we'll
 lop of days later).
 
-```{r }
+```{r nightlyData,eval=get.dataq}
 ## This ideally ought be done via buildhub
 nightly <- fxv.beta[minor==3,list(version=substr(version,1,4), date)]
 nightly[, ":="(till=c(tail(date,-1),Sys.Date()),
@@ -410,12 +413,16 @@ dall.new <- rbind(dall.beta.new[,":="(channel='beta')],
                   dall.release.new[,":="(channel='release')],
                   dall.nightly.new[,":="(channel='nightly')]
                   )[,":="(v=NULL)]
+dall.new <- dall.new[, list(date,os,usage_all,dau_all,usage_cversion,dau_cversion,dau_cm_crasher_cversion,dau_cc_crasher_cversion,
+                            dau_cp_crasher_cversion,dau_call_crasher_cversion,usage_cm_crasher_cversion,
+                            usage_cc_crasher_cversion,usage_cp_crasher_cversion,usage_call_crasher_cversion,
+                            cmain,ccontent,cplugin,call,c_version,c_version_rel,isLatest,t,cmi,cmr,cci,ccr,nvc,major,minor,channel)]
 
 ```
 
 
 
-```{r writeData}
+```{r writeData,eval=get.dataq}
 
 ## What versions, channels, and os did we read today?
 unq <- dall.new[, list(n=.N),by=list(major, channel)]
@@ -433,8 +440,8 @@ system(glue("bq load --noreplace --project_id moz-fx-data-derived-datasets --sou
             " analysis.sguha_crash_rate_raw {atemp}"))
 
 ## Created FIRST TABLE via
-system(glue("bq load  --project_id moz-fx-data-derived-datasets --autodetect --replace  --source_format=CSV --skip_leading_rows=1 --null_marker=NA",
-            " analysis.sguha_crash_rate_raw {atemp}"))
+#system(glue("bq load  --project_id moz-fx-data-derived-datasets --autodetect --replace  --source_format=CSV --skip_leading_rows=1 --null_marker=NA",
+#            " analysis.sguha_crash_rate_raw {atemp}"))
 ```
 
 

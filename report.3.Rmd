@@ -753,12 +753,43 @@ zq <- expression({
   clean_site("./visual_demo")
   render_site("./visual_demo/")
   
-  system(glue("mkdir -p ./visual_demo/older/{today}/", today=(j <- Sys.Date())))
-  system(glue("rsync -avz ./visual_demo/_site/ ./visual_demo/older/{today}/",today=j))
-  system("rsync -av ~/mz/missioncontrol/ex1/visual_demo/ ~/pubsguha/visual_demo/")
-  system("ls ~/pubsguha/visual_demo/older/ | cat ~/pubsguha/visual_demo/older/index.html")
-  system("ls ~/pubsguha/visual_demo/older/ > ~/pubsguha/visual_demo/older/index.html")
-  system("ls ~/pubsguha/visual_demo/data/ > ~/pubsguha/visual_demo/data/index.html")
+#  system("ls ~/pubsguha/visual_demo/older/ > ~/pubsguha/visual_demo/older/index.html")
+  #  system("ls ~/pubsguha/visual_demo/data/ > ~/pubsguha/visual_demo/data/index.html")
+SKEL <- '
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title></title>
+  <meta name="author" content="">
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="css/normalize.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+<ul>
+{body}
+</ul>
+</body>
+</html>
+'
+
+datum<- glue(SKEL, body=paste(unlist(lapply(system("ls ./visual_demo/_site/data/",intern=TRUE),function(s){
+  if(s!="index.html") glue("<li><a href='./{foo}'>{foo}</a></li>", foo=s)
+})),collapse="\n"))
+writeLines(datum,'./visual_demo/_site/data/index.html')
+
+system(glue("mkdir -p ./visual_demo/older/{today}/", today=(j <- Sys.Date())))
+system(glue("rsync -avz ./visual_demo/_site/ ./visual_demo/older/{today}/",today=j))
+system("rsync -av ~/mz/missioncontrol/ex1/visual_demo/ ~/pubsguha/visual_demo/")
+
+older <- glue(SKEL, body=paste(unlist(lapply(system("ls ~/pubsguha/visual_demo/older/",intern=TRUE),function(s){
+  if(s!="index.html") glue("<li><a href='./{foo}'>{foo}</a></li>", foo=s)
+})),collapse="\n"))
+writeLines(older,'~/pubsguha/visual_demo/older/index.html')
+
+  
 })
 ```
 
@@ -768,6 +799,7 @@ zq <- expression({
 #clean_site("./visual_demo");  render_site("./visual_demo/")
 alter=TRUE;render("report.3.Rmd");
 eval(zq)
+
 
 ```
 

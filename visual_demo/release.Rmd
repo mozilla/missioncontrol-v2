@@ -271,7 +271,7 @@ rel.dates.versions <- rel.posts[,.SD[1,list(x=as.Date(date))],by=list(y=c_versio
 #### Rates
 
 ```{r}
-t.temp <- rel.posts[nvc > 0.1,][, list(os,date=as.Date(date),version=c_version, mn.orig=(cmr+ccr)/2*100, mn = cavgr.mean,lo90=cavgr.lo90, hi90=cavgr.hi90,smooth=cavgr.loess)]
+t.temp <- rel.posts[nvc > 0.1,][, list(os,date=as.Date(date),version=c_version, mn.orig=(cmr+ccr)/2, mn = cavgr.mean,lo90=cavgr.lo90, hi90=cavgr.hi90,smooth=cavgr.loess)]
 fig7 <- list( makeTrend(t.temp[os=='Windows_NT',], xlab='Date',ylab='Windows_NT',markers=rel.dates.versions),
              makeTrend(t.temp[os=='Darwin',], xlab='Date',ylab='Darwin',markers=rel.dates.versions),
              makeTrend(t.temp[os=='Linux',], xlab='Date',ylab='Linux',markers=rel.dates.versions))

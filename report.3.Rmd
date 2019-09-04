@@ -132,7 +132,7 @@ and submission_date <= DATE_ADD(DATE '{current_version_release}', INTERVAL {nday
 and os_name in ('Linux','Windows_NT','Darwin')
 and application='Firefox'
 and normalized_channel = '{norm_channel}'
-and {build_version_field} in ('{current_version_crash}')
+and {build_version_field} in ({current_version_crash})
 and profile_created>=12418 and profile_created<=20089 
 and  MOD(ABS(FARM_FINGERPRINT(MD5(client_id))), SAMPLING.NBUCKS)=0
 group by 1,2,3
@@ -204,7 +204,7 @@ fxv <- local({
   rbindlist(lapply(r$releases,function(s){
     data.table(build.number=s$build_number, categ=s$category, date=as.Date(s$date),
                description = isn(s$description,NA), is.security = s$is_security_driven,
-               product = s$product,version=s$version)
+               product = s$product,version=s$version)d
   }))
 })
 
@@ -251,7 +251,7 @@ dall.release.new <-   release.what.i.need[,{
     print(.SD);print(.BY)
     qf <- glue(qr,
                current_version=.BY$v,
-               current_version_crash=.BY$v,
+               current_version_crash=sprintf("'%s'",.BY$v),
                current_version_release=d,
                norm_channel = c,
                app_version_field = app_version_field,
@@ -259,12 +259,13 @@ dall.release.new <-   release.what.i.need[,{
                nday=ndays,
                crash_src=isn(crash_src),
                NBUCKS=1
-              )
+               )
+    writeLines(qf,"/tmp/t.txt")
     qff <- g$q(qf,-1)
     if(nrow(qff) > 0)
       add_fields(qff,.BY$v,d,till)
 },by=v]
-
+if(nrow(dall.release.new)==0) stop("release: No rows for this data")
 dall.release.new <- dall.release.new[!c_version %in% c('66.0.4','66.0.5'),][, {
   ## Take the last day we saw the max
   index <- which.max(nvc)
@@ -290,10 +291,12 @@ FOR BETA NOW: GET BUILD MAPPING WHICH WILL GET REPLACED BY PYTHON CODE
 
 buildhub <- import("buildhub_bid")
 builds <- local({
+ FIX <- function(f)
+   paste(unlist(lapply(f,function(s) sprintf("'%s'",s))),collapse=',')
   x <-  buildhub$pull_build_id_docs()
   x <- buildhub$version2build_ids(x)
   x=rbindlist(Map(function(n,b){
-    data.table(versions=n, buildid=paste(b,collapse=","))
+    data.table(versions=n, buildid=FIX(lapply(b,"[[",2)))
   },names(x),x))[order(versions),]
 })
   
@@ -308,7 +311,9 @@ fxv.beta <- fxv.beta[, ":="( major=  as.numeric(sapply(version,function(s) head(
                             minor = as.numeric(sapply(version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]
 fxv.beta <- fxv.beta[order(major,minor),]
 beta.the.current.release <- tail(fxv.beta,1)[, list(version, major,minor, date)]
-beta.releases.for.model <- fxv.beta[major %in% c(beta.the.current.release$major,beta.the.current.release$major-1,beta.the.current.release$major-2),]
+#beta.the.current.release  <- fxv.beta[60,][, list(version, major,minor, date)]
+beta.releases.for.model <- fxv.beta[major %in% c(beta.the.current.release$major,beta.the.current.release$major-1,beta.the.current.release$major-2
+                                                 ),]
 
 beta.what.i.need <- fxv.beta[major %in%  beta.the.current.release$major,]
 beta.what.i.need <- beta.what.i.need[,list(v=version,d=date, till=date, c='beta',ndays=14, crash_src='telemetry.crash_summary_v2',
@@ -333,11 +338,13 @@ dall.beta.new <-   beta.what.i.need[,{
                nday=ndays,
                crash_src=isn(crash_src),
                NBUCKS=1
-              )
+               )
+    writeLines(qf,'/tmp/x.txt') 
     qff <- g$q(qf,-1)
     if(nrow(qff) > 0)
       add_fields(qff,.BY$v,d,till)
 },by=v]
+if(nrow(dall.beta.new)==0) stop("beta:No rows for this data")
 
 dall.beta.new <- dall.beta.new[!c_version %in% c('67.0b17','67.0b18'),][, {
   ## Take the last day we saw the max
@@ -383,7 +390,7 @@ dall.nightly.new <-   nightly.what.i.need[,{
   print(.SD);print(.BY)
     qf <- glue(qr,
                current_version=.BY$buildid,
-               current_version_crash=.BY$buildid,
+               current_version_crash=sprintf("'%s'",.BY$buildid),
                current_version_release=d,
                norm_channel = c,
                app_version_field = app_version_field,
@@ -398,6 +405,7 @@ dall.nightly.new <-   nightly.what.i.need[,{
       add_fields(qff,.BY$buildid,d,till)
 },by=list(v,buildid)]
 
+if(nrow(dall.nightly.new)==0) stop("No rows for this data")
 
 dall.nightly.new <- dall.nightly.new[, {
   ## Take the last day we saw the max
@@ -508,14 +516,16 @@ Predict <- function(M,...){
 }
     
   
-getPredictions <- function(M,D, wh,givenx=NULL,COUNT=FALSE){
+getPredictions <- function(M,D, wh,givenx=NULL,COUNT=0){
   if(is.null(givenx)){
     x <-Predict(M,newdata=D,summary=FALSE)
   }else{
     x <-givenx
   }
-  if(COUNT){
+  if(COUNT==1){
     return (exp(t(x)-1))
+  }else if( COUNT==2){
+    return(t(x))
   }
   if(wh=='cmr'){
     r <- exp( t(x) - D[, log( usage_cm_crasher_cversion+1/60)])
@@ -636,6 +646,49 @@ getBetaTrend <- function(D,mdl.rm,mdl.rc,mdl.im,mdl.ic){
   cavgipreds <- getLowHi((pm+pc)/2,trans=function(s) s,names=c("cavgi.lo90","cavgi.mean","cavgi.hi90"))
   cbind(cversions,cmrpreds,ccrpreds,cavgrpreds, cmipreds, ccipreds, cavgipreds)
 }
+
+## getBetaTrend <- function(D,mdl.rm,mdl.rc,mdl.im,mdl.ic){
+##   getLowHi <- function(x,names,trans){
+##     x <- rbindlist(apply(x,1,function(s){
+##       data.table(lo90 = trans(quantile(s,0.05)), mean = CENT(trans(s)), hi90=quantile(trans(s),0.95))
+##     }))
+##     setnames(x,names)
+##   }
+##   cversions  = D[, list(l=1),by=list(os,c_version)][,l := NULL]
+##   pm <- cbind(D[, list(os,c_version, log(usage_cm_crasher_cversion+1/60))],data.table(getPredictions(mdl.rm, D, 'cmr',COUNT=2)))[, {
+##     f <- data.table(t(apply(.SD,2,function(x) sum(x[x!=-Inf]))))
+##     exp((f[,2:ncol(f), with=FALSE])- (f[,1,with=FALSE][[1]]))
+##   },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
+##   print("cmr done")
+  
+##   pc <- cbind(D[, list(os,c_version, log(usage_cc_crasher_cversion+1/60))],data.table(getPredictions(mdl.rc, D, 'ccr',COUNT=2)))[, {
+##     f <- data.table(t(apply(.SD,2,function(x) sum(x[x!=-Inf]))))
+##     exp((f[,2:ncol(f), with=FALSE])- (f[,1,with=FALSE][[1]]))
+##   },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
+##   print("ccr done")
+  
+##   cmrpreds <- getLowHi(pm,trans=function(s) s,names=c("cmr.lo90","cmr.mean","cmr.hi90"))
+##   ccrpreds <- getLowHi(pc,trans=function(s) s,names=c("ccr.lo90","ccr.mean","ccr.hi90"))
+##   cavgrpreds <- getLowHi((pm+pc)/2,trans=function(s) s,names=c("cavgr.lo90","cavgr.mean","cavgr.hi90"))
+  
+##   pm <- cbind(D[, list(os,c_version, log(dau_cversion))],data.table(getPredictions(mdl.im, D, 'cmi',COUNT=2)))[, {
+##     f <- data.table(t(apply(.SD,2,function(x) sum(x[x!=-Inf]))))
+##     exp((f[,2:ncol(f), with=FALSE])- f[,1,with=FALSE][[1]])
+##   },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
+##   print("cmi done")
+  
+##   pc <- cbind(D[, list(os,c_version,log(dau_cversion) )],data.table(getPredictions(mdl.ic, D, 'cci',COUNT=2)))[, {
+##     f <- data.table(t(apply(.SD,2,function(x) sum(x[x!=-Inf]))))
+##     exp((f[,2:ncol(f), with=FALSE])- f[,1,with=FALSE][[1]])
+##   },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
+##   print("cci done")
+  
+##   cmipreds <- getLowHi(pm,trans=function(s) s,names=c("cmi.lo90","cmi.mean","cmi.hi90"))
+##   ccipreds <- getLowHi(pc,trans=function(s) s,names=c("cci.lo90","cci.mean","cci.hi90"))
+##   cavgipreds <- getLowHi((pm+pc)/2,trans=function(s) s,names=c("cavgi.lo90","cavgi.mean","cavgi.hi90"))
+  
+##   cbind(cversions,cmrpreds,ccrpreds,cavgrpreds, cmipreds, ccipreds, cavgipreds)
+## }
 
 getRelDiff <- function(crm.model,crc.model,cim.model,cic.model,current.data,current.data.modified,CUT=0.35,CUT.I=0.15){
   H <- function(S,names,CUTa=CUT){
@@ -799,6 +852,8 @@ writeLines(older,'~/pubsguha/visual_demo/older/index.html')
 #clean_site("./visual_demo");  render_site("./visual_demo/")
 alter=TRUE;render("report.3.Rmd");
 eval(zq)
+
+r
 
 
 ```

@@ -204,7 +204,7 @@ fxv <- local({
   rbindlist(lapply(r$releases,function(s){
     data.table(build.number=s$build_number, categ=s$category, date=as.Date(s$date),
                description = isn(s$description,NA), is.security = s$is_security_driven,
-               product = s$product,version=s$version)d
+               product = s$product,version=s$version)
   }))
 })
 
@@ -472,9 +472,10 @@ dall.beta2 <- g$q(glue("select * from analysis.sguha_crash_rate_raw where channe
          whichv = paste(unique(beta.releases.for.model[,major]),collapse=",")),-1)
 dall.beta2 <- dall.beta2[nvc > 0][,":="(cmi.logit=boot::logit(cmi),cci.logit=boot::logit(cci),nvc.logit=boot::logit(nvc),cmr.wt = 1*(cmain >0), ccr.wt = 1*(ccontent > 0))]
 
-dall.rel2[, wts := nvc/sum(nvc)*100*3,by=os]
-dall.beta2[, wts :=  nvc/sum(nvc)*100*3,by=os]
-
+#dall.rel2[, wts := 1+dau_cversion/max(dau_cversion)*100,by=list(os)]
+#dall.beta2[, wts :=  1+dau_cversion/max(dau_cversion)*100,by=list(os)]
+dall.rel2[, wts := 1]
+dall.beta2[, wts:=1]
 ```
 
 
@@ -485,25 +486,24 @@ dall.beta2[, wts :=  nvc/sum(nvc)*100*3,by=os]
 ffunc <- function(M,D)  brm(M,data=D, chains = 6, control = list(adapt_delta = 0.999, max_treedepth=12), cores = 6)
       # M0 <- bf( log(1+cmain) | weights(cmr.wt)   ~  os + os*poly(log(usage_cm_crasher_cversion+1/60),2)+os*poly(nvc.logit,2)  + (1+os|c_version), sigma ~   os + s(nvc.logit, m=1))
 make.a.model <- function(data,wh,skew=FALSE){
+  alter <- TRUE
   if(wh=="cmr"){
-    M0 <- bf( log(cmain+1) |weights(cmr.wt)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1)) 
+    M0 <- bf( log(cmain+1) |weights(cmr.wt*wts)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1)) 
     if(alter){
-      M0 <- bf( cmain+1 |weights(cmr.wt)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os)+(1+os|c_version), shape ~ os+s(nvc,m=1))+negbinomial()
+      M0 <- bf( cmain+1 |weights(cmr.wt*wts)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os)+(1+os|c_version), shape ~ os+s(nvc,m=1))+negbinomial()
     }
   }
   if(wh=='ccr'){
-    M0 <- bf( log(ccontent+1) | weights(ccr.wt)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+    M0 <- bf( log(ccontent+1) | weights(ccr.wt*wts)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
     if(alter){
-      M0 <- bf( ccontent+1 | weights(ccr.wt)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), shape ~  os+s(nvc,m=1))+negbinomial()
+      M0 <- bf( ccontent+1 | weights(ccr.wt*wts)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), shape ~  os+s(nvc,m=1))+negbinomial()
     }
   }
   if(wh=='cmi'){
-    M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
-    #M0<- bf( cmi.logit   ~   os + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+    M0<- bf( log(1+dau_cm_crasher_cversion)|weights(wts)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
   }
   if(wh=='cci'){
-    M0<- bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
-    #M0<- bf( cci.logit   ~   os  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+    M0<- bf( log(1+dau_cc_crasher_cversion)|weights(wts)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
   }
   ffunc(M0,data)
 }
@@ -853,7 +853,11 @@ writeLines(older,'~/pubsguha/visual_demo/older/index.html')
 alter=TRUE;render("report.3.Rmd");
 eval(zq)
 
-r
+testing <- expression({
+  alter <- TRUE;render("report.3.Rmd")
+  clean_site("./visual_demo")
+  render_site("./visual_demo/")
+})
 
 
 ```

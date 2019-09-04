@@ -5,7 +5,9 @@ import itertools as it
 uri = "https://buildhub.moz.tools/api/search"
 
 
-def pull_build_id_docs(min_build_day="20180701"):
+def pull_build_id_docs(
+    min_build_day="20180701", channel="beta", raw_json=False
+):
     query = {
         "aggs": {
             "buildid": {
@@ -14,14 +16,20 @@ def pull_build_id_docs(min_build_day="20180701"):
                     "size": 100000,
                     "order": {"_term": "desc"},
                 },
-                "aggs": {"version": {"terms": {"field": "target.version"}}},
+                # "aggs": {"version": {"terms": {"field": "target.version"}}},
+                "aggs": {
+                    "version": {"terms": {"field": "target.version"}},
+                    "pub_date": {"terms": {"field": "download.date"}},
+                    "buildid": {"terms": {"field": "build.id"}},
+                },
             }
         },
         "query": {
             "bool": {
                 "filter": [
                     {"term": {"target.platform": "win64"}},
-                    {"term": {"target.channel": "beta"}},
+                    {"term": {"target.locale": "en-US"}},
+                    {"term": {"target.channel": channel}},
                     {"term": {"source.product": "firefox"}},
                     {"range": {"build.id": {"gte": min_build_day}}},
                 ]
@@ -30,52 +38,66 @@ def pull_build_id_docs(min_build_day="20180701"):
         "size": 0,
     }
     resp = post(uri, json=query)
-    docs = resp.json()["aggregations"]["buildid"]["buckets"]
+    json = resp.json()
+    if raw_json:
+        return json
+    docs = json["aggregations"]["buildid"]["buckets"]
     return docs
 
 
-def build_id_versions(
-    docs, major_version=None, keep_rc=False, keep_release=False
+def extract_triplets(
+    doc, major_version=None, keep_rc=False, keep_release=False, agg=min
 ):
     """
     @major_version: int
-    From json results, return build_id, version pairs.
+    [doc] = aggregations.buildid.buckets ->
+        doc.version.buckets[].key
+    From json results, return tuple of `buildids`, `pub_dates`, `versions`
+
     Some build_id's go to multiple versions (usually rc's or a major version)
     Some versions go to multiple build_id's.
     """
+
+    def collect_results(field):
+        return [res["key"] for res in doc[field]["buckets"]]
 
     def major_version_filt(v):
         if major_version is None:
             return True
         return int(v.split(".")[0]) == major_version
 
-    def extract_bid_vers(doc):
-        build_id = doc["key"]
-        versions = [bucket["key"] for bucket in doc["version"]["buckets"]]
-        return [
-            (version, build_id)
-            for version in versions
-            if version_filter(
-                version, keep_rc=keep_rc, keep_release=keep_release
-            )
-            and major_version_filt(version)
-        ]
-
-    return [pair for doc in docs for pair in extract_bid_vers(doc)]
+    buildids = collect_results("buildid")
+    pub_dates = collect_results("pub_date")
+    versions = [
+        v
+        for v in collect_results("version")
+        if version_filter(v, keep_rc=keep_rc, keep_release=keep_release)
+        and major_version_filt(v)
+    ]
+    if not versions:
+        return None
+    return agg(versions), agg(buildids), agg(pub_dates)
 
 
 def version2build_ids(
     docs, major_version=None, keep_rc=False, keep_release=False
 ):
-    version_build_ids = build_id_versions(
-        docs,
-        major_version=major_version,
-        keep_rc=keep_rc,
-        keep_release=keep_release,
-    )
+    version_build_ids = [
+        extract_triplets(
+            doc,
+            major_version=major_version,
+            keep_rc=keep_rc,
+            keep_release=keep_release,
+        )
+        for doc in docs
+    ]
+    version_build_ids = filter(None, version_build_ids)
     return {
-        version: [build_id for v, build_id in build_ids]
-        for version, build_ids in it.groupby(version_build_ids, lambda x: x[0])
+        version: [
+            (_version, build_id, pub_date)
+            for _version, build_id, pub_date in triplets
+        ]
+        for version, triplets in it.groupby(version_build_ids, lambda x: x[0])
     }
 
 
@@ -107,12 +129,28 @@ def months_ago(months=12):
 
 def main(vers=67):
     # result_docs = pull_build_id_docs(min_build_day="20180701")
-    result_docs = pull_build_id_docs(min_build_day=months_ago(12))
+    result_docs = pull_build_id_docs(
+        min_build_day=months_ago(12), channel="beta"
+    )
     res = version2build_ids(
         result_docs, major_version=67, keep_rc=False, keep_release=False
     )
     print(res)
 
 
+def main_release(vers=67):
+    # result_docs = pull_build_id_docs(min_build_day="20180701")
+    result_docs = pull_build_id_docs(
+        min_build_day=months_ago(12), channel="release"
+    )
+    res = version2build_ids(
+        result_docs, major_version=67, keep_rc=False, keep_release=True
+    )
+    print(res)
+
+
 if __name__ == "__main__":
     main()
+
+    print('\n\nrelease')
+    main_release()

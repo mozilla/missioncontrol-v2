@@ -609,42 +609,36 @@ getLowsAndHighs <- function(D,mdl.rm,mdl.rc,mdl.im,mdl.ic){
   cbind(cmrpreds,ccrpreds,cavgrpreds, cmipreds, ccipreds, cavgipreds)
 }
 
-CENT <- function(s)  mean(s, trim=TR)
-getBetaTrend <- function(D,mdl.rm,mdl.rc,mdl.im,mdl.ic){
-  getLowHi <- function(x,names,trans){
-    x <- rbindlist(apply(x,1,function(s){
-      data.table(lo90 = trans(quantile(s,0.05)), mean = CENT(trans(s)), hi90=quantile(trans(s),0.95))
-    }))
-    setnames(x,names)
+getRelDiff <- function(crm.model,crc.model,cim.model,cic.model,current.data,prev.version,CUT=0.35,CUT.I=0.15){
+  getDiff <- function(current.data,whi='cmr',model,prev.version,aCUT){
+    if(length(whi)==2){
+      ## Averages
+      cm.preds1 <- getPredictions(NULL, current.data,whi[1],given=Predict(model$m,summary=FALSE, newdata=current.data))
+      cc.preds1 <- getPredictions(NULL, current.data,whi[2],given=Predict(model$c,summary=FALSE, newdata=current.data))
+      cm.preds <- (cm.preds1  + cc.preds1)/2
+    }else{
+      ## Singles
+      cm.preds <- getPredictions(NULL, current.data,whi,given=Predict(model,summary=FALSE, newdata=current.data))
+    }
+    cm.preds <- cbind(current.data[, list(os, c_version, nvc)],cm.preds)
+    f <- cm.preds[,{
+      that <- .SD[c_version==prev.version,3:ncol(.SD),with=FALSE]
+      this <- .SD[c_version!=prev.version,3:ncol(.SD),with=FALSE]
+      h <-  mean(  (this-that)/that > aCUT)
+      list(V=if(is.na(h)) 0 else h)
+    },by=list(os,nvc)]
+    f
   }
-  cversions  = D[, list(l=1),by=list(os,c_version)][,l := NULL]
-  pm <- cbind(D[, list(os,c_version, usage_cm_crasher_cversion)],data.table(getPredictions(mdl.rm, D, 'cmr',COUNT=TRUE)))[, {
-    f <- data.table(t(apply(.SD,2,sum,drop=FALSE)))
-    (1+f[,2:ncol(f), with=FALSE])/ (1/60+f[,1,with=FALSE][[1]])
-  },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
-  print("cmr done")
-  pc <- cbind(D[, list(os,c_version, usage_cc_crasher_cversion)],data.table(getPredictions(mdl.rc, D, 'ccr',COUNT=TRUE)))[, {
-    f <- data.table(t(apply(.SD,2,sum,drop=FALSE)))
-    (1+f[,2:ncol(f), with=FALSE])/ (1/60+f[,1,with=FALSE][[1]])
-  },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
-  print("ccr done")
-  cmrpreds <- getLowHi(pm,trans=function(s) s,names=c("cmr.lo90","cmr.mean","cmr.hi90"))
-  ccrpreds <- getLowHi(pc,trans=function(s) s,names=c("ccr.lo90","ccr.mean","ccr.hi90"))
-  cavgrpreds <- getLowHi((pm+pc)/2,trans=function(s) s,names=c("cavgr.lo90","cavgr.mean","cavgr.hi90"))
-  pm <- cbind(D[, list(os,c_version, dau_cversion)],data.table(getPredictions(mdl.im, D, 'cmi',COUNT=TRUE)))[, {
-    f <- data.table(t(apply(.SD,2,sum,drop=FALSE)))
-    (1+f[,2:ncol(f), with=FALSE])/ f[,1,with=FALSE][[1]]
-  },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
-  print("cmi done")
-  pc <- cbind(D[, list(os,c_version,dau_cversion )],data.table(getPredictions(mdl.ic, D, 'cci',COUNT=TRUE)))[, {
-    f <- data.table(t(apply(.SD,2,sum,drop=FALSE)))
-    (1+f[,2:ncol(f), with=FALSE])/ f[,1,with=FALSE][[1]]
-  },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
-  print("cci done")
-  cmipreds <- getLowHi(pm,trans=function(s) s,names=c("cmi.lo90","cmi.mean","cmi.hi90"))
-  ccipreds <- getLowHi(pc,trans=function(s) s,names=c("cci.lo90","cci.mean","cci.hi90"))
-  cavgipreds <- getLowHi((pm+pc)/2,trans=function(s) s,names=c("cavgi.lo90","cavgi.mean","cavgi.hi90"))
-  cbind(cversions,cmrpreds,ccrpreds,cavgrpreds, cmipreds, ccipreds, cavgipreds)
+  cmr <- getDiff(current.data, whi="cmr", crm.model, prev.version=prev.version,aCUT=CUT)[, cmr.reg.prob := V][,V := NULL]
+  ccr <- getDiff(current.data, whi='ccr', crc.model, prev.version=prev.version,aCUT=CUT)[, ccr.reg.prob := V][,V := NULL]
+  cavgr <- getDiff(current.data, whi=c('cmr','ccr'), model=list(m=crm.model,c=crc.model),
+                   prev.version=prev.version,aCUT=CUT)[, cavgr.reg.prob:=V][,V:=NULL]
+
+  cmi <- getDiff(current.data, whi="cmi", cim.model, prev.version=prev.version,aCUT=CUT.I)[, cmi.reg.prob := V][,V := NULL]
+  cci <- getDiff(current.data, whi="cci", cic.model, prev.version=prev.version,aCUT=CUT.I)[, cci.reg.prob := V][,V := NULL]
+  cavgi <- getDiff(current.data, whi=c('cmi','cci'), model=list(m=crm.model,c=cim.model),prev.version=prev.version,aCUT=CUT.I)[, cavgi.reg.prob:=V][,V:=NULL]
+  Reduce(function(x,y) merge(x,y,by=c("os","nvc")),list(current.data[c_version!=prev.version,list(os,date,c_version,nvc)],
+                                                        cmr,ccr,cavgr,cmi,cci,cavgi))
 }
 
 ## getBetaTrend <- function(D,mdl.rm,mdl.rc,mdl.im,mdl.ic){
@@ -690,33 +684,6 @@ getBetaTrend <- function(D,mdl.rm,mdl.rc,mdl.im,mdl.ic){
 ##   cbind(cversions,cmrpreds,ccrpreds,cavgrpreds, cmipreds, ccipreds, cavgipreds)
 ## }
 
-getRelDiff <- function(crm.model,crc.model,cim.model,cic.model,current.data,current.data.modified,CUT=0.35,CUT.I=0.15){
-  H <- function(S,names,CUTa=CUT){
-    x <- data.table(h=apply(S,1,function(s) { a <-mean(s > CUTa); if(is.na(a)) 0 else a}))
-    setnames(x,names)
-    x
-  }
-  tvm <- getPredictions(NULL, current.data,'cmr',given=Predict(crm.model,summary=FALSE, newdata=current.data))
-  pvm <- getPredictions(NULL, current.data.modified, 'cmr',given=Predict(crm.model,summary=FALSE, newdata=current.data.modified))
-  tvc <- getPredictions(NULL, current.data, 'ccr', given=Predict(crc.model,summary=FALSE, newdata=current.data))
-  pvc <- getPredictions(NULL, current.data.modified, 'ccr', given=Predict(crc.model,summary=FALSE, newdata=current.data.modified))
-  trans <- function(s) s  #function(x) x
-  cmr=H(  (trans(tvm) - trans(pvm))/trans(pvm),names=c("cmr.reg.prob"))
-  ccr=H(  (trans(tvc) - trans(pvc))/trans(pvc),names=c("ccr.reg.prob"))
-  tv1 <- (tvc+tvm)/2;pv1 <- (pvc+pvm)/2
-  cavgr <- H( (trans(tv1) - trans(pv1))/trans(pv1),names=c("cavgr.reg.prob"))
-  tvm <- getPredictions(NULL, current.data,'cmr',given=Predict(cim.model,summary=FALSE, newdata=current.data))
-  pvm <- getPredictions(NULL, current.data.modified, 'cmr',given=Predict(cim.model,summary=FALSE, newdata=current.data.modified))
-  tvc <- getPredictions(NULL, current.data, 'ccr', given=Predict(cic.model,summary=FALSE, newdata=current.data))
-  pvc <- getPredictions(NULL, current.data.modified, 'ccr', given=Predict(cic.model,summary=FALSE, newdata=current.data.modified))
-  trans <- function(x) x
-  cmi=H(  (trans(tvm) - trans(pvm))/trans(pvm),names=c("cmi.reg.prob"),CUT=CUT.I)
-  cci=H(  (trans(tvc) - trans(pvc))/trans(pvc),names=c("cci.reg.prob"),CUT=CUT.I)
-  tv1 <- (tvm+tvc)/2;pv1 <- (pvm+pvc)/2
-  cavgi <- H( (trans(tv1) - trans(pv1))/trans(pv1),names=c("cavgi.reg.prob"),CUT=CUT.I)
-  cbind(current.data[,list(os,date,c_version)],cmr, ccr,cavgr, cmi,cci,cavgi)
-}
-
 ```
 
 
@@ -733,11 +700,13 @@ rel.current.data <- d.rel[c_version==rel.current.version,][order(os, date),]
 rel.current.data.modified <- data.table(data.frame(rel.current.data))[, c_version := rel.prev.version]
 
 lowhigh.rel <- getLowsAndHighs(d.rel,cr.cm.rel,cr.cc.rel,ci.cm.rel,ci.cc.rel)
-reldiff.rel <- getRelDiff(cr.cm.rel,cr.cc.rel,ci.cm.rel,ci.cc.rel, rel.current.data,rel.current.data.modified)
+reldiff.rel <- getRelDiff(cr.cm.rel,cr.cc.rel,ci.cm.rel,ci.cc.rel,
+                          current.data=rbind(rel.current.data,rel.current.data.modified),
+                          prev.version=rel.prev.version)
+
 
 rel.posts <- cbind(d.rel[,list(date,cmr.wt,ccr.wt,c_version, os,nvc,cmr,ccr,cmi,cci)],lowhigh.rel)
-rel.posts <- merge(rel.posts,reldiff.rel,all.x=TRUE,by=c("os","date","c_version"))
-
+rel.posts <- merge(rel.posts,reldiff.rel,all.x=TRUE,by=c("os","date","nvc","c_version"))
 rel.summary <- rel.posts[c_version==rel.current.version,][date==max(date),][, os:=factor(os, levels=c("Windows_NT","Darwin","Linux"))]
 
 H0 <- function(nvc,l,h){
@@ -772,28 +741,44 @@ beta.current.data <- d.beta[c_version==beta.current.version,][order(os, date),]
 beta.current.data.modified <- data.table(data.frame(beta.current.data))[, c_version := beta.prev.version]
 
 lowhigh.beta <- getLowsAndHighs(d.beta,cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta)
-reldiff.beta <- getRelDiff(cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta, beta.current.data,beta.current.data.modified)
+reldiff.beta <- getRelDiff(cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta,
+                           current.data=rbind(beta.current.data,beta.current.data.modified),
+                           prev.version = beta.prev.version)
 beta.posts <- cbind(d.beta[,list(date,cmr.wt,ccr.wt,c_version, os,nvc,cmr,ccr,cmi,cci)],lowhigh.beta)
-beta.posts <- merge(beta.posts,reldiff.beta,all.x=TRUE,by=c("os","date","c_version"))
+beta.posts <- merge(beta.posts,reldiff.beta,all.x=TRUE,by=c("os","date","nvc","c_version"))
 
 beta.summary <- beta.posts[c_version==beta.current.version,][date==max(date),][, os:=factor(os, levels=c("Windows_NT","Darwin","Linux"))]
-beta.trend3 <- getBetaTrend(d.beta,cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta)
-beta.trend3[, ":="(major =  (sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1))),
-                  minor = (sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]
-beta.trend2 <- beta.trend3[major %in% c(beta.current.major,beta.prev.major),][order(os,as.numeric(as.character(major)),as.numeric(as.character(minor))),]
-beta.trend2 <- merge(beta.trend2,  beta.posts[order(c_version,nvc),][, {
- tail(.SD,1)[, list(nvc=nvc)]
-},by=list(os,c_version)], by=c("os","c_version"))[order(os,as.numeric(as.character(major)),as.numeric(as.character(minor))),]
-#beta.trend2 <- beta.posts[, tail(.SD[order(nvc),],1),by=list(os,c_version)]
-#beta.trend2[, ":="(major =  (sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1))),
-#                   minor = (sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]
+beta.trend2 <- beta.posts[, tail(.SD[order(nvc),],1),by=list(os,c_version)]
+beta.trend2[, ":="(major =  (sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1))),
+                   minor = (sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]
+beta.trend2 <- beta.trend2[major %in% c(beta.current.major,beta.prev.major),]
+
+
+
+#beta.trend3 <- getBetaTrend(d.beta,cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta)
+#beta.trend3[, ":="(major =  (sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1))),
+#                  minor = (sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]
+#beta.trend2 <- beta.trend3[major %in% c(beta.current.major,beta.prev.major),][order(os,as.numeric(as.character(major)),as.numeric(as.character(minor))),]
+#beta.trend2 <- merge(beta.trend2,  beta.posts[order(c_version,nvc),][, {
+# tail(.SD,1)[, list(nvc=nvc)]
+#},by=list(os,c_version)], by=c("os","c_version"))[order(os,as.numeric(as.character(major)),as.numeric(as.character(minor))),]
+
 ```
 
 
+This is the important bit for consistency. The model takes all the data and fits
+the daily values. Obviously this wil change in presence of new data. Thus the
+values for 2019-09-05 will look different for the data in common with the report
+for 2019-09-06. This can be confusing to readers. So we will not change data for
+past days. Instead we will merge latest data (date, nvc,os) which is no present
+in older data.
+
+```{r}
+
 ## SAVE
 ```{r eval=TRUE}
+
 zq <- expression({
-  
   u <- getwd()
   setwd("visual_demo/data/")
   write.csv(rel.posts, "rel.posts.csv")
@@ -802,12 +787,36 @@ zq <- expression({
   write.csv(beta.summary,"beta.summary.csv")
   write.csv(beta.trend2, "beta.trend.csv")
   setwd(u);rm(u)
+
+  system(glue("rm -rf  ./visual_demo/older/{today}/", today=(j <- Sys.Date())))
+  ## Get Most Recent Model
+  as1 <- as.Date(list.files("./visual_demo/older"))
+  as1 <- as1[!is.na(as1)] ;
+  as2 <- as.character(as1[which.min(max(rel.posts$date) - as1)])
+  as3 <- local({
+    h <- list(
+      rel.posts = fread(glue("./visual_demo/older/{as2}/data/rel.posts.csv",as=as2))[, V1 := NULL][,date := as.Date(date)],
+      rel.summary = fread(glue("./visual_demo/older/{as2}/data/rel.summary.csv",as2=as2))[, V1 := NULL][,date := as.Date(date)],
+      beta.posts = fread(glue("./visual_demo/older/{as2}/data/beta.posts.csv",as2=as2))[, V1 := NULL][,date := as.Date(date)],
+      beta.trend = fread(glue("./visual_demo/older/{as2}/data/beta.trend.csv",as2=as2))[, V1 := NULL],
+      beta.summary = fread(glue("./visual_demo/older/{as2}/data/beta.summary.csv",as2=as2))[, V1 := NULL][,date := as.Date(date)]
+    )
+    h
+  })
+  ## Whats New
+  Fixup <- function(older, newer){
+    az1 <- merge(older[, list(use=1),by=list(os,date)],
+                 newer[, list(use=1),by=list(os,date)],all.y=TRUE, by=c("os","date"))
+    rbind(older,merge(az1[is.na(use.x),list(os,date)], newer))
+  }
+  rel.posts.1 <- Fixup(as3$rel.posts, rel.posts)
+  rel.summary.1 <-rel.summary 
+  beta.posts.1 <- Fixup(as3$beta.posts,beta.posts)
+  beta.summary.1 <- beta.summary #
   
   clean_site("./visual_demo")
   render_site("./visual_demo/")
-  
-#  system("ls ~/pubsguha/visual_demo/older/ > ~/pubsguha/visual_demo/older/index.html")
-  #  system("ls ~/pubsguha/visual_demo/data/ > ~/pubsguha/visual_demo/data/index.html")
+
 SKEL <- '
 <!DOCTYPE html>
 <html>
@@ -833,7 +842,7 @@ datum<- glue(SKEL, body=paste(unlist(lapply(system("ls ./visual_demo/_site/data/
 })),collapse="\n"))
 writeLines(datum,'./visual_demo/_site/data/index.html')
 
-system(glue("mkdir -p ./visual_demo/older/{today}/", today=(j <- Sys.Date())))
+system(glue("mkdir -p ./visual_demo/older/{today}/", today=j))
 system(glue("rsync -avz ./visual_demo/_site/ ./visual_demo/older/{today}/",today=j))
 system("rsync -av ~/mz/missioncontrol/ex1/visual_demo/ ~/pubsguha/visual_demo/")
 
@@ -844,14 +853,16 @@ writeLines(older,'~/pubsguha/visual_demo/older/index.html')
 
   
 })
+
+
 ```
 
 ```{r eval=FALSE}
 
-#alter=TRUE;render("report.3.Rmd");
-#clean_site("./visual_demo");  render_site("./visual_demo/")
-alter=TRUE;render("report.3.Rmd");
-eval(zq)
+gen <- expression({
+  alter=TRUE;render("report.3.Rmd");
+  eval(zq)
+})
 
 testing <- expression({
   alter <- TRUE;render("report.3.Rmd")

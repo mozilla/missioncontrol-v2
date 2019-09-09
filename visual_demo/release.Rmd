@@ -35,7 +35,7 @@ cmi.alert.s <- if(nchar(cmi.alert) > 0) glue("<br/>at least 70% probability of r
 cci.alert.s <- if(nchar(cci.alert) > 0) glue("<br/>at least 70% probability of regression in content crash incidence for os: {cci.alert}\n") else ""
 if(any(nchar(c(cmr.alert.s, ccr.alert.s,cmi.alert.s,cci.alert.s)) > 0)){
   preamble <- glue("<br><b>ALERT</b>: Some likely regressions:", cmr.alert.s,ccr.alert.s,cmi.alert.s,cci.alert.s)
-}else preamble=''
+}else preamble='<br/>'
 
 kable_styling(
   kable(t(

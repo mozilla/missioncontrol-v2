@@ -773,6 +773,7 @@ for 2019-09-06. This can be confusing to readers. So we will not change data for
 past days. Instead we will merge latest data (date, nvc,os) which is no present
 in older data.
 
+
 ```{r}
 
 ## SAVE
@@ -788,38 +789,81 @@ zq <- expression({
   write.csv(beta.trend2, "beta.trend.csv")
   setwd(u);rm(u)
 
+  ### I put older ones into BQ alongwith generate date
+  ## i ignored the current one for testing purposes
+  ## technically wrong since i upload past model , current model for new data
+  ## and here i'm  uploading older models ...
+  ## To backfill choose a seed model and then new models will just append data
+  #  print(s);
+  ## ay=fread(glue("./visual_demo/older/{w}/data/rel.posts.csv",w=s))[,V1 := NULL]
+  ## ay[is.na(cmr.reg.prob), cmr.reg.prob := 0]
+  ## ay[is.na(ccr.reg.prob), ccr.reg.prob := 0]
+  ## ay[is.na(cavgr.reg.prob), cavgr.reg.prob := 0]
+  ## ay[is.na(cmi.reg.prob), cmi.reg.prob := 0]
+  ## ay[is.na(cci.reg.prob), cci.reg.prob := 0]
+  ## ay[is.na(cavgi.reg.prob), cavgi.reg.prob := 0]
+
+  ## ay[, "genDate" := s]
+  ## write.csv(ay,"/tmp/u.csv",row.names=FALSE)
+  ## system(glue("bq load  --project_id moz-fx-data-derived-datasets --autodetect --replace  --source_format=CSV --skip_leading_rows=1 --null_marker=NA",
+  ##               " analysis.sguha_crash_rate_release_posts /tmp/u.csv"))
+  ## #}
+
+  ## ay=fread(glue("./visual_demo/older/{w}/data/beta.posts.csv",w=s))[,V1 := NULL]
+  ## ay[is.na(cmr.reg.prob), cmr.reg.prob := 0]
+  ## ay[is.na(ccr.reg.prob), ccr.reg.prob := 0]
+  ## ay[is.na(cavgr.reg.prob), cavgr.reg.prob := 0]
+  ## ay[is.na(cmi.reg.prob), cmi.reg.prob := 0]
+  ## ay[is.na(cci.reg.prob), cci.reg.prob := 0]
+  ## ay[is.na(cavgi.reg.prob), cavgi.reg.prob := 0]
+  ## ay[, "genDate" := s]
+  ## write.csv(ay,"/tmp/u.csv",row.names=FALSE)
+  ## system(glue("bq load  --project_id moz-fx-data-derived-datasets --autodetect  --replace  --source_format=CSV --skip_leading_rows=1 --null_marker=NA",
+  ##             " analysis.sguha_crash_rate_beta_posts /tmp/u.csv"))
+  
+  ## The posts file has a seed model
+  ## and every day this is run the fitted data for the new day(s) is added
+  
   system(glue("rm -rf  ./visual_demo/older/{today}/", today=(j <- Sys.Date())))
-  ## Get Most Recent Model
-  as1 <- as.Date(list.files("./visual_demo/older"))
-  as1 <- as1[!is.na(as1)] ;
-  as2 <- as.character(as1[which.min(max(rel.posts$date) - as1)])
-  as3 <- local({
-    h <- list(
-      rel.posts = fread(glue("./visual_demo/older/{as2}/data/rel.posts.csv",as=as2))[, V1 := NULL][,date := as.Date(date)],
-      rel.summary = fread(glue("./visual_demo/older/{as2}/data/rel.summary.csv",as2=as2))[, V1 := NULL][,date := as.Date(date)],
-      beta.posts = fread(glue("./visual_demo/older/{as2}/data/beta.posts.csv",as2=as2))[, V1 := NULL][,date := as.Date(date)],
-      beta.trend = fread(glue("./visual_demo/older/{as2}/data/beta.trend.csv",as2=as2))[, V1 := NULL],
-      beta.summary = fread(glue("./visual_demo/older/{as2}/data/beta.summary.csv",as2=as2))[, V1 := NULL][,date := as.Date(date)]
-    )
-    h
-  })
-  ## Whats New
+  
   Fixup <- function(older, newer){
-    az1 <- merge(older[, list(use=1),by=list(os,date)],
-                 newer[, list(use=1),by=list(os,date)],all.y=TRUE, by=c("os","date"))
-    rbind(older,merge(az1[is.na(use.x),list(os,date)], newer))
+    ## older tables(in BQ) have _ instead of . !!!
+    ## need to fix this
+    o <- colnames(older); o <- gsub("_",".",o,perl=FALSE);o[o=='c.version']='c_version';setnames(older,o)
+    az1 <- merge(older[, list(use=1),by=list(os,date)], newer[, list(use=1),by=list(os,date)],all.y=TRUE, by=c("os","date"))
+    f <- list(older=older,newstuff=merge(az1[is.na(use.x),list(os,date)], newer))
+    f$result=rbind(f$older,f$newstuff)
+    f
   }
-  rel.posts.1 <- Fixup(as3$rel.posts, rel.posts)
-  rel.summary.1 <-rel.summary 
-  beta.posts.1 <- Fixup(as3$beta.posts,beta.posts)
+  
+  rel.posts.0 <- Fixup(g$q(glue("select * except(genDate) from analysis.sguha_crash_rate_release_posts"),-1), rel.posts)
+  rel.posts.1 <- rel.posts.0$result[order(date),]
+  rel.summary.1 <- rel.summary
+
+  beta.posts.0 <- Fixup(g$q(glue("select * except(genDate) from analysis.sguha_crash_rate_beta_posts"),-1), beta.posts)
+  beta.posts.1 <- beta.posts.0$result[order(date),]
   beta.summary.1 <- beta.summary #
+
+  ## Now upload newest data
+  UploadPost <- function(d,channel,j){
+    if(nrow(d) > 0){
+      d <- d[, genDate := j]
+      write.csv(d, "/tmp/u.csv",row.names=FALSE)
+      system(glue("bq load  --project_id moz-fx-data-derived-datasets    --source_format=CSV --skip_leading_rows=1 --null_marker=NA",
+                  " analysis.sguha_crash_rate_{channel}_posts /tmp/u.csv"))
+      }
+  }
+
+  ## upload the fixedup posts 
+  UploadPost(rel.posts.0$newstuff,"release",j) 
+  UploadPost(beta.posts.0$newstuff,"beta",j)
   
   clean_site("./visual_demo")
   render_site("./visual_demo/")
 
 SKEL <- '
 <!DOCTYPE html>
-<html>
+[<8;57;19m<html>
 <head>
   <meta charset="utf-8">
   <title></title>

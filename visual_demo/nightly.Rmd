@@ -1,5 +1,5 @@
 ---
-title: BETA
+title: NIGHTLY
 output:
   html_document:
      theme: cosmo

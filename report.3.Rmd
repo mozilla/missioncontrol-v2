@@ -353,7 +353,7 @@ dall.beta.new <- dall.beta.new[!c_version %in% c('67.0b17','67.0b18'),][, {
   if(length(s) > 0){
    whenStoppedBeingLatest <- max( s )
   } else whenStoppedBeingLatest <- -1
-  if(index<whenStoppedBeingLatest) index <- whenStoppedBeingLatest
+#  if(index<whenStoppedBeingLatest) index <- whenStoppedBeingLatest
   .SD[1:whenStoppedBeingLatest,]
   .SD[1:index,]
 },by=list(os,c_version)]
@@ -385,6 +385,9 @@ nightly.what.i.need[, ":="(d=as.character(strptime(buildid,'%Y%m%d')),
                            app_version_field='substr(app_build_id,1,8)',
                            build_version_field='substr(build_id,1,8)')][, till:=as.Date(d)+7]
 nightly.what.i.need <- nightly.what.i.need[d<'2019-06-18', crash_src := 'telemetry.crash_summary_v1']
+nightly.releases.for.model <- c(as.numeric(substring(nightly.what.i.need$v,1,2)))
+nightly.releases.for.model <- unique(c(nightly.releases.for.model,nightly.releases.for.model-1))
+
 
 dall.nightly.new <-   nightly.what.i.need[,{
   print(.SD);print(.BY)
@@ -472,10 +475,17 @@ dall.beta2 <- g$q(glue("select * from analysis.sguha_crash_rate_raw where channe
          whichv = paste(unique(beta.releases.for.model[,major]),collapse=",")),-1)
 dall.beta2 <- dall.beta2[nvc > 0][,":="(cmi.logit=boot::logit(cmi),cci.logit=boot::logit(cci),nvc.logit=boot::logit(nvc),cmr.wt = 1*(cmain >0), ccr.wt = 1*(ccontent > 0))]
 
+dall.nightly2 <- g$q(glue("select * from analysis.sguha_crash_rate_raw where channel = 'nightly' and major in ({whichv})",
+                          whichv = paste(unique(nightly.releases.for.model),collapse=',')),-1)
+
+dall.nightly2 <- dall.nightly2[nvc > 0][,":="(cmi.logit=boot::logit(cmi),cci.logit=boot::logit(cci),nvc.logit=boot::logit(nvc),cmr.wt = 1*(cmain >0), ccr.wt = 1*(ccontent > 0))]
+
+
 #dall.rel2[, wts := 1+dau_cversion/max(dau_cversion)*100,by=list(os)]
 #dall.beta2[, wts :=  1+dau_cversion/max(dau_cversion)*100,by=list(os)]
 dall.rel2[, wts := 1]
 dall.beta2[, wts:=1]
+dall.nightly2[,wts := 1]
 ```
 
 
@@ -483,27 +493,35 @@ dall.beta2[, wts:=1]
 
 ```{r}
 
-ffunc <- function(M,D)  brm(M,data=D, chains = 6, control = list(adapt_delta = 0.999, max_treedepth=12), cores = 6)
+ffunc <- function(M,D)  brm(M,data=D, chains = 4, control = list(adapt_delta = 0.999, max_treedepth=12), cores = 4)
       # M0 <- bf( log(1+cmain) | weights(cmr.wt)   ~  os + os*poly(log(usage_cm_crasher_cversion+1/60),2)+os*poly(nvc.logit,2)  + (1+os|c_version), sigma ~   os + s(nvc.logit, m=1))
-make.a.model <- function(data,wh,skew=FALSE){
+make.a.model <- function(data,wh,channel='not-nightly'){
+  ## See wbeards work on nightly: https://metrics.mozilla.com/protected/wbeard/mc/nightly_model.html
   alter <- TRUE
   if(wh=="cmr"){
-    M0 <- bf( log(cmain+1) |weights(cmr.wt*wts)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1)) 
-    if(alter){
       M0 <- bf( cmain+1 |weights(cmr.wt*wts)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os)+(1+os|c_version), shape ~ os+s(nvc,m=1))+negbinomial()
-    }
+      if(channel=='nightly'){
+        M0 <- bf( cmain + 1 |weights(cmr.wt*wts) ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + s(nvc, m = 1) , shape ~ log(dau_cversion + 1) + os)+negbinomial()
+      }
   }
   if(wh=='ccr'){
-    M0 <- bf( log(ccontent+1) | weights(ccr.wt*wts)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
-    if(alter){
-      M0 <- bf( ccontent+1 | weights(ccr.wt*wts)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), shape ~  os+s(nvc,m=1))+negbinomial()
+    M0 <- bf( ccontent+1 | weights(ccr.wt*wts)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), shape ~  os+s(nvc,m=1))+negbinomial()
+    if(channel=='nightly'){
+     M0 <- bf( ccontent + 1 | weights(ccr.wt*wts)~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
+               shape ~ os + s(nvc, m = 1))+negbinomial()
     }
   }
   if(wh=='cmi'){
     M0<- bf( log(1+dau_cm_crasher_cversion)|weights(wts)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+    if(channel=='nightly'){
+      M0 <- bf(log(1 + dau_cm_crasher_cversion)|weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version) ,sigma ~ os + nvc)
+    }
   }
   if(wh=='cci'){
     M0<- bf( log(1+dau_cc_crasher_cversion)|weights(wts)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+    if(channel=='nightly'){
+      M0 <- bf( log(1 + dau_cc_crasher_cversion) |weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version),sigma ~ os + nvc)
+    }
   }
   ffunc(M0,data)
 }
@@ -583,6 +601,24 @@ slackr("BETA CHAINS DONE!")
 ```
 
 
+
+Nightly Model
+
+```{r nightylModel}
+slackr("Nightly CHAINS STARTING")
+d.nightly <- dall.nightly2
+cr.cm.nightly.f <- future({ make.a.model(d.nightly,'cmr',channel='nightly') })
+cr.cc.nightly.f <- future({ make.a.model(d.nightly,'ccr',channel='nightly') })
+ci.cm.nightly.f <- future({ make.a.model(d.nightly,'cmi',channel='nightly') })
+ci.cc.nightly.f <- future({ make.a.model(d.nightly,'cci',channel='nightly') })
+cr.cm.nightly <- value(cr.cm.nightly.f)
+cr.cc.nightly <- value(cr.cc.nightly.f)
+ci.cm.nightly <- value(ci.cm.nightly.f)
+ci.cc.nightly <- value(ci.cc.nightly.f)
+slackr("Nightly CHAINS DONE!")
+```
+
+
 I use a 1% trimmed mean because some of the posteriors especially when nvc is
 small have crazy large outliers.
 
@@ -609,8 +645,8 @@ getLowsAndHighs <- function(D,mdl.rm,mdl.rc,mdl.im,mdl.ic){
   cbind(cmrpreds,ccrpreds,cavgrpreds, cmipreds, ccipreds, cavgipreds)
 }
 
-getRelDiff <- function(crm.model,crc.model,cim.model,cic.model,current.data,prev.version,CUT=0.35,CUT.I=0.15){
-  getDiff <- function(current.data,whi='cmr',model,prev.version,aCUT){
+getRelDiff <- function(crm.model,crc.model,cim.model,cic.model,current.data,prev.version,CUT=0.20,CUT.I=0.15,avg=FALSE){
+  getDiff <- function(current.data,whi='cmr',model,prev.version,aCUT,avg=FALSE){
     if(length(whi)==2){
       ## Averages
       cm.preds1 <- getPredictions(NULL, current.data,whi[1],given=Predict(model$m,summary=FALSE, newdata=current.data))
@@ -624,65 +660,65 @@ getRelDiff <- function(crm.model,crc.model,cim.model,cic.model,current.data,prev
     f <- cm.preds[,{
       that <- .SD[c_version==prev.version,3:ncol(.SD),with=FALSE]
       this <- .SD[c_version!=prev.version,3:ncol(.SD),with=FALSE]
-      h <-  mean(  (this-that)/that > aCUT)
-      list(V=if(is.na(h)) 0 else h)
+      hx <- as.numeric((this-that)/that)
+      hx <- hx[abs(hx)!=Inf & !is.na(hx)]
+      if(!avg){
+        h <-  mean(  hx > aCUT)
+        V <- if(is.na(h)) 0 else h
+      }else{
+        h <- mean( hx ,trim=0.5/100/2)
+        V <- if(is.na(h) || abs(h)==Inf) 0 else h
+      }
+      list(V=if(is.na(h)) 0 else h)#,W = mean(  (this-that)/that*100,trim=0.5/100/2) )
     },by=list(os,nvc)]
     f
   }
-  cmr <- getDiff(current.data, whi="cmr", crm.model, prev.version=prev.version,aCUT=CUT)[, cmr.reg.prob := V][,V := NULL]
-  ccr <- getDiff(current.data, whi='ccr', crc.model, prev.version=prev.version,aCUT=CUT)[, ccr.reg.prob := V][,V := NULL]
+  cmr <- getDiff(current.data, whi="cmr", crm.model, prev.version=prev.version,aCUT=CUT,avg=avg)[, cmr.reg.prob := V][,V := NULL]
+  ccr <- getDiff(current.data, whi='ccr', crc.model, prev.version=prev.version,aCUT=CUT,avg=avg)[, ccr.reg.prob := V][,V := NULL]
   cavgr <- getDiff(current.data, whi=c('cmr','ccr'), model=list(m=crm.model,c=crc.model),
-                   prev.version=prev.version,aCUT=CUT)[, cavgr.reg.prob:=V][,V:=NULL]
+                   prev.version=prev.version,aCUT=CUT,avg=avg)[, cavgr.reg.prob:=V][,V:=NULL]
 
-  cmi <- getDiff(current.data, whi="cmi", cim.model, prev.version=prev.version,aCUT=CUT.I)[, cmi.reg.prob := V][,V := NULL]
-  cci <- getDiff(current.data, whi="cci", cic.model, prev.version=prev.version,aCUT=CUT.I)[, cci.reg.prob := V][,V := NULL]
-  cavgi <- getDiff(current.data, whi=c('cmi','cci'), model=list(m=crm.model,c=cim.model),prev.version=prev.version,aCUT=CUT.I)[, cavgi.reg.prob:=V][,V:=NULL]
+  cmi <- getDiff(current.data, whi="cmi", cim.model, prev.version=prev.version,aCUT=CUT.I,avg=avg)[, cmi.reg.prob := V][,V := NULL]
+  cci <- getDiff(current.data, whi="cci", cic.model, prev.version=prev.version,aCUT=CUT.I,avg=avg)[, cci.reg.prob := V][,V := NULL]
+  cavgi <- getDiff(current.data, whi=c('cmi','cci'), model=list(m=crm.model,c=cim.model),prev.version=prev.version,aCUT=CUT.I,avg=avg)[, cavgi.reg.prob:=V][,V:=NULL]
   Reduce(function(x,y) merge(x,y,by=c("os","nvc")),list(current.data[c_version!=prev.version,list(os,date,c_version,nvc)],
                                                         cmr,ccr,cavgr,cmi,cci,cavgi))
 }
 
-## getBetaTrend <- function(D,mdl.rm,mdl.rc,mdl.im,mdl.ic){
-##   getLowHi <- function(x,names,trans){
-##     x <- rbindlist(apply(x,1,function(s){
-##       data.table(lo90 = trans(quantile(s,0.05)), mean = CENT(trans(s)), hi90=quantile(trans(s),0.95))
-##     }))
-##     setnames(x,names)
-##   }
-##   cversions  = D[, list(l=1),by=list(os,c_version)][,l := NULL]
-##   pm <- cbind(D[, list(os,c_version, log(usage_cm_crasher_cversion+1/60))],data.table(getPredictions(mdl.rm, D, 'cmr',COUNT=2)))[, {
-##     f <- data.table(t(apply(.SD,2,function(x) sum(x[x!=-Inf]))))
-##     exp((f[,2:ncol(f), with=FALSE])- (f[,1,with=FALSE][[1]]))
-##   },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
-##   print("cmr done")
-  
-##   pc <- cbind(D[, list(os,c_version, log(usage_cc_crasher_cversion+1/60))],data.table(getPredictions(mdl.rc, D, 'ccr',COUNT=2)))[, {
-##     f <- data.table(t(apply(.SD,2,function(x) sum(x[x!=-Inf]))))
-##     exp((f[,2:ncol(f), with=FALSE])- (f[,1,with=FALSE][[1]]))
-##   },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
-##   print("ccr done")
-  
-##   cmrpreds <- getLowHi(pm,trans=function(s) s,names=c("cmr.lo90","cmr.mean","cmr.hi90"))
-##   ccrpreds <- getLowHi(pc,trans=function(s) s,names=c("ccr.lo90","ccr.mean","ccr.hi90"))
-##   cavgrpreds <- getLowHi((pm+pc)/2,trans=function(s) s,names=c("cavgr.lo90","cavgr.mean","cavgr.hi90"))
-  
-##   pm <- cbind(D[, list(os,c_version, log(dau_cversion))],data.table(getPredictions(mdl.im, D, 'cmi',COUNT=2)))[, {
-##     f <- data.table(t(apply(.SD,2,function(x) sum(x[x!=-Inf]))))
-##     exp((f[,2:ncol(f), with=FALSE])- f[,1,with=FALSE][[1]])
-##   },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
-##   print("cmi done")
-  
-##   pc <- cbind(D[, list(os,c_version,log(dau_cversion) )],data.table(getPredictions(mdl.ic, D, 'cci',COUNT=2)))[, {
-##     f <- data.table(t(apply(.SD,2,function(x) sum(x[x!=-Inf]))))
-##     exp((f[,2:ncol(f), with=FALSE])- f[,1,with=FALSE][[1]])
-##   },   by=list(os,c_version)][, ":="(c_version = NULL, os=NULL)]
-##   print("cci done")
-  
-##   cmipreds <- getLowHi(pm,trans=function(s) s,names=c("cmi.lo90","cmi.mean","cmi.hi90"))
-##   ccipreds <- getLowHi(pc,trans=function(s) s,names=c("cci.lo90","cci.mean","cci.hi90"))
-##   cavgipreds <- getLowHi((pm+pc)/2,trans=function(s) s,names=c("cavgi.lo90","cavgi.mean","cavgi.hi90"))
-  
-##   cbind(cversions,cmrpreds,ccrpreds,cavgrpreds, cmipreds, ccipreds, cavgipreds)
-## }
+
+```
+
+```{r}
+
+compare.two <- function(model,whi,this,that,CUT=0.35){
+    getDiff <- function(current.data,whi,model){
+      cm.preds <- getPredictions(NULL, current.data,whi,given=Predict(model,summary=FALSE, newdata=current.data))
+      cm.preds <- cbind(current.data[, list(date,nvc,branch)],cm.preds)
+      cm.preds <- cm.preds[, .SD[nvc==max(nvc),],by=branch]
+      cm.preds$date <- NULL; cm.preds$nvc <- NULL
+      cm.preds <- cm.preds[,list(x = as.numeric(.SD[,2:ncol(.SD)])), by=branch]
+      plot1 <- ggplot(cm.preds, aes(x,color=branch))+geom_density()+ggtitle(glue("Density of two branches for {whi}"))
+      plot2 <- ggplot(cm.preds, aes(x,color=branch))+geom_density()+scale_x_continuous(trans='log2') + ggtitle(glue("(Logged) Density of two branches for {whi}"))
+      library(patchwork)
+      plots  <-  plot1/plot2
+      reldiff <- (cm.preds[branch=='this', x] - cm.preds[branch=='that',x])/cm.preds[branch=='that',x]*100
+      list(plots=plots, means=cm.preds[,mean(x), by=branch] , reldiff=list(i=quantile(reldiff, c(0.5,0.95)),q=quantile(reldiff, c(0.01,0.25,0.5,0.75,0.99)))
+         , probReg = mean(reldiff >= (100*CUT))*100,mean = mean(reldiff, trim=0.5/100/2))
+    }
+    current.data=rbind(this[,"branch" := "this"], that[,"branch" := "that"])
+    getDiff(current.data, whi, model)
+}    
+
+### Example Usage
+#this <- d.beta[c_version=='70.0b4' & os=='Linux',]
+#that <- copy(this)[,c_version := '70.0b3']
+#compa <- compare.two(model=cr.cc.beta,whi='ccr', this,that,CUT=0.25)
+
+## this <- d.rel[c_version=='69.0' & os=='Linux',]
+## that <- copy(this)[,c_version := '68.0.2']
+## compa <- compare.two(model=ci.cm.rel,whi='cmr', this,that)
+
+
 
 ```
 
@@ -747,7 +783,7 @@ reldiff.beta <- getRelDiff(cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta,
 beta.posts <- cbind(d.beta[,list(date,cmr.wt,ccr.wt,c_version, os,nvc,cmr,ccr,cmi,cci)],lowhigh.beta)
 beta.posts <- merge(beta.posts,reldiff.beta,all.x=TRUE,by=c("os","date","nvc","c_version"))
 
-beta.summary <- beta.posts[c_version==beta.current.version,][date==max(date),][, os:=factor(os, levels=c("Windows_NT","Darwin","Linux"))]
+beta.summary <- beta.posts[c_version==beta.current.version,][,tail(.SD[order(date),],1),by=os][, os:=factor(os, levels=c("Windows_NT","Darwin","Linux"))]
 beta.trend2 <- beta.posts[, tail(.SD[order(nvc),],1),by=list(os,c_version)]
 beta.trend2[, ":="(major =  (sapply(c_version,function(s) head(strsplit(s,"\\.0b")[[1]],1))),
                    minor = (sapply(c_version,function(s) tail(strsplit(s,"\\.0b")[[1]],1))))]
@@ -766,6 +802,27 @@ beta.trend2 <- beta.trend2[major %in% c(beta.current.major,beta.prev.major),]
 ```
 
 
+```{r nightlyDatastructure}
+nightly.this.major <- max(d.nightly$major)
+
+nightly.current.version <- max(d.nightly$c_version)
+nightly.prev.version <-  rev(sort(unique(d.nightly$c_version)))[2]
+nightly.current.data <- d.nightly[c_version==nightly.current.version,][order(os, date),]
+nightly.current.data.modified <- data.table(data.frame(nightly.current.data))[, c_version := nightly.prev.version]
+
+
+lowhigh.nightly <- getLowsAndHighs(d.nightly,cr.cm.nightly,cr.cc.nightly,ci.cm.nightly,ci.cc.nightly)
+reldiff.nightly <- getRelDiff(cr.cm.nightly,cr.cc.nightly,ci.cm.nightly,ci.cc.nightly,
+                           current.data=rbind(nightly.current.data,nightly.current.data.modified),
+                           prev.version = nightly.prev.version,avg=TRUE)
+nightly.posts <- cbind(d.nightly[,list(major,minor,date,cmr.wt,ccr.wt,c_version, os,nvc,cmr,ccr,cmi,cci)],lowhigh.nightly)
+nightly.posts <- merge(nightly.posts,reldiff.nightly,all.x=TRUE,by=c("os","date","nvc","c_version"))
+
+nightly.summary <- nightly.posts[c_version==nightly.current.version,][, tail(.SD[order(date),],1)   ,by=os][, os:=factor(os, levels=c("Windows_NT","Darwin","Linux"))]
+nightly.trend2 <- nightly.posts[, tail(.SD[order(nvc),],1),by=list(os,c_version)]
+
+```
+
 This is the important bit for consistency. The model takes all the data and fits
 the daily values. Obviously this wil change in presence of new data. Thus the
 values for 2019-09-05 will look different for the data in common with the report
@@ -779,6 +836,7 @@ in older data.
 ## SAVE
 ```{r eval=TRUE}
 
+jdate <- Sys.Date()
 zq <- expression({
   u <- getwd()
   setwd("visual_demo/data/")
@@ -823,8 +881,8 @@ zq <- expression({
   
   ## The posts file has a seed model
   ## and every day this is run the fitted data for the new day(s) is added
-  
-  system(glue("rm -rf  ./visual_demo/older/{today}/", today=(j <- Sys.Date())))
+
+  system(glue("rm -rf  ./visual_demo/older/{today}/", today=jdate))
   
   Fixup <- function(older, newer){
     ## older tables(in BQ) have _ instead of . !!!
@@ -855,15 +913,15 @@ zq <- expression({
   }
 
   ## upload the fixedup posts 
-  UploadPost(rel.posts.0$newstuff,"release",j) 
-  UploadPost(beta.posts.0$newstuff,"beta",j)
+  UploadPost(rel.posts.0$newstuff,"release",jdate) 
+  UploadPost(beta.posts.0$newstuff,"beta",jdate)
   
   clean_site("./visual_demo")
   render_site("./visual_demo/")
 
 SKEL <- '
 <!DOCTYPE html>
-[<8;57;19m<html>
+<html>
 <head>
   <meta charset="utf-8">
   <title></title>
@@ -886,8 +944,8 @@ datum<- glue(SKEL, body=paste(unlist(lapply(system("ls ./visual_demo/_site/data/
 })),collapse="\n"))
 writeLines(datum,'./visual_demo/_site/data/index.html')
 
-system(glue("mkdir -p ./visual_demo/older/{today}/", today=j))
-system(glue("rsync -avz ./visual_demo/_site/ ./visual_demo/older/{today}/",today=j))
+system(glue("mkdir -p ./visual_demo/older/{today}/", today=jdate))
+system(glue("rsync -avz ./visual_demo/_site/ ./visual_demo/older/{today}/",today=jdate))
 system("rsync -av ~/mz/missioncontrol/ex1/visual_demo/ ~/pubsguha/visual_demo/")
 
 older <- glue(SKEL, body=paste(unlist(lapply(system("ls ~/pubsguha/visual_demo/older/",intern=TRUE),function(s){

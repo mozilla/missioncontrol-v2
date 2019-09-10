@@ -25,14 +25,14 @@ AS OF NOW: `r max(rel.summary.1$date)`
 
 
 ```{r x1,echo=FALSE}
-cmr.alert <- paste(as.character(rel.summary[, os[which(cmr.reg.prob>0.7)]]),collapse=",")
-ccr.alert <- paste(as.character(rel.summary[, os[which(ccr.reg.prob>0.7)]]),collapse=",")
-cmi.alert <- paste(as.character(rel.summary[, os[which(cmi.reg.prob>0.7)]]),collapse=",")
-cci.alert <- paste(as.character(rel.summary[, os[which(ccr.reg.prob>0.7)]]),collapse=",")
-cmr.alert.s <- if(nchar(cmr.alert) > 0) glue("<br/>at least 70% probability of regression in main crash rates for os: {cmr.alert}\n") else ""
-ccr.alert.s  <- if(nchar(ccr.alert) > 0) glue("<br/>at least 70% probability of regression in content crash rates for os: {ccr.alert}\n") else ""
-cmi.alert.s <- if(nchar(cmi.alert) > 0) glue("<br/>at least 70% probability of regression in main crash incidence for os: {cmi.alert}\n") else ""
-cci.alert.s <- if(nchar(cci.alert) > 0) glue("<br/>at least 70% probability of regression in content crash incidence for os: {cci.alert}\n") else ""
+cmr.alert <- paste(as.character(rel.summary[, os[which(cmr.reg.prob>0.65)]]),collapse=",")
+ccr.alert <- paste(as.character(rel.summary[, os[which(ccr.reg.prob>0.65)]]),collapse=",")
+cmi.alert <- paste(as.character(rel.summary[, os[which(cmi.reg.prob>0.65)]]),collapse=",")
+cci.alert <- paste(as.character(rel.summary[, os[which(ccr.reg.prob>0.65)]]),collapse=",")
+cmr.alert.s <- if(nchar(cmr.alert) > 0) glue("<br/>at least 65% probability of regression in main crash rates for os: {cmr.alert}\n") else ""
+ccr.alert.s  <- if(nchar(ccr.alert) > 0) glue("<br/>at least 65% probability of regression in content crash rates for os: {ccr.alert}\n") else ""
+cmi.alert.s <- if(nchar(cmi.alert) > 0) glue("<br/>at least 65% probability of regression in main crash incidence for os: {cmi.alert}\n") else ""
+cci.alert.s <- if(nchar(cci.alert) > 0) glue("<br/>at least 65% probability of regression in content crash incidence for os: {cci.alert}\n") else ""
 if(any(nchar(c(cmr.alert.s, ccr.alert.s,cmi.alert.s,cci.alert.s)) > 0)){
   preamble <- glue("<br><b>ALERT</b>: Some likely regressions:", cmr.alert.s,ccr.alert.s,cmi.alert.s,cci.alert.s)
 }else preamble='<br/>'

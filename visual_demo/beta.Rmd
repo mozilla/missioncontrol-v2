@@ -25,10 +25,10 @@ AS OF NOW: `r max(beta.summary.1$date)`
 
 
 ```{r echo=FALSE}
-cmr.alert <- paste(as.character(beta.summary[, os[which(cmr.reg.prob>0.65)]]),collapse=",")
-ccr.alert <- paste(as.character(beta.summary[, os[which(ccr.reg.prob>0.65)]]),collapse=",")
-cmi.alert <- paste(as.character(beta.summary[, os[which(cmi.reg.prob>0.65)]]),collapse=",")
-cci.alert <- paste(as.character(beta.summary[, os[which(ccr.reg.prob>0.65)]]),collapse=",")
+cmr.alert <- paste(as.character(beta.summary.1[, os[which(cmr.reg.prob>0.65)]]),collapse=",")
+ccr.alert <- paste(as.character(beta.summary.1[, os[which(ccr.reg.prob>0.65)]]),collapse=",")
+cmi.alert <- paste(as.character(beta.summary.1[, os[which(cmi.reg.prob>0.65)]]),collapse=",")
+cci.alert <- paste(as.character(beta.summary.1[, os[which(ccr.reg.prob>0.65)]]),collapse=",")
 cmr.alert.s <- if(nchar(cmr.alert) > 0) glue("<br/>at least 65% probability of regression in main crash rates for os: {cmr.alert}\n") else ""
 ccr.alert.s  <- if(nchar(ccr.alert) > 0) glue("<br/>at least 65% probability of regression in content crash rates for os: {ccr.alert}\n") else ""
 cmi.alert.s <- if(nchar(cmi.alert) > 0) glue("<br/>at least 65% probability of regression in main crash incidence for os: {cmi.alert}\n") else ""

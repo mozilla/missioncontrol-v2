@@ -24,13 +24,6 @@ navbar:
     menu:
     - text: Summary
       href: "beta.html#summary"
-    - text: Adoption
-    - text: average crash
-      href: "beta.html#average-crash"
-    - text: browser crash
-      href: "beta.html#main-crash"
-    - text: content crash
-      href: "beta.html#content-crash"
     - text: Trend
     - text: average crash
       href: "beta.html#trend-average"
@@ -38,6 +31,31 @@ navbar:
       href: "beta.html#trend-main"
     - text: content crash
       href: "beta.html#trend-content"
+    - text: Adoption
+    - text: average crash
+      href: "beta.html#average-crash"
+    - text: browser crash
+      href: "beta.html#main-crash"
+    - text: content crash
+      href: "beta.html#content-crash"
+  - text: Nightly
+    menu:
+    - text: Summary
+      href: "nightly.html#summary"
+    - text: Trend
+    - text: average crash
+      href: "nightly.html#trend-average"
+    - text: browser crash
+      href: "nightly.html#trend-main"
+    - text: content crash
+      href: "nightly.html#trend-content"
+    - text: Adoption
+    - text: average crash
+      href: "nightly.html#average-crash"
+    - text: browser crash
+      href: "nightly.html#main-crash"
+    - text: content crash
+      href: "beta.html#content-crash"
   - text: FAQ
     href: faq.html
     

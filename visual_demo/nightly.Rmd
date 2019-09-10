@@ -17,29 +17,28 @@ knitr::opts_chunk$set(echo=FALSE, warning=FALSE,messages=FALSE)
 
 ## Summary {.tabset}
 
-AS OF NOW: `r max(beta.summary.1$date)`
+AS OF NOW: `r max(nightly.summary.1$date)`
 
-- Current Version: `r beta.current.version`
-  - Days Since Release: `r beta.current.data[os=='Windows_NT',.N]`
-- Previous Version: `r beta.prev.version`
+- Current Version: `r nightly.current.version`
+- Previous Version: `r nightly.prev.version`
 
 
 ```{r echo=FALSE}
-cmr.alert <- paste(as.character(beta.summary[, os[which(cmr.reg.prob>0.65)]]),collapse=",")
-ccr.alert <- paste(as.character(beta.summary[, os[which(ccr.reg.prob>0.65)]]),collapse=",")
-cmi.alert <- paste(as.character(beta.summary[, os[which(cmi.reg.prob>0.65)]]),collapse=",")
-cci.alert <- paste(as.character(beta.summary[, os[which(ccr.reg.prob>0.65)]]),collapse=",")
-cmr.alert.s <- if(nchar(cmr.alert) > 0) glue("<br/>at least 65% probability of regression in main crash rates for os: {cmr.alert}\n") else ""
-ccr.alert.s  <- if(nchar(ccr.alert) > 0) glue("<br/>at least 65% probability of regression in content crash rates for os: {ccr.alert}\n") else ""
-cmi.alert.s <- if(nchar(cmi.alert) > 0) glue("<br/>at least 65% probability of regression in main crash incidence for os: {cmi.alert}\n") else ""
-cci.alert.s <- if(nchar(cci.alert) > 0) glue("<br/>at least 65% probability of regression in content crash incidence for os: {cci.alert}\n") else ""
+cmr.alert <- paste(as.character(nightly.summary.1[, os[which(abs(cmr.reg.prob)>0.25)]]),collapse=",")
+ccr.alert <- paste(as.character(nightly.summary.1[, os[which(abs(ccr.reg.prob)>0.25)]]),collapse=",")
+cmi.alert <- paste(as.character(nightly.summary.1[, os[which(abs(cmi.reg.prob)>0.25)]]),collapse=",")
+cci.alert <- paste(as.character(nightly.summary.1[, os[which(abs(ccr.reg.prob)>0.25)]]),collapse=",")
+cmr.alert.s <- if(nchar(cmr.alert) > 0) glue("<br/>These os's have more than 25% change in main crash rates for os: {cmr.alert}\n") else ""
+ccr.alert.s  <- if(nchar(ccr.alert) > 0) glue("<br/>These os's have more than 25% change  in content crash rates for os: {ccr.alert}\n") else ""
+cmi.alert.s <- if(nchar(cmi.alert) > 0) glue("<br/>These os's have more than 25% change in main crash incidence for os: {cmi.alert}\n") else ""
+cci.alert.s <- if(nchar(cci.alert) > 0) glue("<br/>These os's have more than 25% change in content crash incidence for os: {cci.alert}\n") else ""
 if(any(nchar(c(cmr.alert.s, ccr.alert.s,cmi.alert.s,cci.alert.s)) > 0)){
-  preamble <- glue("<br/><b>ALERT</b>: Some likely regressions:", cmr.alert.s,ccr.alert.s,cmi.alert.s,cci.alert.s)
+  preamble <- glue("<br/><b>ALERT</b>: Some big shifts:", cmr.alert.s,ccr.alert.s,cmi.alert.s,cci.alert.s)
 }else preamble='<br/>'
 
 kable_styling(
   kable(t(
-    beta.summary.1[,list(os,
+    nightly.summary.1[,list(os,
                       "% Active Hours Adoption"=round(nvc*100,2),
                       "Average" = round(cavgr.mean,3),
                       "Browser" = round(cmr.mean,3),
@@ -67,7 +66,7 @@ makeSummaryPlot <- function(dd,xlab,ylab,width=NULL){
   ylim <- dd$fac
   figure(ylim = ylim,width=if(is.null(width)) 330 else width,height=300) %>%
     ly_segments(lo90, fac, hi90, fac, data = dd ,color = NULL, width = 2) %>%
-    ly_points(mn, fac, glyph = 16, data=dd,hover = list(value=mn,lo90=lo90,hi90=hi90,regressionProb=100*regProb)) %>%
+    ly_points(mn, fac, glyph = 16, data=dd,hover = list(value=mn,lo90=lo90,hi90=hi90,RelChange=100*regProb)) %>%
     x_axis(label = xlab) %>%
     y_axis(label = ylab) %>%
     theme_axis(c("x", "y"), 
@@ -76,11 +75,11 @@ makeSummaryPlot <- function(dd,xlab,ylab,width=NULL){
     theme_legend(background_fill_alpha=0) %>% theme_grid(c("x", "y"), grid_line_color = "white")
 }
 figs <- list(
-  makeSummaryPlot(beta.summary.1[, list(fac=as.character(os),lo90=cavgr.lo90,mn=cavgr.mean,hi90=cavgr.hi90,regProb=cavgr.reg.prob)],
+  makeSummaryPlot(nightly.summary.1[, list(fac=as.character(os),lo90=cavgr.lo90,mn=cavgr.mean,hi90=cavgr.hi90,regProb=cavgr.reg.prob)],
                   "Current Average Crash",""),
-  makeSummaryPlot(beta.summary.1[, list(fac=as.character(os),lo90=cmr.lo90,mn=cmr.mean,hi90=cmr.hi90,regProb=cmr.reg.prob)],
+  makeSummaryPlot(nightly.summary.1[, list(fac=as.character(os),lo90=cmr.lo90,mn=cmr.mean,hi90=cmr.hi90,regProb=cmr.reg.prob)],
                   "Current Browser Crash", ""),
-  makeSummaryPlot(beta.summary.1[, list(fac=as.character(os),lo90=ccr.lo90,mn=ccr.mean,hi90=ccr.hi90,regProb=ccr.reg.prob)],
+  makeSummaryPlot(nightly.summary.1[, list(fac=as.character(os),lo90=ccr.lo90,mn=ccr.mean,hi90=ccr.hi90,regProb=ccr.reg.prob)],
                 "Current Content Crash","")
 )
 grid_plot(figs)
@@ -92,11 +91,11 @@ Defined as percentage of DAU that experience a crash
 
 ```{r}
 figs <- list(
-  makeSummaryPlot(beta.summary.1[, list(fac=as.character(os),lo90=100*cmi.lo90,mn=100*cmi.mean,hi90=100*cmi.hi90,regProb=cmi.reg.prob)],
+  makeSummaryPlot(nightly.summary.1[, list(fac=as.character(os),lo90=100*cmi.lo90,mn=100*cmi.mean,hi90=100*cmi.hi90,regProb=cmi.reg.prob)],
                   "Current Browser Crash", ""),
-  makeSummaryPlot(beta.summary.1[, list(fac=as.character(os),lo90=100*cci.lo90,mn=100*cci.mean,hi90=100*cci.hi90,regProb=cci.reg.prob)],
+  makeSummaryPlot(nightly.summary.1[, list(fac=as.character(os),lo90=100*cci.lo90,mn=100*cci.mean,hi90=100*cci.hi90,regProb=cci.reg.prob)],
                 "Current Content Crash",""),
-  makeSummaryPlot(beta.summary.1[, list(fac=as.character(os),lo90=100*cavgi.lo90,mn=100*cavgi.mean,hi90=100*cavgi.hi90,regProb=cavgi.reg.prob)],
+  makeSummaryPlot(nightly.summary.1[, list(fac=as.character(os),lo90=100*cavgi.lo90,mn=100*cavgi.mean,hi90=100*cavgi.hi90,regProb=cavgi.reg.prob)],
                   "Current Average Crash","")
 )
 grid_plot(figs)
@@ -110,9 +109,9 @@ This graph represents the final crash rate (at peak adoption) of a beta number
 
 ```{r}
 
-makeBetaTrend <- function(dd,xlab,ylab,width=NULL){
+makeNightlyTrend <- function(dd,xlab,ylab,width=NULL){
   xlim <- dd$version
-  figure(xlim = xlim,width=if(is.null(width)) 500 else width,height=300,legend_location='top_left') %>%
+  figure(xlim = xlim,width=if(is.null(width)) 1200  else width,height=300,legend_location='top_left') %>%
     ly_segments(version, lo90, version, hi90, data = dd ,color = major, width = 2) %>%
     ly_points(version, mn, glyph = 16, data=dd,color=major,hover = list(value=mn,lo90=lo90,hi90=hi90,adoption=adoption)) %>%
     x_axis(label = xlab) %>%
@@ -135,28 +134,28 @@ makeBetaTrend <- function(dd,xlab,ylab,width=NULL){
 #### Rates
 
 ```{r}
-t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=cavgr.lo90,mn=cavgr.mean,hi90=cavgr.hi90)]
+t.temp <- nightly.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=cavgr.lo90,mn=cavgr.mean,hi90=cavgr.hi90)]
 fig7 <- list(
-  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Avg Crash', ylab='Windows_NT'),
-  makeBetaTrend(t.temp[os=='Darwin',], xlab='Avg Crash', ylab='Darwin'),
-  makeBetaTrend(t.temp[os=='Linux',], xlab='Avg Crash', ylab='Linux'))
+  makeNightlyTrend(t.temp[os=='Windows_NT',], xlab='Avg Crash', ylab='Windows_NT'),
+  makeNightlyTrend(t.temp[os=='Darwin',], xlab='Avg Crash', ylab='Darwin'),
+  makeNightlyTrend(t.temp[os=='Linux',], xlab='Avg Crash', ylab='Linux'))
 
 
-grid_plot(fig7)
+grid_plot(fig7,ncol=1)
   
 ```
 
 #### Incidence Pct
 
 ```{r}
-t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=100*cavgi.lo90,mn=100*cavgi.mean,hi90=100*cavgi.hi90)]
+t.temp <- nightly.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=100*cavgi.lo90,mn=100*cavgi.mean,hi90=100*cavgi.hi90)]
 fig8 <- list(
-  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Avg Crash', ylab='Windows_NT'),
-  makeBetaTrend(t.temp[os=='Darwin',], xlab='Avg Crash', ylab='Darwin'),
-  makeBetaTrend(t.temp[os=='Linux',], xlab='Avg Crash', ylab='Linux'))
+  makeNightlyTrend(t.temp[os=='Windows_NT',], xlab='Avg Crash', ylab='Windows_NT'),
+  makeNightlyTrend(t.temp[os=='Darwin',], xlab='Avg Crash', ylab='Darwin'),
+  makeNightlyTrend(t.temp[os=='Linux',], xlab='Avg Crash', ylab='Linux'))
 
 
-grid_plot(fig8)
+grid_plot(fig8,ncol=1)
   
 ```
 
@@ -168,28 +167,28 @@ grid_plot(fig8)
 #### Rates
 
 ```{r}
-t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=cmr.lo90,mn=cmr.mean,hi90=cmr.hi90)]
+t.temp <- nightly.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=cmr.lo90,mn=cmr.mean,hi90=cmr.hi90)]
 fig9 <- list(
-  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Browser Crash', ylab='Windows_NT'),
-  makeBetaTrend(t.temp[os=='Darwin',], xlab='Browser Crash', ylab='Darwin'),
-  makeBetaTrend(t.temp[os=='Linux',], xlab='Browser Crash', ylab='Linux'))
+  makeNightlyTrend(t.temp[os=='Windows_NT',], xlab='Browser Crash', ylab='Windows_NT'),
+  makeNightlyTrend(t.temp[os=='Darwin',], xlab='Browser Crash', ylab='Darwin'),
+  makeNightlyTrend(t.temp[os=='Linux',], xlab='Browser Crash', ylab='Linux'))
 
 
-grid_plot(fig9)
+grid_plot(fig9,ncol=1)
   
 ```
 
 #### Incidence Pct
 
 ```{r}
-t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=100*cmi.lo90,mn=100*cmi.mean,hi90=100*cmi.hi90)]
+t.temp <- nightly.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=100*cmi.lo90,mn=100*cmi.mean,hi90=100*cmi.hi90)]
 fig10<- list(
-  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Browser Crash', ylab='Windows_NT'),
-  makeBetaTrend(t.temp[os=='Darwin',], xlab='Browser Crash', ylab='Darwin'),
-  makeBetaTrend(t.temp[os=='Linux',], xlab='Browser Crash', ylab='Linux'))
+  makeNightlyTrend(t.temp[os=='Windows_NT',], xlab='Browser Crash', ylab='Windows_NT'),
+  makeNightlyTrend(t.temp[os=='Darwin',], xlab='Browser Crash', ylab='Darwin'),
+  makeNightlyTrend(t.temp[os=='Linux',], xlab='Browser Crash', ylab='Linux'))
 
 
-grid_plot(fig10)
+grid_plot(fig10,ncol=1)
   
 ```
 
@@ -200,28 +199,28 @@ grid_plot(fig10)
 #### Rates
 
 ```{r}
-t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=ccr.lo90,mn=ccr.mean,hi90=ccr.hi90)]
+t.temp <- nightly.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=ccr.lo90,mn=ccr.mean,hi90=ccr.hi90)]
 fig9 <- list(
-  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Content Crash', ylab='Windows_NT'),
-  makeBetaTrend(t.temp[os=='Darwin',], xlab='Content Crash', ylab='Darwin'),
-  makeBetaTrend(t.temp[os=='Linux',], xlab='Content Crash', ylab='Linux'))
+  makeNightlyTrend(t.temp[os=='Windows_NT',], xlab='Content Crash', ylab='Windows_NT'),
+  makeNightlyTrend(t.temp[os=='Darwin',], xlab='Content Crash', ylab='Darwin'),
+  makeNightlyTrend(t.temp[os=='Linux',], xlab='Content Crash', ylab='Linux'))
 
 
-grid_plot(fig9)
+grid_plot(fig9,ncol=1)
   
 ```
 
 #### Incidence Pct
 
 ```{r}
-t.temp <- beta.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=100*cci.lo90,mn=100*cci.mean,hi90=100*cci.hi90)]
+t.temp <- nightly.trend2[, list(os=as.character(os),adoption=100*nvc,version=as.character(c_version),major=as.character(major),lo90=100*cci.lo90,mn=100*cci.mean,hi90=100*cci.hi90)]
 fig10<- list(
-  makeBetaTrend(t.temp[os=='Windows_NT',], xlab='Content Crash', ylab='Windows_NT'),
-  makeBetaTrend(t.temp[os=='Darwin',], xlab='Content Crash', ylab='Darwin'),
-  makeBetaTrend(t.temp[os=='Linux',], xlab='Content Crash', ylab='Linux'))
+  makeNightlyTrend(t.temp[os=='Windows_NT',], xlab='Content Crash', ylab='Windows_NT'),
+  makeNightlyTrend(t.temp[os=='Darwin',], xlab='Content Crash', ylab='Darwin'),
+  makeNightlyTrend(t.temp[os=='Linux',], xlab='Content Crash', ylab='Linux'))
 
 
-grid_plot(fig10)
+grid_plot(fig10,ncol=1)
   
 ```
 

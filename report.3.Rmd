@@ -667,6 +667,7 @@ getRelDiff <- function(crm.model,crc.model,cim.model,cic.model,current.data,prev
         V <- if(is.na(h)) 0 else h
       }else{
         h <- mean( hx ,trim=0.5/100/2)
+        h <- median(hx)
         V <- if(is.na(h) || abs(h)==Inf) 0 else h
       }
       list(V=if(is.na(h)) 0 else h)#,W = mean(  (this-that)/that*100,trim=0.5/100/2) )
@@ -700,19 +701,20 @@ compare.two <- function(model,whi,this,that,CUT=0.35){
       plot1 <- ggplot(cm.preds, aes(x,color=branch))+geom_density()+ggtitle(glue("Density of two branches for {whi}"))
       plot2 <- ggplot(cm.preds, aes(x,color=branch))+geom_density()+scale_x_continuous(trans='log2') + ggtitle(glue("(Logged) Density of two branches for {whi}"))
       library(patchwork)
-      plots  <-  plot1/plot2
+      plots  <-  plot1
       reldiff <- (cm.preds[branch=='this', x] - cm.preds[branch=='that',x])/cm.preds[branch=='that',x]*100
-      list(plots=plots, means=cm.preds[,mean(x), by=branch] , reldiff=list(i=quantile(reldiff, c(0.5,0.95)),q=quantile(reldiff, c(0.01,0.25,0.5,0.75,0.99)))
-         , probReg = mean(reldiff >= (100*CUT))*100,mean = mean(reldiff, trim=0.5/100/2))
+      list(plots=plots, means=cm.preds[abs(x)<Inf,][,mean(x), by=branch] , reldiff=list(i=quantile(reldiff, c(0.05,0.95)),q=quantile(reldiff, c(0.01,0.25,0.5,0.75,0.99)))
+         , probReg = mean(reldiff >= (100*CUT))*100,mean = mean(reldiff[abs(reldiff)<Inf & !is.na(reldiff)], trim=0.5/100/2))
     }
     current.data=rbind(this[,"branch" := "this"], that[,"branch" := "that"])
     getDiff(current.data, whi, model)
 }    
 
 ### Example Usage
-#this <- d.beta[c_version=='70.0b4' & os=='Linux',]
-#that <- copy(this)[,c_version := '70.0b3']
-#compa <- compare.two(model=cr.cc.beta,whi='ccr', this,that,CUT=0.25)
+##this <- d.nightly[c_version=='20190909' & os=='Linux',]
+##that <- copy(this)[,c_version := '20190908']
+##compa <- compare.two(model=cr.cc.nightly,whi='ccr', this,that,CUT=0.25)
+
 
 ## this <- d.rel[c_version=='69.0' & os=='Linux',]
 ## that <- copy(this)[,c_version := '68.0.2']
@@ -902,6 +904,10 @@ zq <- expression({
   beta.posts.1 <- beta.posts.0$result[order(date),]
   beta.summary.1 <- beta.summary #
 
+
+  nightly.posts.1 <- nightly.posts
+  nightly.summary.1 <- nightly.summary
+  
   ## Now upload newest data
   UploadPost <- function(d,channel,j){
     if(nrow(d) > 0){

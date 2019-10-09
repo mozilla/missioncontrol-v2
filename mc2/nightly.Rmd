@@ -1,0 +1,212 @@
+---
+title: 
+output:  
+    html_document:
+        self_contained: false
+        includes:
+            in_header: header.html
+params:
+    dest: "moco"
+
+---
+
+
+```{r initialization,echo=FALSE}
+library(data.table)
+library(formattable)
+library(shiny)
+library(knitr)
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE,messages=FALSE)
+source("../missioncontrol.lib.R")
+```
+
+
+
+<style type="text/css">
+
+.main-container {
+  max-width:100%;
+  margin:0;
+  padding:0;
+}
+a.nohover  {
+  pointer-events: none;
+  }
+</style>
+
+```{r echo=FALSE}
+currentVersion <- c(name=nightly.current.vs.previous$Windows_NT$versiona,
+                    days = dall.nightly2[os=='Windows_NT' & c_version ==nightly.current.vs.previous$Windows_NT$versiona, .N])
+
+olderVersion <- c(name=nightly.current.vs.previous$Windows_NT$versionb,
+                    days = dall.nightly2[os=='Windows_NT' & c_version ==nightly.current.vs.previous$Windows_NT$versionb, .N])
+makeActiveMenuBar("nightly",generatedText = glue("Using data till {till}",till=dall.nightly2[,max(date)]))
+```
+
+
+
+<div class = "row" style='text-align:center;'>
+<div class = "col-md-6 col-md-offset-3">
+<b>Current version</b>: `r currentVersion['name']` (`r Plural(currentVersion['days'],'day')`  of data) <b>Other version</b>: `r olderVersion['name']` (`r Plural(olderVersion['days'],'day')` of data)
+</div>
+</div>
+
+
+<div class = "row" style='text-align:center;'>
+<div class = "col-md-6 col-md-offset-3">
+<b> Take results from products with less than 10% adoption with several pinches
+of salt</b>
+</div>
+</div>
+
+
+<div class = "row">
+
+<div class = "col-md-2 col-md-offset-3">
+<h2>Usage</h2>
+<p class='notes'> Crasher is a profile that crashed(content and/or browser).</p>
+</div>
+<div class = "col-md-4">
+```{r echo=FALSE}
+makeUsageTable(nightly.usage$usage,params$dest)
+```
+</div>
+
+</div>
+
+
+
+<div class = "row">
+<div class = "col-md-2 col-md-offset-3">
+<h2>Crash Rate</h2>
+<div class='notes'>
+<p>Crash Rates(Relative Change % wrt 'Other Version')<p>
+<p> <font color='red'>Red</font> is BAD (more than 75% confident of a >20% regression </p>
+<p> <font color='darkorange'>Orange</font> is WORRYING (60-75% confident of >20% regression </p>
+<p> Grey is NO CHANGE</p>
+<p> <font color='limegreen'>Green</font> is definite IMPROVEMENT (more than 75% confident of >20%    improvement</p>
+</div>
+</div>
+<div class = "col-md-4">
+```{r echo=FALSE}
+nightly.summary$rate
+```
+</div>
+</div>
+
+<div class = "row">
+<div class = "col-md-2 col-md-offset-3">
+<h2>Crash Incidence</h2>
+</div>
+<div class = "col-md-4">
+```{r echo=FALSE}
+nightly.summary$incidence
+```
+</div>
+</div>
+
+<div class = "row">
+<div class = "col-md-6 col-md-offset-3">
+<h2> Evolution</h2>
+<ul class="nav nav-tabs" role="tablist">
+ <li class="active"><a href="#nightly_win_evo"  role="tab" data-toggle="tab" >Windows</a></li>
+ <li><a href="#nightly_darwin_evo"  role="tab" data-toggle="tab">Darwin</a></li>
+ <li><a href="#nightly_linux_evo"  role="tab" data-toggle="tab" >Linux</a></li>  
+</ul>
+</div>
+</div>
+
+<div class = "row">
+<div class = "col-md-8 col-md-offset-2">
+<br/>
+<div class="tab-content">
+
+<div id="nightly_win_evo" class="tab-pane fade in active">
+<div class = "col-md-12">
+```{r}
+NE.W <- 1000
+makeEvolutionFigure(nightly.evolution,'Windows_NT',"Browser Crash Rate  for Nightly, Windows_NT","rate",whi="cmr",
+                    height=240,width=NE.W,showAction=TRUE,pointSize=40)
+```
+</div>
+<div class = "col-md-12">
+```{r}
+makeEvolutionFigure(nightly.evolution,'Windows_NT',"Browser Crash Incidence % for Nightly, Windows_NT","incidence",
+                    whi="cmi",height=240,width=NE.W,pointSize=40)
+```
+</div>
+<div class = "col-md-12">
+```{r}
+makeEvolutionFigure(nightly.evolution,'Windows_NT',"Content Crash Rate  for Nightly, Windows_NT","rate",whi="ccr",height=240,
+                    width=NE.W,pointSize=40)
+```
+</div>
+<div class = "col-md-12">
+```{r}
+makeEvolutionFigure(nightly.evolution,'Windows_NT',"Content Crash Incidence % for Nightly, Windows_NT","incidence",whi="cci",height=240,
+                    width=NE.W,pointSize=40)
+```
+</div>
+</div>
+
+
+<div id="nightly_darwin_evo" class="tab-pane fade in">
+<div class = "col-md-12">
+```{r}
+makeEvolutionFigure(nightly.evolution,'Darwin',"Browser Crash Rate  for Nightly, Darwin","rate",whi="cmr",height=240,
+                    width=NE.W,pointSize=40)
+```
+</div>
+<div class = "col-md-12">
+```{r}
+makeEvolutionFigure(nightly.evolution,'Darwin',"Browser Crash Incidence % for Nightly, Darwin","incidence",whi="cmi",
+                    height=240,width=NE.W,pointSize=40)
+```
+</div>
+<div class = "col-md-12">
+```{r}
+makeEvolutionFigure(nightly.evolution,'Darwin',"Content Crash Rate  for Nightly, Darwin","rate",whi="ccr",height=240,width=NE.W
+                    ,pointSize=40)
+```
+</div>
+<div class = "col-md-12">
+```{r}
+makeEvolutionFigure(nightly.evolution,'Darwin',"Content Crash Incidence % for Nightly, Darwin","incidence",whi="cci",height=240,width=NE.W
+                    ,pointSize=40)
+```
+</div>
+</div>
+
+
+<div id="nightly_linux_evo" class="tab-pane fade in">
+<div class = "col-md-12">
+```{r}
+makeEvolutionFigure(nightly.evolution,"Linux","Browser Crash Rate  for Nightly, Windows_NT","rate",whi="cmr",height=240,width=NE.W,
+                    pointSize=40,showAction=TRUE)
+```
+</div>
+<div class = "col-md-12">
+```{r}
+makeEvolutionFigure(nightly.evolution,'Linux',"Browser Crash Incidence % for Nightly, Linux","incidence",whi="cmi",height=240,width=NE.W
+                   ,pointSize=40)
+```
+</div>
+<div class = "col-md-12">
+```{r}
+makeEvolutionFigure(nightly.evolution,'Linux',"Content Crash Rate  for Nightly, Linux","rate",whi="ccr",height=240,width=NE.W,
+                    pointSize=40)
+```
+</div>
+<div class = "col-md-12">
+```{r}
+makeEvolutionFigure(nightly.evolution,'Linux',"Content Crash Incidence % for Nightly, Linux","incidence",whi="cci",height=240,width=NE.W,
+                    pointSize=40)
+```
+</div>
+</div>
+
+
+</div>
+</div>
+</div>
+

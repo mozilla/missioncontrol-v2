@@ -1,0 +1,310 @@
+---
+title: 
+output:  
+    html_document:
+        self_contained: false
+        includes:
+            in_header: header.html
+params:
+    dest: "moco"
+---
+
+
+```{r initialization,echo=FALSE}
+library(data.table)
+library(formattable)
+library(shiny)
+library(knitr)
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE,messages=FALSE)
+source("../missioncontrol.lib.R")
+```
+
+
+
+<style type="text/css">
+
+.main-container {
+  max-width:100%;
+  margin:0;
+  padding:0;
+}
+a.nohover  {
+  pointer-events: none;
+  }
+</style>
+
+```{r echo=FALSE}
+currentVersion <- c(name=release.current.vs.previous$Windows_NT$versiona,
+                    days = dall.rel2[os=='Windows_NT' & c_version ==release.current.vs.previous$Windows_NT$versiona, .N])
+
+olderVersion <- c(name=release.current.vs.previous$Windows_NT$versionb,
+                    days = dall.rel2[os=='Windows_NT' & c_version ==release.current.vs.previous$Windows_NT$versionb, .N])
+makeActiveMenuBar("release",generatedText = glue("Using data till {till}",till=dall.rel2[,max(date)]))
+```
+
+
+
+<div class = "row" style='text-align:center;'>
+<div class = "col-md-6 col-md-offset-3">
+<b>Current version</b>: `r currentVersion['name']` (`r Plural(currentVersion['days'],'day')`  of data) <b>Other version</b>: `r olderVersion['name']` (`r Plural(olderVersion['days'],'day')` of data)
+</div>
+</div>
+
+
+<div class = "row" style='text-align:center;'>
+<div class = "col-md-6 col-md-offset-3">
+<b> Take results from products with less than 10% adoption with several pinches
+of salt</b>
+</div>
+</div>
+
+
+
+<div class = "row">
+
+<div class = "col-md-2 col-md-offset-3">
+<h2>Usage</h2>
+<p class='notes'> Windows is 5% sample, everything else is full population.</p>
+<p class='notes'> Crasher is a profile that crashed(content and/or browser).</p>
+</div>
+<div class = "col-md-4">
+```{r echo=FALSE}
+makeUsageTable(release.usage$usage,params$dest)
+
+```
+</div>
+
+</div>
+
+
+
+<div class = "row">
+<div class = "col-md-2 col-md-offset-3">
+<h2>Crash Rate</h2>
+<div class='notes'>
+<p>Crash Rates(Relative Change % wrt 'Other Version')<p>
+<p> <font color='red'>Red</font> is BAD (more than 75% confident of a >20% regression </p>
+<p> <font color='darkorange'>Orange</font> is WORRYING (60-75% confident of >20% regression </p>
+<p> Grey is NO CHANGE</p>
+<p> <font color='limegreen'>Green</font> is definite IMPROVEMENT (more than 75% confident of >20%    improvement</p>
+</div> 
+</div>
+<div class = "col-md-4">
+```{r echo=FALSE}
+release.summary$rate
+```
+</div>
+</div>
+
+<div class = "row">
+<div class = "col-md-2 col-md-offset-3">
+<h2>Crash Incidence</h2>
+</div>
+<div class = "col-md-4">
+```{r echo=FALSE}
+release.summary$incidence
+```
+</div>
+</div>
+
+
+<div class = "row">
+<div class = "col-md-6 col-md-offset-3">
+<h2> Evolution</h2>
+<ul class="nav nav-tabs">
+ <li class="active"><a href="#release_win_evo" data-toggle="tab" >Windows</a></li>
+ <li><a href="#release_darwin_evo" data-toggle="tab">Darwin</a></li>
+ <li><a href="#release_linux_evo" data-toggle="tab" >Linux</a></li>  
+</ul>
+</div>
+</div>
+
+<div class = "row">
+<div class = "col-md-8 col-md-offset-2">
+<br/>
+<div class="tab-content">
+
+<div id="release_win_evo" class="tab-pane fade in active">
+<div class = "col-md-6">
+```{r, out.extra='id="vgo"'}
+RE.WI <- 400
+makeEvolutionFigure(release.evolution,'Windows_NT',"Browser Crash Rate  for Release, Windows_NT","rate",whi="cmr",height=200,
+                    width=RE.WI,showAction=TRUE)
+```
+
+
+</div>
+<div class = "col-md-6">
+```{r}
+makeEvolutionFigure(release.evolution,'Windows_NT',"Browser Crash Incidence % for Release, Windows_NT","incidence",whi="cmi",width=RE.WI,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+makeEvolutionFigure(release.evolution,'Windows_NT',"Content Crash Rate  for Release, Windows_NT","rate",whi="ccr",width=RE.WI,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+makeEvolutionFigure(release.evolution,'Windows_NT',"Content Crash Incidence % for Release, Windows_NT","incidence",width=RE.WI,whi="cci",height=200)
+```
+</div>
+</div>
+
+
+<div id="release_darwin_evo" class="tab-pane fade in ">
+<div class = "col-md-6">
+```{r}
+makeEvolutionFigure(release.evolution,'Darwin',"Browser Crash Rate  for Release, Darwin","rate",whi="cmr",width=RE.WI,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+makeEvolutionFigure(release.evolution,'Darwin',"Browser Crash Incidence % for Release, Darwin","incidence",whi="cmi",width=RE.WI,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+makeEvolutionFigure(release.evolution,'Darwin',"Content Crash Rate  for Release, Darwin","rate",whi="ccr",width=RE.WI,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+makeEvolutionFigure(release.evolution,'Darwin',"Content Crash Incidence % for Release, Darwin","incidence",width=RE.WI,whi="cci",height=200)
+```
+</div>
+</div>
+
+
+<div id="release_linux_evo" class="tab-pane fade in ">
+<div class = "col-md-6">
+```{r}
+makeEvolutionFigure(release.evolution,"Linux","Browser Crash Rate % for Release, Linux","rate",whi="cmr",width=RE.WI,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+makeEvolutionFigure(release.evolution,'Linux',"Browser Crash Incidence % for Release, Linux","incidence",whi="cmi",width=RE.WI,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+makeEvolutionFigure(release.evolution,'Linux',"Content Crash Rate  for Release, Linux","rate",whi="ccr",width=RE.WI,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+makeEvolutionFigure(release.evolution,'Linux',"Content Crash Incidence % for Release, Linux","incidence",width=RE.WI,whi="cci",height=200)
+```
+</div>
+</div>
+
+
+</div>
+</div>
+</div>
+
+
+
+
+
+
+<div class = "row">
+<div class = "col-md-6 col-md-offset-3">
+<h2> Rollout</h2>
+<ul class="nav nav-tabs">
+ <li class="active"><a href="#release_win_rollout" data-toggle="tab" >Windows</a></li>
+ <li><a href="#release_darwin_rollout" data-toggle="tab">Darwin</a></li>
+ <li><a href="#release_linux_rollout" data-toggle="tab" >Linux</a></li>  
+</ul>
+</div>
+</div>
+
+<div class = "row">
+<div class = "col-md-8 col-md-offset-2">
+<br/>
+<div class="tab-content">
+
+<div id="release_win_rollout" class="tab-pane fade in active">
+<div class = "col-md-6">
+```{r, out.extra='id="vgo1"'}
+RE.WI2 <- 400
+plotRolloutFigure(release.current.vs.previous,oss='Windows_NT', "Browser Crash Rate Comparison for Windows_NT,Release",whi='cmr',xtip='Rate',width=RE.WI2,height=200)
+```
+</div>
+
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous,oss='Windows_NT', "Browser Crash Incidence Comparison for Windows_NT,Release",whi='cmi',xtip='Incidence',width=RE.WI2,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous,oss='Windows_NT', "Content Crash Rate Comparison for Windows_NT,Release",whi='ccr',xtip='Rate',width=RE.WI2,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous,oss='Windows_NT', "Content Crash Incidence Comparison for Windows_NT,Release",whi='cci',xtip='Incidence',width=RE.WI2,height=200)
+```
+</div>
+</div>
+
+
+
+<div id="release_darwin_rollout" class="tab-pane fade in">
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous,oss='Darwin', "Browser Crash Rate %Comparison for Darwin,Release",whi='cmr',xtip='Rate',width=RE.WI2,height=200)
+```
+</div>
+
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous,oss='Darwin', "Browser Crash Incidence Comparison for Darwin,Release",whi='cmi',xtip='Incidence',width=RE.WI2,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous,oss='Darwin', "Content Crash Rate Comparison for Darwin,Release",whi='ccr',xtip='Rate',width=RE.WI2,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous,oss='Darwin', "Content Crash Incidence Comparison for Darwin,Release",whi='cci',xtip='Incidence',width=RE.WI2,height=200)
+```
+</div>
+</div>
+
+
+
+<div id="release_linux_rollout" class="tab-pane fade in">
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous,oss='Linux', "Browser Crash Rate Comparison for Linux,Release",whi='cmr',xtip='Rate',width=RE.WI2,height=200)
+```
+</div>
+
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous,oss='Linux', "Browser Crash Incidence Comparison for Linux,Release",whi='cmi',xtip='Incidence',width=RE.WI2,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous,oss='Linux', "Content Crash Rate Comparison for Linux,Release",whi='ccr',xtip='Rate',width=RE.WI2,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous,oss='Linux', "Content Crash Incidence Comparison for Linux,Release",whi='cci',xtip='Incidence',width=RE.WI2,height=200)
+```
+</div>
+</div>
+
+
+
+</div>
+</div>
+</div>
+

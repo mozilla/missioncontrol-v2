@@ -1,14 +1,19 @@
 # TODO: modify release for linux build_ids
 import datetime as dt
 from functools import partial
+import os
 import re
 
 import pandas as pd
 from pandas import DataFrame
 from pandas.testing import assert_frame_equal
 
-import src.buildhub_bid as bh_bid
+import buildhub_bid as bh_bid
 
+# import src.buildhub_bid as bh_bid
+
+
+SQL_FNAME = "src/download_template.sql"
 os_dtype = pd.CategoricalDtype(
     categories=["Linux", "Darwin", "Windows_NT"], ordered=True
 )
@@ -131,7 +136,7 @@ def prod_det_process_release(df_all):
             till=lambda x: next_release_date(
                 x["date"], max_days_future=max_days_future
             ),
-            chan="release",
+            channel="release",
             ndays=72,
             crash_src=lambda x: x["date"].map(crash_source_date),
             app_version_field="app_version",
@@ -171,7 +176,7 @@ def prod_det_process_beta(df_all, vers2bids_beta):
         df.query("major == @cur_major")[["version", "date"]]
         .assign(
             till=lambda x: next_release_date(x["date"], days_future),
-            chan=channel,
+            channel=channel,
             ndays=ndays,
             crash_src=lambda x: x["date"].map(crash_source_date),
             app_version_field=app_version_field,
@@ -211,7 +216,7 @@ def prod_det_process_nightly(pd_beta):
         dict(
             date_pd=pd.date_range(beta_dates.date, beta_dates.till),
             version=beta_dates.version,
-            chan="nightly",
+            channel="nightly",
             crash_src="telemetry.crash_summary_v2",
             app_version_field="substr(app_build_id,1,8)",
             build_version_field="substr(build_id,1,8)",
@@ -242,7 +247,7 @@ def sql_arg_dict(row):
         current_version=row.version,
         # current_version_crash="'{}'".format(row.version),
         current_version_release=row.date,
-        norm_channel=row.chan,
+        norm_channel=row.channel,
         app_version_field=row.app_version_field,
         build_version_field=row.build_version_field,
         nday=row.ndays,
@@ -402,12 +407,21 @@ def pull_data_nightly(download_meta_data, sql_template, bq_read, process=True):
         bq_read=bq_read,
         version_col="buildid",
     )
+    # Unless we convert the nightly query to use buildhub
+    assert (
+        download_meta_data["version"].nunique() == 1
+    ), "assuming single version for nightly metadata"
+    display_version = download_meta_data["version"].iloc[0]
     # TODO: have this optional for debugging for now
     if process:
         data = (
             get_peak_date(data, "c_version")
             .query("date <= peak_date")
             .drop(["peak_date"], axis=1)
+            .assign(
+                major=lambda _: int(display_version.split(".0a")[0]),
+                minor=lambda x: x.c_version,
+            )
             .reset_index(drop=1)
         )
     return data
@@ -416,6 +430,18 @@ def pull_data_nightly(download_meta_data, sql_template, bq_read, process=True):
 ###########
 # Combine #
 ###########
+from contextlib import contextmanager
+import sys
+
+
+@contextmanager
+def pull_done(msg):
+    try:
+        print("{}...".format(msg), end="")
+        sys.stdout.flush()
+        yield
+    finally:
+        print(" Done.")
 
 
 def pull_all_model_data(bq_read):
@@ -424,10 +450,19 @@ def pull_all_model_data(bq_read):
         pd_all
     )
 
-    with open("../src/prod/download_template.sql", "r") as fp:
+    if not os.path.exists(SQL_FNAME):
+        raise Exception(
+            "{} not found. Make sure pwd is set to project dir.".format(
+                SQL_FNAME
+            )
+        )
+    with open(SQL_FNAME, "r") as fp:
         sql_template = fp.read()
 
-    df_release = pull_data_release(pd_release_download, sql_template, bq_read)
+    with pull_done("Pulling release data"):
+        df_release = pull_data_release(
+            pd_release_download, sql_template, bq_read
+        )
 
     # docs_rls = bh_bid.pull_build_id_docs(channel="release")
     # vers2bids_rls = bh_bid.version2build_ids(docs_rls, keep_release=True)
@@ -438,25 +473,28 @@ def pull_all_model_data(bq_read):
         pd_all, vers2bids_beta
     )
 
-    df_beta = pull_data_beta(
-        pd_beta_download, sql_template, bq_read, process=True
-    )
+    with pull_done("Pulling beta data"):
+        df_beta = pull_data_beta(
+            pd_beta_download, sql_template, bq_read, process=True
+        )
 
     pd_nightly, pd_nightly_model, pd_nightly_download = prod_det_process_nightly(
         pd_beta
     )
-    df_nightly = pull_data_nightly(
-        pd_nightly_download, sql_template, bq_read, process=True
-    )
+
+    with pull_done("Pulling nightly data"):
+        df_nightly = pull_data_nightly(
+            pd_nightly_download, sql_template, bq_read, process=True
+        )
 
     df_all = pd.concat(
         [
-            df_release.assign(chan="release"),
-            df_beta.assign(chan="beta"),
-            df_nightly.assign(chan="nightly"),
+            df_release.assign(channel="release"),
+            df_beta.assign(channel="beta"),
+            df_nightly.assign(channel="nightly"),
         ],
         ignore_index=True,
         sort=False,
-    )
+    ).drop(['dot'], axis=1).assign(minor=lambda x: x.minor.astype(int))
 
     return df_all

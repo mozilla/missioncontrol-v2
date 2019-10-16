@@ -2,6 +2,7 @@ import subprocess
 import tempfile
 
 import numpy as np
+from pandas import Series
 
 
 def delete_versions(df, query_func, table_name="wbeard_crash_rate_raw"):
@@ -17,28 +18,36 @@ def delete_versions(df, query_func, table_name="wbeard_crash_rate_raw"):
         df[["major", "channel"]].drop_duplicates().itertuples(index=False)
     ):
         q = q_temp.format(table_name=table_name, major=major, channel=channel)
-        print("Executing", q, "...", end=" ")
+        print("Executing `{}`...".format(q), end="")
         query_func(q)
-        print("Done.")
+        print(" Done.")
 
 
 def get_schema(df, as_str=False):
-    dtypes = df.dtypes
-    dtypes["date"] = "DATE"
-    dtypes.loc[dtypes == "category"] = "STRING"
-    dtypes.loc[dtypes == "float64"] = "FLOAT64"
-    dtypes.loc[dtypes == np.int32] = "INT64"
-    dtypes.loc[dtypes == object] = "STRING"
-    dtypes.loc[dtypes == bool] = "BOOL"
+    dtype_srs = df.dtypes
+    dtype_srs.loc[dtype_srs == "category"] = "STRING"
+    dtype_srs.loc[dtype_srs == "float64"] = "FLOAT64"
+    dtype_srs.loc[dtype_srs == np.int] = "INT64"
+    dtype_srs.loc[dtype_srs == object] = "STRING"
+    dtype_srs.loc[dtype_srs == bool] = "BOOL"
+    manual_dtypes = dict(
+        date="DATE", c_version_rel="DATE", major="INT64", minor="INT64"
+    )
+    dtype_srs.update(Series(manual_dtypes))
+
+    non_strings = dtype_srs.map(type).pipe(lambda x: x[x != str])
+    if len(non_strings):
+        raise ValueError(
+            "Schema values should be strings: {}".format(non_strings)
+        )
     if not as_str:
-        return dtypes
-    res = ["{}:{}".format(c, t) for c, t in dtypes.iteritems()]
-    res = ",".join(res)
+        return dtype_srs
+    res = ",".join(["{}:{}".format(c, t) for c, t in dtype_srs.items()])
     return res
 
 
 def drop_table(table_name="wbeard_crash_rate_raw"):
-    cmd = ["bq", "rm", "-t", "analysis.{}".format(table_name)]
+    cmd = ["bq", "rm", "-f", "-t", "analysis.{}".format(table_name)]
     print("running command", cmd)
     run_command(cmd, "Success! Table {} dropped.".format(table_name))
 
@@ -46,6 +55,7 @@ def drop_table(table_name="wbeard_crash_rate_raw"):
 def upload(df, table_name="wbeard_crash_rate_raw", add_schema=False):
     with tempfile.NamedTemporaryFile(delete=False, mode="w+") as fp:
         df.to_csv(fp, index=False, na_rep="NA")
+    print("CSV saved to {}".format(fp.name))
 
     cmd = [
         "bq",
@@ -60,7 +70,7 @@ def upload(df, table_name="wbeard_crash_rate_raw", add_schema=False):
         "--null_marker",
         "NA",
         "analysis.wbeard_crash_rate_raw",
-        "/var/folders/9c/51dwz9bj2bv0txl75ldhxnq40000gn/T/tmpk_fwhg92",
+        fp.name,
     ]
     if add_schema:
         schema = get_schema(df, True)
@@ -71,7 +81,10 @@ def upload(df, table_name="wbeard_crash_rate_raw", add_schema=False):
 
 
 def run_command(cmd, success_msg="Success!"):
-    "No idea why this isn't built into python..."
+    """
+    @cmd: List[str]
+    No idea why this isn't built into python...
+    """
     try:
         output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode()
         success = True

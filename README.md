@@ -13,6 +13,15 @@ release
 
 ```
 
+## Test
+```
+$ ipython
+import sys
+sys.path.insert(0, '/Users/wbeard/repos/missioncontrol-v2/src/')
+import src.crud as crud
+%load_ext autoreload
+%autoreload 2
+```
 
 # TODO
 - clean up environment.yml

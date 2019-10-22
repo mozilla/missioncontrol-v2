@@ -20,10 +20,6 @@ from upload_bq import delete_versions, drop_table, upload
 # from src.upload_bq import delete_versions, drop_table, upload
 
 
-def hellow_world():
-    print("hi!")
-
-
 # pandas-gbq -> google-cloud-bigquery
 #            -> google-auth
 
@@ -59,7 +55,10 @@ def mk_bq_reader(creds_loc=None, cache=False):
         dialect="standard",
     )
     if cache:
-        return cache_reader(bq_read)
+        fn = cache_reader(bq_read)
+        loc = os.path.abspath(fn.store_backend.location)
+        print('Caching sql results to {}'.format(loc))
+        return fn
     return bq_read
 
 
@@ -84,23 +83,23 @@ def mk_query_func(creds_loc=None):
 
 
 def main(
-    add_schema: bool=False,
+    add_schema: bool = False,
     creds_loc=None,
     cache=False,
     table_name="wbeard_crash_rate_raw",
     drop_first=False,
 ):
     if cache:
-        print('Cache turned on.')
+        print("Cache turned on.")
     else:
-        print('fail!')
+        print("fail!")
         return
     if drop_first:
         drop_table(table_name=table_name)
     bq_read = mk_bq_reader(creds_loc=creds_loc, cache=cache)
     query_func = mk_query_func(creds_loc=creds_loc)
 
-    print('Starting data pull')
+    print("Starting data pull")
     df_all = pull_all_model_data(bq_read)
 
     delete_versions(df_all, query_func, table_name=table_name)

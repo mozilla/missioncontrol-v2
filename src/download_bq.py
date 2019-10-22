@@ -1,8 +1,10 @@
 # TODO: modify release for linux build_ids
+from contextlib import contextmanager
 import datetime as dt
 from functools import partial
 import os
 import re
+import sys
 
 import pandas as pd
 from pandas import DataFrame
@@ -14,6 +16,8 @@ import buildhub_bid as bh_bid
 
 
 SQL_FNAME = "src/download_template.sql"
+dbg = lambda: None
+
 os_dtype = pd.CategoricalDtype(
     categories=["Linux", "Darwin", "Windows_NT"], ordered=True
 )
@@ -81,12 +85,12 @@ def beta_version_parse(disp_vers: str):
     return m.groupdict()
 
 
-def get_peak_date(vers_df, vers_col="dvers"):
+def get_peak_date(vers_df, vers_col="dvers", date_col="date"):
     """
     Get nvc peak date
     """
 
-    def max_nvc_date(ss, date_col="date"):
+    def max_nvc_date(ss):
         i = ss.nvc.values.argmax()
         return ss[date_col].iloc[i]
 
@@ -98,8 +102,9 @@ def get_peak_date(vers_df, vers_col="dvers"):
     vers_df2 = vers_df.merge(
         agg_v_o_max_date, left_on=[vers_col, "os"], right_index=True
     ).sort_index()
-    get_peak_date.vers_df = vers_df
-    get_peak_date.vers_df2 = vers_df2
+    # TODO: delete if it runs
+    # get_peak_date.vers_df = vers_df
+    # get_peak_date.vers_df2 = vers_df2
     assert_frame_equal(vers_df2.drop("peak_date", axis=1), vers_df)
 
     return vers_df2
@@ -108,6 +113,7 @@ def get_peak_date(vers_df, vers_col="dvers"):
 ########################
 # Product Detail Pulls #
 ########################
+# TODO: choose better min day than "2019-01-01"
 def prod_det_process_release(df_all):
     # Release
     max_days_future = 365
@@ -361,7 +367,11 @@ def pull_data_base(
     return res
 
 
-def pull_data_release(download_meta_data, sql_template, bq_read):
+def pull_data_release(download_meta_data, sql_template, bq_read, process=True):
+    """
+    isLatest comes from product_details.json, looking for next release
+    date within a channel.
+    """
     data = pull_data_base(
         sql_template,
         download_meta_data,
@@ -369,6 +379,14 @@ def pull_data_release(download_meta_data, sql_template, bq_read):
         bq_read=bq_read,
     )
     data = add_version_elements(data, rls_version_parse, "c_version", to=int)
+    if process:
+        data = (
+            get_peak_date(data, "c_version")
+            .query("(date <= peak_date) or isLatest")
+            .drop(["minor", "peak_date"], axis=1)
+            .rename(columns={"dot": "minor"})
+            .reset_index(drop=1)
+        )
     return data
 
 
@@ -430,10 +448,6 @@ def pull_data_nightly(download_meta_data, sql_template, bq_read, process=True):
 ###########
 # Combine #
 ###########
-from contextlib import contextmanager
-import sys
-
-
 @contextmanager
 def pull_done(msg):
     try:
@@ -444,20 +458,26 @@ def pull_done(msg):
         print(" Done.")
 
 
+def read(fname):
+    if not os.path.exists(fname):
+        raise Exception(
+            "{} not found. Make sure pwd is set to project dir.".format(fname)
+        )
+    with open(fname, "r") as fp:
+        txt = fp.read()
+    return txt
+
+
 def pull_all_model_data(bq_read):
     pd_all = read_product_details()
     pd_release, pd_release_model, pd_release_download = prod_det_process_release(
         pd_all
     )
 
-    if not os.path.exists(SQL_FNAME):
-        raise Exception(
-            "{} not found. Make sure pwd is set to project dir.".format(
-                SQL_FNAME
-            )
-        )
-    with open(SQL_FNAME, "r") as fp:
-        sql_template = fp.read()
+    sql_template = read(SQL_FNAME)
+    dbg.meta = pd_release_download
+    dbg.sql = sql_template
+    dbg.bq_read = bq_read
 
     with pull_done("Pulling release data"):
         df_release = pull_data_release(
@@ -473,9 +493,17 @@ def pull_all_model_data(bq_read):
         pd_all, vers2bids_beta
     )
 
+    # TODO: debug
+    dbg.pd_beta_download = pd_beta_download
+    # raise ValueError
+
     with pull_done("Pulling beta data"):
         df_beta = pull_data_beta(
-            pd_beta_download, sql_template, bq_read, process=True
+            # todo: debug process=False
+            pd_beta_download,
+            sql_template,
+            bq_read,
+            process=True,
         )
 
     pd_nightly, pd_nightly_model, pd_nightly_download = prod_det_process_nightly(
@@ -487,14 +515,17 @@ def pull_all_model_data(bq_read):
             pd_nightly_download, sql_template, bq_read, process=True
         )
 
-    df_all = pd.concat(
-        [
-            df_release.assign(channel="release"),
-            df_beta.assign(channel="beta"),
-            df_nightly.assign(channel="nightly"),
-        ],
-        ignore_index=True,
-        sort=False,
-    ).drop(['dot'], axis=1).assign(minor=lambda x: x.minor.astype(int))
+    df_all = (
+        pd.concat(
+            [
+                df_release.assign(channel="release"),
+                df_beta.assign(channel="beta"),
+                df_nightly.assign(channel="nightly"),
+            ],
+            ignore_index=True,
+            sort=False,
+        )
+        .assign(minor=lambda x: x.minor.astype(int))
+    )
 
     return df_all

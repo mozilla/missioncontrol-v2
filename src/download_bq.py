@@ -94,6 +94,10 @@ def get_peak_date(vers_df, vers_col="dvers", date_col="date"):
         i = ss.nvc.values.argmax()
         return ss[date_col].iloc[i]
 
+    if not len(vers_df):
+        print("Empty dataframe passed. Recent release date?")
+        return vers_df.assign(peak_date=[])
+
     agg_v_o_max_date = (
         vers_df.groupby([vers_col, "os"])
         .apply(max_nvc_date)
@@ -115,11 +119,16 @@ def get_peak_date(vers_df, vers_col="dvers", date_col="date"):
 ########################
 # TODO: choose better min day than "2019-01-01"
 def prod_det_process_release(df_all):
+    """
+    Process and categorize data from
+    https://product-details.mozilla.org/1.0/firefox.json
+    """
     # Release
     max_days_future = 365
+    today = dt.datetime.today().strftime("%Y-%m-%d")  # noqa
 
     df = df_all.query(
-        'category in ["major", "stability"] & date >= "2019-01-01"'
+        'category in ["major", "stability"] & date >= "2019-01-01" & date < @today'
     ).copy()
 
     df = add_version_elements(
@@ -293,6 +302,12 @@ def extra_linux_release_filter(version, version2bids):
 
 
 def query_from_row_release(row, sql_template):
+    """
+    Given a sql template string, and a row from product details
+    https://product-details.mozilla.org/1.0/firefox.json
+    that's been processed, fill in the sql template with
+    dates and details for a particular release.
+    """
     kwargs = sql_arg_dict(row)
     kwargs_release = dict(current_version_crash="'{}'".format(row.version))
     return sql_template.format(**kwargs, **kwargs_release)
@@ -515,17 +530,16 @@ def pull_all_model_data(bq_read):
             pd_nightly_download, sql_template, bq_read, process=True
         )
 
-    df_all = (
-        pd.concat(
-            [
-                df_release.assign(channel="release"),
-                df_beta.assign(channel="beta"),
-                df_nightly.assign(channel="nightly"),
-            ],
-            ignore_index=True,
-            sort=False,
-        )
-        .assign(minor=lambda x: x.minor.astype(int))
+    df_all = pd.concat(
+        [
+            df_release.assign(channel="release"),
+            df_beta.assign(channel="beta"),
+            df_nightly.assign(channel="nightly"),
+        ],
+        ignore_index=True,
+        sort=False,
+    ).assign(
+        minor=lambda x: x.minor.astype(int), major=lambda x: x.major.astype(int)
     )
 
     return df_all

@@ -1,0 +1,22 @@
+name: mc2
+dependencies:
+- python=3.6
+# pip install python-box
+
+# Bare necessities
+- flake8
+- cython
+- pandas
+- jupyterlab
+
+# Optional:
+- joblib
+- fastparquet
+
+- pip
+
+- pip:
+  - toolz
+  - fire
+  - pandas-gbq
+  # - google-cloud-bigquery

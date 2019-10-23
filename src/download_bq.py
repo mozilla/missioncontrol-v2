@@ -225,12 +225,12 @@ def prod_det_process_nightly(pd_beta):
         )
         .reset_index(drop=1)
     )
-    beta_dates = df.iloc[-1]
+    beta_last_row = df.iloc[-1]
 
     df_nightly_data = DataFrame(
         dict(
-            date_pd=pd.date_range(beta_dates.date, beta_dates.till),
-            version=beta_dates.version,
+            date_pd=pd.date_range(beta_last_row.date, beta_last_row.till),
+            version=beta_last_row.version,
             channel="nightly",
             crash_src="telemetry.crash_summary_v2",
             app_version_field="substr(app_build_id,1,8)",
@@ -243,7 +243,7 @@ def prod_det_process_nightly(pd_beta):
         till=lambda x: (x.date_pd + pd.Timedelta(days=7)).dt.date,
         crash_src=lambda x: x.date_pd.map(crash_source_date),
     )
-    recent_majs = [beta_dates.major, beta_dates.major + 1]
+    recent_majs = [beta_last_row.major, beta_last_row.major + 1]
 
     df = df[["version", "date", "till"]].assign(
         date=lambda x: x.date.dt.date, till=lambda x: x.till.dt.date
@@ -350,7 +350,8 @@ def add_fields(df, current_version, date0, till):
         cmi=lambda x: (1 + x.dau_cm_crasher_cversion) / x.dau_cversion,
         cmr=lambda x: (1 + x.cmain)
         / x.usage_cm_crasher_cversion.map(round_down),
-        #         cmr=lambda x: (1 + x.cmain).div(x.usage_cm_crasher_cversion).map(round_down),
+        # cmr=lambda x: (1 + x.cmain)
+        # .div(x.usage_cm_crasher_cversion).map(round_down),
         cci=lambda x: (1 + x.dau_cc_crasher_cversion) / x.dau_cversion,
         ccr=lambda x: (1 + x.ccontent)
         / x.usage_cc_crasher_cversion.map(round_down),
@@ -368,6 +369,17 @@ def add_fields(df, current_version, date0, till):
 #############
 # Data pull #
 #############
+def verbose_query(q):
+    def pipe_func(df):
+        bm = df.eval(q)
+        df_drop = df[~bm]
+        print("Dropping {} rows that don't match `{}`:".format(len(df_drop), q))
+        print(df_drop[["date", "os", "c_version"]])
+        return df[bm].copy()
+
+    return pipe_func
+
+
 def pull_data_base(
     sql_template, download_meta_data, row2query, bq_read, version_col="version"
 ):
@@ -397,7 +409,7 @@ def pull_data_release(download_meta_data, sql_template, bq_read, process=True):
     if process:
         data = (
             get_peak_date(data, "c_version")
-            .query("(date <= peak_date) or isLatest")
+            .pipe(verbose_query("(date <= peak_date) or isLatest"))
             .drop(["minor", "peak_date"], axis=1)
             .rename(columns={"dot": "minor"})
             .reset_index(drop=1)
@@ -425,7 +437,7 @@ def pull_data_beta(download_meta_data, sql_template, bq_read, process=True):
     if process:
         data = (
             get_peak_date(data, "c_version")
-            .query("date <= peak_date")
+            .pipe(verbose_query("date <= peak_date"))
             .drop(["peak_date"], axis=1)
             .reset_index(drop=1)
         )
@@ -449,7 +461,7 @@ def pull_data_nightly(download_meta_data, sql_template, bq_read, process=True):
     if process:
         data = (
             get_peak_date(data, "c_version")
-            .query("date <= peak_date")
+            .pipe(verbose_query("date <= peak_date"))
             .drop(["peak_date"], axis=1)
             .assign(
                 major=lambda _: int(display_version.split(".0a")[0]),

@@ -1,6 +1,25 @@
 # missioncontrol-v2
 An alternate view of crash and stability
 
+## Installation instructions
+The python files assume a base conda installation. To install the python dependencies, create a conda environment using the `environment.yml` file:
+
+```python
+cd missioncontrol-v2
+conda env create -f environment.yml
+```
+
+This will create a conda env named `mc2`.
+
+
+## Instructions to run
+To run the python data pull routine, the conda environment needs to be activated
+
+```python
+conda activate mc2
+```
+
+
 
 ## Model data download
 There are python files to download the required data in `src/`. Creating a conda env with `environment.yml` should download all the required dependencies to get it running. See the README in `src` for more info. The scripts assume bigquery credentials are stored in a file whose path can be passed to `src.crud.main(creds_loc=creds_loc)`.

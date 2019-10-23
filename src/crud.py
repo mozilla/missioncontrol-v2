@@ -34,6 +34,8 @@ def get_creds(creds_loc=None):
                 "~/repos/moz-fx-data-derived-datasets-46a8a03da99b-wbeard.json"
             )
         )
+    else:
+        creds_loc = abspath(expanduser(creds_loc))
 
     creds = service_account.Credentials.from_service_account_file(creds_loc)
     return creds
@@ -57,7 +59,7 @@ def mk_bq_reader(creds_loc=None, cache=False):
     if cache:
         fn = cache_reader(bq_read)
         loc = os.path.abspath(fn.store_backend.location)
-        print('Caching sql results to {}'.format(loc))
+        print("Caching sql results to {}".format(loc))
         return fn
     return bq_read
 
@@ -88,12 +90,12 @@ def main(
     cache=False,
     table_name="wbeard_crash_rate_raw",
     drop_first=False,
+    return_df=False,
 ):
     if cache:
         print("Cache turned on.")
     else:
-        print("fail!")
-        return
+        print("Not using cached queries")
     if drop_first:
         drop_table(table_name=table_name)
     bq_read = mk_bq_reader(creds_loc=creds_loc, cache=cache)
@@ -104,7 +106,8 @@ def main(
 
     delete_versions(df_all, query_func, table_name=table_name)
     upload(df_all, table_name=table_name, add_schema=add_schema)
-    return df_all
+    if return_df:
+        return df_all
 
 
 if __name__ == "__main__":

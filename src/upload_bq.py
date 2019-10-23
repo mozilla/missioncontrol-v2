@@ -5,7 +5,7 @@ import numpy as np
 from pandas import Series
 
 
-def delete_versions(df, query_func, table_name="wbeard_crash_rate_raw"):
+def delete_versions_OLD(df, query_func, table_name="wbeard_crash_rate_raw"):
     """
     @df: DataFrame[[major, channel]]
     Drop all unique (major, channel) values in `table_name`. To be used
@@ -18,6 +18,37 @@ def delete_versions(df, query_func, table_name="wbeard_crash_rate_raw"):
         df[["major", "channel"]].drop_duplicates().itertuples(index=False)
     ):
         q = q_temp.format(table_name=table_name, major=major, channel=channel)
+        print("Executing `{}`...".format(q), end="")
+        query_func(q)
+        print(" Done.")
+
+
+def delete_versions(df, query_func, table_name="wbeard_crash_rate_raw"):
+    """
+    @df: DataFrame[['channel', 'c_version', 'date']]
+    Drop all unique ('channel', 'c_version', 'date') values in `table_name`. To be used
+    before upload of new data.
+    """
+    df = df[["channel", "c_version", "date"]]
+    q_temp = (
+        "delete from analysis.{table_name} "
+        "where c_version='{c_version}' "
+        "and channel='{channel}' and date in ({dates})"
+    )
+    for (channel, c_version), gdf in (
+        df[["channel", "c_version", "date"]]
+        .drop_duplicates()
+        .groupby(["channel", "c_version"])
+    ):
+        dates = [d.strftime("%Y-%m-%d") for d in gdf.date]
+        dates_str = ", ".join(map("'{}'".format, dates))
+
+        q = q_temp.format(
+            table_name=table_name,
+            channel=channel,
+            c_version=c_version,
+            dates=dates_str,
+        )
         print("Executing `{}`...".format(q), end="")
         query_func(q)
         print(" Done.")
@@ -57,6 +88,7 @@ def upload(df, table_name="wbeard_crash_rate_raw", add_schema=False):
         df.to_csv(fp, index=False, na_rep="NA")
     print("CSV saved to {}".format(fp.name))
 
+    full_table_name = "analysis.{}".format(table_name)
     cmd = [
         "bq",
         "load",
@@ -69,14 +101,14 @@ def upload(df, table_name="wbeard_crash_rate_raw", add_schema=False):
         "1",
         "--null_marker",
         "NA",
-        "analysis.wbeard_crash_rate_raw",
+        full_table_name,
         fp.name,
     ]
     if add_schema:
         schema = get_schema(df, True)
         cmd.append(schema)
 
-    success_msg = "Success! Data uploaded to {}".format(table_name)
+    success_msg = "Success! Data uploaded to {}".format(full_table_name)
     run_command(cmd, success_msg)
 
 

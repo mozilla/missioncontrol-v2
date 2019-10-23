@@ -10,7 +10,7 @@ dependencies:
 - jupyterlab
 
 # Optional:
-- joblib
+- joblib  # to be able to use crud.main(cache=True)
 - fastparquet
 
 - pip

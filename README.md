@@ -1,6 +1,23 @@
 # missioncontrol-v2
 An alternate view of crash and stability
 
+
+## Model data download
+There are python files to download the required data in `src/`. Creating a conda env with `environment.yml` should download all the required dependencies to get it running. See the README in `src` for more info. The scripts assume bigquery credentials are stored in a file whose path can be passed to `src.crud.main(creds_loc=creds_loc)`.
+
+## Run model
+To run the model, R needs to be installed, along with packages:
+
+- brms (to run model)
+- curl
+- data.table (for data manipulation)
+- future
+- glue
+- parallel
+- reticulate (to call python)
+- rjson
+
+
 ## Using buildhub_bid.py
 
 ```

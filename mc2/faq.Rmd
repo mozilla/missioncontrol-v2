@@ -1,0 +1,176 @@
+---
+title:
+output:  
+    html_document:
+        toc: true
+        self_contained: false
+        includes:
+            in_header: header.html
+---
+
+
+```{r initialization,echo=FALSE}
+library(data.table)
+library(formattable)
+library(shiny)
+library(knitr)
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE,messages=FALSE)
+source("../missioncontrol.lib.R")
+```
+
+
+
+<style type="text/css">
+
+.main-container {
+  max-width:100%;
+  margin:0;
+  padding:0;
+}
+a.nohover  {
+  pointer-events: none;
+  }
+pre.r {
+    border:0;
+    background:#ffffff !important;
+    font-size: 11px;
+
+}
+  
+</style>
+
+```{r echo=FALSE}
+makeActiveMenuBar("faq",generatedText = glue("Using data till {till}",till=dall.rel2[,max(date)]))
+```
+
+<div class = "row">
+<div class = "col-md-6 col-md-offset-3">
+
+## Introduction
+
+We built a statistical model to estimate crash metrics from daily aggregated
+telemetry data. Crash statistics are of two types: crash rate and crash
+incidence. Crash Rate is defined as the ratio of total crashes (of a given type
+e.g. browser crash or content crash) to the total active hours of the users that
+crashed (not all users). For example a crash rate of 1.24 can be understood as
+"among the profiles that crashed, on average they crashed 1.24 times per active
+hour of use". We also modeled the likelihood of a profile crashing (the 'crash
+incidence') is the probability a profile experiences a crash. Together we get a
+complete picture: what is the likelihood of a profile experiencing a crash and
+given they do with what intensity do they crash?
+
+## Model Input
+
+Every channel is treated separately but the terminology is common. A version is
+released, people update to it, and the previous version becomes mostly
+unused(except ESR). As a new release e.g. Beta 78.0b17 is rolled out, we see
+increased adoption. During the initial stages of rollout when adoption is low,
+we have noticed increased variability in crash statistics. We use adoption as a
+proxy for variability. Our model says that crash rate is essentially function of
+OS and version, but the mean and variance is affected by adoption. A consequence
+of this is once adoption has stabilized, we don't expect crash rates to change
+much (assuming nothing in the underlying environment changes). See the end of
+the page for the actual model.
+
+## Page Layout
+
+Every channel has a major and minor e.g. 66.0.1 has a 66 as its major and 0.1 as the minor. Similarly beta 67.0b16 has 67 as major and b16 as minor. For nightly, minors are YYYYMMDD.  
+
+At the very top right you'll see the latest data being used. It should be up to
+date Usage The page starts with a usage summary: • Which version is-current and
+which version we compare to (the last version) ◦ For nightly the current one is
+always one day old since the most recent has way too little adoption to be
+meaningful • The adoption (percent of total Firefox active hours on current
+version) and the # of profiles that crashed and total number of profiles on this
+version ◦ Having tangible numbers like # of profiles make adoption more
+meaningful. Sometimes have only a few hundred profiles on a channel/release
+making any crash statistics doubtful
+
+### Crash Rates and Crash Incidence
+
+Each row an OS, we list three columns:
+
+- Total crash rate which is the sum of browser and content 
+- Browser crash rate which is defined as total browser crashes per active hour for profiles experiencing content crashes
+- Content crash rate which is defined as total content crashes per active hour for profiles experiencing content crashes
+
+Within each cell we see the crash rate and the relative change wrt to previous version in parenthesis.  These cells are color coded
+
+- If we are  more than 70% sure that  that the relative change is worse than 20% : RED. A definite change for the worse
+- If we are  between than 50 .. 70% sure that  that the relative change is more than 20% : ORANGE.  Worrying but need more data
+- If we are  more than 70% sure that  that the relative change is better than 20% : GREEN. A definite change for the better
+- Otherwise grey: which could mean no change or not  enough data
+
+
+### Evolution Figures
+
+For every version, we plot the median estimated crash rate for the duration that
+version was 'current'. The error bars correspond to 90% credible
+intervals. Hovering over the points will reveal more information. Generally
+older versions will change much but the current one will as new data comes in.,
+which will change all the estimates of data on the current version.
+
+### Rollout Figure
+
+For release only, we plot crash rates vs adoption for both current and previous
+versions.  If we are more than 70% sure of ourselves, the points have a triangle
+pointing upward indicating a regression or a triangle pointing downwards
+indicating improvement .
+
+## How is Relative Difference Computed?
+To make a an apple to apple comparison, when the current version has reached
+e.g. 5% adoption, we estimate what the crash rate would have been when the
+previous version had reached 5%. Sometimes this requires interpolation given the
+differing ways versions reach adoption levels.
+
+
+## What Model are You Using?
+
+Best understood from the following
+[`brms`](https://cran.r-project.org/package=brms) snippet
+
+For all channels except Nightly, the crash rate is
+
+
+```{r eval=FALSE,echo=TRUE}
+
+  cmain+1 |cmain > 0  ~ os + offset(log( crash active hours+1/60)) + (1+os|c_version)  + s(nvc,m=1,by=os)
+               shape  ~ os+s(nvc,m=1)
+               family ~ negbinomial()
+
+```
+
+
+For nightly, it is
+
+
+
+```{r eval=FALSE,echo=TRUE}
+
+   cmain+1 |cmain > 0 ~ os + offset(log(crash active hours+ 1/60)) + (1+os | c_version) + s(nvc, m = 1)
+                shape ~ log(dau_cversion + 1) + os
+               family ~ negbinomial()
+
+```
+
+For crash incidence (note we ideally this should be some beta-binomial model
+since the following model can theoretically produce proportions larger than 1)
+
+
+```{r eval=FALSE,echo=TRUE}
+   log(1+crashing dau) ~ os + offset(log( dau on current version)) + s(nvc,m=1,by=os) + (1+os|c_version)
+                sigma  ~ os + s(nvc,m=1)
+               family  ~ gaussian
+```
+
+and for nightly
+
+
+```{r eval=FALSE,echo=TRUE}
+   log(1+crashing dau) ~ os + offset(log( dau on current version)) +  s(nvc, m = 1) + (1+os|c_version)
+                sigma  ~ os + nvc
+               family  ~ gaussian
+```
+
+</div>
+</div>

@@ -1,6 +1,42 @@
 # missioncontrol-v2
 An alternate view of crash and stability
 
+## Installation instructions
+The python files assume a base conda installation. To install the python dependencies, create a conda environment using the `environment.yml` file:
+
+```python
+cd missioncontrol-v2
+conda env create -f environment.yml
+```
+
+This will create a conda env named `mc2`.
+
+
+## Instructions to run
+To run the python data pull routine, the conda environment needs to be activated
+
+```python
+conda activate mc2
+```
+
+
+
+## Model data download
+There are python files to download the required data in `src/`. Creating a conda env with `environment.yml` should download all the required dependencies to get it running. See the README in `src` for more info. The scripts assume bigquery credentials are stored in a file whose path can be passed to `src.crud.main(creds_loc=creds_loc)`.
+
+## Run model
+To run the model, R needs to be installed, along with packages:
+
+- brms (to run model)
+- curl
+- data.table (for data manipulation)
+- future
+- glue
+- parallel
+- reticulate (to call python)
+- rjson
+
+
 ## Using buildhub_bid.py
 
 ```
@@ -12,3 +48,16 @@ release
 {'67.0.4': [('67.0.4', '20190619235627', 1560996835776)], '67.0.3': [('67.0.3', '20190618025334', 1560836951266)], '67.0.2': [('67.0.2', '20190607204818', 1560068562495), ('67.0.2', '20190605225443', 1559794985112)], '67.0.1': [('67.0.1', '20190529130856', 1559144445386)], '67.0': [('67.0', '20190516215225', 1558053461988), ('67.0', '20190513195729', 1557789027847)]}
 
 ```
+
+## Test
+```
+$ ipython
+import sys
+sys.path.insert(0, '/Users/wbeard/repos/missioncontrol-v2/src/')
+import src.crud as crud
+%load_ext autoreload
+%autoreload 2
+```
+
+# TODO
+- clean up environment.yml

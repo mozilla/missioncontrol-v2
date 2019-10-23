@@ -2,37 +2,46 @@ library(glue)
 library(data.table)
 
 
-ffunc <- function(M,D)  brm(M,data=D, chains = 4, control = list(adapt_delta = 0.999, max_treedepth=12), cores = 4,iter=3000)
-      # M0 <- bf( log(1+cmain) | weights(cmr.wt)   ~  os + os*poly(log(usage_cm_crasher_cversion+1/60),2)+os*poly(nvc.logit,2)  + (1+os|c_version), sigma ~   os + s(nvc.logit, m=1))
-make.a.model <- function(data,wh,channel='not-nightly'){
+ffunc <- function(M,D,list0=NULL)  brm(M,data=D, chains = 4,
+                                       control = if(is.null(list0))
+                                                     list(adapt_delta = 0.999, max_treedepth=12)
+                                                 else list0
+                                     , cores = 4,iter=3000)
+
+make.a.model <- function(data,wh,channel='not-nightly',bff=NULL,list0=NULL){
   ## See wbeards work on nightly: https://metrics.mozilla.com/protected/wbeard/mc/nightly_model.html
   alter <- TRUE
-  if(wh=="cmr"){
-      M0 <- bf( cmain+1 |weights(cmr.wt*wts)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os)+(1+os|c_version), shape ~ os+s(nvc,m=1))+negbinomial()
-      if(channel %in% c('nightly','beta')){
-        M0 <- bf( cmain + 1 |weights(cmr.wt*wts) ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + s(nvc, m = 1) , shape ~ log(dau_cversion + 1) + os)+negbinomial()
-      }
-  }
-  if(wh=='ccr'){
-    M0 <- bf( ccontent+1 | weights(ccr.wt*wts)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), shape ~  os+s(nvc,m=1))+negbinomial()
-    if(channel %in% c('nightly','beta')){
-     M0 <- bf( ccontent + 1 | weights(ccr.wt*wts)~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
-               shape ~ os + s(nvc, m = 1))+negbinomial()
+    if(wh=="cmr"){
+        M0 <- bf( cmain+1 |weights(cmr.wt*wts)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os)+(1+os|c_version), shape ~ os+s(nvc,m=1))+negbinomial()
+        if(channel %in% c('nightly','beta')){
+            M0 <- bf( cmain + 1 |weights(cmr.wt*wts) ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + s(nvc, m = 1) ,
+                     shape ~ log(dau_cversion + 1) + os)+negbinomial()
+        }
+        if(!is.null(bff)) M0 <- bff
     }
-  }
-  if(wh=='cmi'){
-    M0<- bf( log(1+dau_cm_crasher_cversion)|weights(wts)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
-    if(channel %in% c('nightly','beta')){
-      M0 <- bf(log(1 + dau_cm_crasher_cversion)|weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version) ,sigma ~ os + nvc)
+    if(wh=='ccr'){
+        M0 <- bf( ccontent+1 | weights(ccr.wt*wts)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), shape ~  os+s(nvc,m=1))+negbinomial()
+        if(channel %in% c('nightly','beta')){
+            M0 <- bf( ccontent + 1 | weights(ccr.wt*wts)~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
+                     shape ~ os + s(nvc, m = 1))+negbinomial()
+        }
+        if(!is.null(bff)) M0 <- bff
     }
-  }
-  if(wh=='cci'){
-    M0<- bf( log(1+dau_cc_crasher_cversion)|weights(wts)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
-    if(channel %in% c('nightly','beta')){
-      M0 <- bf( log(1 + dau_cc_crasher_cversion) |weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version),sigma ~ os + nvc)
+    if(wh=='cmi'){
+        M0<- bf( log(1+dau_cm_crasher_cversion)|weights(wts)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+        if(channel %in% c('nightly','beta')){
+            M0 <- bf(log(1 + dau_cm_crasher_cversion)|weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version) ,sigma ~ os + nvc)
+        }
+        if(!is.null(bff)) M0 <- bff
     }
+    if(wh=='cci'){
+        M0<- bf( log(1+dau_cc_crasher_cversion)|weights(wts)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+        if(channel %in% c('nightly','beta')){
+            M0 <- bf( log(1 + dau_cc_crasher_cversion) |weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version),sigma ~ os + nvc)
+        }
+        if(!is.null(bff)) M0 <- bff
   }
-  ffunc(M0,data)
+  ffunc(M0,data,list0=list0)
 }
 
 Predict <- function(M,ascale='response',...){
@@ -147,12 +156,12 @@ posteriorsTransForModel <- function(pc,nr){
     
     ## Summary means
     means <-rbindlist(lapply(1:nr,function(k){
-        x1  <- versiona.post[k,]
+        x1 <- versiona.post[k,]
         x2 <- versionb.orig[k,]
         data.table(versions=c('a','b'),
                    lo = c(quantile(x1,0.05,na.rm=TRUE),quantile(x2,0.05,na.rm=TRUE)),
                    me = c(quantile(x1,0.5,na.rm=TRUE),quantile(x2,0.5,na.rm=TRUE)),
-               hi = c(quantile(x1,0.95,na.rm=TRUE),quantile(x2,0.95,na.rm=TRUE)))
+                   hi = c(quantile(x1,0.95,na.rm=TRUE),quantile(x2,0.95,na.rm=TRUE)))
     }))
     
     reldifferences[, "probagtb" := prob.a.gt.b]
@@ -177,6 +186,7 @@ compare.two.versions <- function(versiona, versionb,oschoice, dataset,model,doLa
                      }else{
                          dataset[c_version %in% versiona & os %in% oschoice,]
                      }
+    versiona.data[, "since" := as.numeric(date - min(date)), by=list(os,c_version),]
     if(any(nrow(versiona.data)==0)) stop(glue("Version A: {versiona} has no data"))
     versionb.data <- if(oschoice=="overall") {
                          dataset[c_version %in% versionb ,][order(date),]
@@ -185,15 +195,28 @@ compare.two.versions <- function(versiona, versionb,oschoice, dataset,model,doLa
                      }
     if(oschoice=="overall"){
         af <- versiona.data[, list(n=.N),by=os]
-        versionb.data <- versionb.data[, head(.SD[order(date),], af[af$os==.BY$os,n]),by=os]
+        versionb.data <- versionb.data[, head(.SD[order(date),],af[af$os==.BY$os,n]),by=os]
     }else{
         versionb.data <- head(versionb.data,nrow(versiona.data))
     }
+    versionb.data[, "since" := as.numeric(date - min(date)), by=list(os,c_version),]
     if(doLatest || oschoice=="overall"){
         versiona.data <- versiona.data[,
                                        tail(.SD[order(date),],1), by=list(os,c_version)][order(os,c_version,date),]
         versionb.data <- versionb.data[,
                                        tail(.SD[order(date),],1), by=list(os,c_version)][order(os,c_version,date),]
+    }
+    if(nrow(versiona.data) > nrow(versionb.data)){
+        g <- versionb.data[,  {
+            AS <- since
+            A1 <- versiona.data[os==.BY$os,]
+            A1 <- A1[!A1$since %in% AS,]            
+            A1$c_version = versionb
+            A1$os <- NULL
+            A1
+        },by=os]
+        versionb.data <- versionb.data[, .SD, by=os]
+        versionb.data <- rbind(versionb.data,g)[order(os,c_version,since),]
     }
     versionb.data.orig <- copy(versionb.data)
     versionb.data <- versionb.data[order(os,date),];versiona.data <- versiona.data[order(os,date),]
@@ -203,7 +226,7 @@ compare.two.versions <- function(versiona, versionb,oschoice, dataset,model,doLa
         D <- D[, mw :=  usage_cversion/sum(usage_cversion)  ,by=list(clz,date)]
     }
 
-  callAndEdit <- function(model,D, vaData,vbData,squashOS=FALSE){
+    callAndEdit <- function(model,D, vaData,vbData,squashOS=FALSE){
       if(is.null(model$scope)){
           a <- getPredictions(model, D)
       }else{
@@ -246,7 +269,22 @@ compare.two.versions <- function(versiona, versionb,oschoice, dataset,model,doLa
     j0[, ":="(versiona = paste(as.character(versiona),collapse=","),
               versionb=paste(as.character(versionb),collapse=","),
               os=paste(oschoice,collapse=","))]
-
+    if(doLatest || oschoice=="overall"){
+        ## it is frustrating that linux makes things messy
+        ## in oschoice ='overall', there should be the same date for all os
+        ## given a version, yet Linux shows a different one
+        ## setting it to the same as Windows
+        fixMuls <- function(s){
+            if(length(unique(s$date)) > 1) {
+                s[os=='Linux', date := s[os=='Windows_NT',date]]
+            }
+            return(s)
+        }
+        versiona.data <- fixMuls(versiona.data)
+        versionb.data <- fixMuls(versionb.data)
+        versionb.data.orig <- fixMuls(versionb.data.orig)
+    }
+    
     nvc  <- c(rbind(versiona.data[, list(nvc=sum(nvc)),by=list(date)]$nvc,
                     versionb.data.orig[,list(nvc=sum(nvc)),by=list(date)]$nvc ))
     dates  <- as.Date(c(rbind( versiona.data[, list(date=min(date)), by=date]$date,
@@ -271,7 +309,7 @@ compare.two.versions <- function(versiona, versionb,oschoice, dataset,model,doLa
     list(comparison =   cbind(
              versiona.data[, list(dau=sum(dau),dau_cversion=sum(dau_cversion), nvc=sum(usage_cversion)/sum(usage_all)),by=date ],
              j0)[order(date),]
-       , summary = j1[order(date,versions),],usgTable = usgTable,
+       , summary = j1[order(versions,date),],usgTable = usgTable,
          daysSinceRelease=as.numeric(Sys.Date()-min(versiona.data$date)),
          versiona = versiona,versionb=versionb
          )

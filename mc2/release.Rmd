@@ -10,7 +10,7 @@ params:
 ---
 
 
-```{r initialization,echo=FALSE}
+```{r initialization,echo=FALSE,message=FALSE, warning=FALSE}
 library(data.table)
 library(formattable)
 library(shiny)

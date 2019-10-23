@@ -1,4 +1,4 @@
-
+processDownloadsWorked <- FALSE
 source("./missioncontrol.lib.R")
 operating.systems <- c("Windows_NT","Darwin","Linux","overall")
 message("Starting posteriors")
@@ -100,3 +100,4 @@ system(glue("gsutil cp {data.file}  gs://moz-fx-data-derived-datasets-analysis/s
 system(glue("gsutil cp all.the.data.Rdata  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/"))
 slackr(glue("Data file saved at   gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/{data.file}. Download using gsutil cp"))
 
+processDownloadsWorked <- TRUE

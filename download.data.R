@@ -464,6 +464,26 @@ ci.cc.rel <- label(value(ci.cc.rel.f),'cci')
 slackr("RELEASE CHAINS DONE")
 
 
+## ## https://stats.stackexchange.com/questions/228800/crossed-vs-nested-random-effects-how-do-they-differ-and-how-are-they-specified
+## dd <- d.beta[, ":="(major=as.character(major),minor=as.character(minor))]
+## dd <- dd[cmain > 0,]
+## M00 <- bf( cmain + 1  ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os +
+##                (1+os|major)+(1+os | major:minor) ,
+##           shape ~ os)+negbinomial()
+## cr.cm.beta.2 <- future(make.a.model(dd,'cmr',bff=M00, list0= list(adapt_delta = 0.999, max_treedepth=12)))
+## M000 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion +1/60)) + os +
+##                (1+os|c_version),
+##           shape ~ os)+negbinomial()
+## cr.cm.beta.1 <- future(make.a.model(dd,'cmr',bff=M000, list0= list(adapt_delta = 0.999, max_treedepth=12)))
+
+## cr.cm.beta.1 <- value(cr.cm.beta.1)
+## cr.cm.beta.2 <- value(cr.cm.beta.2)
+
+## M01 <- bf( cmain + 1  ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os +
+##                (1+os | major:minor) ,
+##           shape ~ os)+negbinomial()
+## cr.cm.beta.3 <- value(future(make.a.model(dd,'cmr',bff=M01, list0= list(adapt_delta = 0.999, max_treedepth=12))))
+
 ## Beta Model
 
 
@@ -496,18 +516,4 @@ cr.cc.nightly <- label(value(cr.cc.nightly.f),'ccr')
 ci.cm.nightly <- label(value(ci.cm.nightly.f),'cmi')
 ci.cc.nightly <- label(value(ci.cc.nightly.f),'cci')
 slackr("Nightly CHAINS DONE!")
-
-
-
-
-#data.file <- glue("/tmp/models-{n}.Rdata",n=as.character(Sys.Date()))
-#save.list <- list(
-#  "cr.cm.rel","cr.cc.rel","ci.cm.rel","ci.cc.rel",
-#  "cr.cm.beta","cr.cc.beta","ci.cm.beta","ci.cc.beta",
-#  "cr.cm.nightly","cr.cc.nightly","ci.cm.nightly","ci.cc.nightly",
-#  "dall.rel2","dall.beta2","dall.nightly2",
-#  "Predict","getPredictions")
-#save(list=unlist(save.list),file=data.file)
-#system(glue("gsutil cp {data.file}  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/"))
-#slackr(glue("Data file saved at   gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/. Download using gsutil cp"))
 

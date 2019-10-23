@@ -26,8 +26,13 @@ library(brms)
 source("download.data.R")
 source("process.downloads.R")
 
-genf("public")
-genf("moco")
+if(processDownloadsWorked){
+    genf("public")
+    genf("moco")
+}else{
+    slackr("Error in running processdownloads")
+    stop()
+}
 
 #print("Running Code on GS Server")
 #system('gcloud compute instances start "sguha-datascience" --zone=us-west1-b')

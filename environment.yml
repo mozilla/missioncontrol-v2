@@ -6,7 +6,7 @@ dependencies:
 # Bare necessities
 - flake8
 - cython
-- pandas
+- pandas >= 0.25
 - jupyterlab
 
 # Optional:

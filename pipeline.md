@@ -87,7 +87,8 @@ shape   ~ os + s(adoption)
 
 That is we assume the the count of crashes is affected by current adoption. Note
 that adoption reaches a peak/steady state so it does not have unbounded effect
-on crash rates/incidences.
+on crash rates/incidences. For nightly models, the shape (which is a measure of
+dispersion) does not take into  account adoption.
 
 
 We use the R package brms to model the 2 models for Crash Rates and Incidences

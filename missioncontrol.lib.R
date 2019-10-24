@@ -13,9 +13,13 @@ make.a.model <- function(data,wh,channel='not-nightly',bff=NULL,list0=NULL){
   alter <- TRUE
     if(wh=="cmr"){
         M0 <- bf( cmain+1 |weights(cmr.wt*wts)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os)+(1+os|c_version), shape ~ os+s(nvc,m=1))+negbinomial()
-        if(channel %in% c('nightly','beta')){
+        if(channel %in% c('beta')){
             M0 <- bf( cmain + 1 |weights(cmr.wt*wts) ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + s(nvc, m = 1) ,
                      shape ~ log(dau_cversion + 1) + os)+negbinomial()
+        }
+        if(channel %in% c("nightly")){
+            M0 <- bf( cmain + 1 |weights(cmr.wt*wts) ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + s(nvc, m = 1) ,
+                     shape ~ os)+negbinomial()
         }
         if(!is.null(bff)) M0 <- bff
     }
@@ -33,14 +37,17 @@ make.a.model <- function(data,wh,channel='not-nightly',bff=NULL,list0=NULL){
     }
     if(wh=='cmi'){
         M0<- bf( log(1+dau_cm_crasher_cversion)|weights(wts)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
-        if(channel %in% c('nightly','beta')){
+        if(channel %in% c('beta')){
             M0 <- bf(log(1 + dau_cm_crasher_cversion)|weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version) ,sigma ~ os + nvc)
+        }
+        if(channel %in% c('nightly')){
+            M0 <- bf(log(1 + dau_cm_crasher_cversion)|weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version) ,sigma ~ os)
         }
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='cci'){
         M0<- bf( log(1+dau_cc_crasher_cversion)|weights(wts)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
-        if(channel %in% c('nightly','beta')){
+        if(channel %in% c('beta')){
             M0 <- bf( log(1 + dau_cc_crasher_cversion) |weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version),sigma ~ os+ nvc)
         }
         if(channel %in% c("nightly")){

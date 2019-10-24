@@ -23,7 +23,11 @@ make.a.model <- function(data,wh,channel='not-nightly',bff=NULL,list0=NULL){
         M0 <- bf( ccontent+1 | weights(ccr.wt*wts)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), shape ~  os+s(nvc,m=1))+negbinomial()
         if(channel %in% c('nightly','beta')){
             M0 <- bf( ccontent + 1 | weights(ccr.wt*wts)~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
-                     shape ~ os + s(nvc, m = 1))+negbinomial()
+                     shape ~ os + log(dau_cversion + 1))+negbinomial()
+        }
+        if(channel %in% c("nightly")){
+            M0 <- bf( ccontent + 1 | weights(ccr.wt*wts)~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
+                     shape ~ os)+negbinomial()
         }
         if(!is.null(bff)) M0 <- bff
     }
@@ -37,7 +41,10 @@ make.a.model <- function(data,wh,channel='not-nightly',bff=NULL,list0=NULL){
     if(wh=='cci'){
         M0<- bf( log(1+dau_cc_crasher_cversion)|weights(wts)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
         if(channel %in% c('nightly','beta')){
-            M0 <- bf( log(1 + dau_cc_crasher_cversion) |weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version),sigma ~ os + nvc)
+            M0 <- bf( log(1 + dau_cc_crasher_cversion) |weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version),sigma ~ os+ nvc)
+        }
+        if(channel %in% c("nightly")){
+            M0 <- bf( log(1 + dau_cc_crasher_cversion) |weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version),sigma ~ os)
         }
         if(!is.null(bff)) M0 <- bff
   }
@@ -72,13 +79,20 @@ getPredictions <- function(M,D, wh=NULL,givenx=NULL,summary=FALSE,ascale='respon
         r <- exp(t(x) -  D[, log( usage_cc_crasher_cversion+1/60)])
     }
     if(wh=='cmi'){
-        r <- exp(t(x) -  D[, log( dau_cversion)])
-        r[r>1]  <- 1
+        if(fa=='binomial'){
+            r <- t(x) #boot::inv.logit(t(x))
+        }else{
+            r <- exp(t(x) -  D[, log( dau_cversion)])
+            r[r>1]  <- 1
+        }
     }
     if(wh=='cci'){
-        r <- exp(t(x) -  D[, log( dau_cversion)])
-        r[r>1] <- 1
-                                       
+        if(fa=='binomial'){
+            r <- t(x) #boot::inv.logit(t(x))
+        }else {
+            r <- exp(t(x) -  D[, log( dau_cversion)])
+            r[r>1] <- 1
+        }
     }
     r
 }

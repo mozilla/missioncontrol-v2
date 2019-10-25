@@ -12,6 +12,7 @@ dependencies:
 # Optional:
 - joblib  # to be able to use crud.main(cache=True)
 - fastparquet
+- termcolor  # tmux
 
 - pip
 

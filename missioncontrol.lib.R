@@ -12,57 +12,58 @@ make.a.model <- function(data,wh,channel='not-nightly',bff=NULL,list0=NULL){
   ## See wbeards work on nightly: https://metrics.mozilla.com/protected/wbeard/mc/nightly_model.html
   alter <- TRUE
     if(wh=="cmr"){
-        M0 <- bf( cmain+1 |weights(cmr.wt*wts)   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os)+(1+os|c_version), shape ~ os+s(nvc,m=1))+negbinomial()
+        M0 <- bf( cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os)+(1+os|c_version), shape ~ os*log(nvc))+negbinomial()
         if(channel %in% c('beta')){
-            M0 <- bf( cmain + 1 |weights(cmr.wt*wts) ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + s(nvc, m = 1) ,
-                     shape ~ log(dau_cversion + 1) + os)+negbinomial()
+            M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + os*log(nvc) ,
+                     shape ~ log(nvc)*os)+negbinomial()
         }
         if(channel %in% c("nightly")){
-            M0 <- bf( cmain + 1 |weights(cmr.wt*wts) ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + s(nvc, m = 1) ,
+            M0 <- bf( cmain + 1  ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) +  log(nvc)*os,
                      shape ~ os)+negbinomial()
         }
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='ccr'){
-        M0 <- bf( ccontent+1 | weights(ccr.wt*wts)   ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version), shape ~  os+s(nvc,m=1))+negbinomial()
-        if(channel %in% c('nightly','beta')){
-            M0 <- bf( ccontent + 1 | weights(ccr.wt*wts)~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
-                     shape ~ os + log(dau_cversion + 1))+negbinomial()
+        M0 <- bf( ccontent+1  ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version),
+                 shape ~  os*log(nvc)) +negbinomial() # os+s(nvc,1)
+        if(channel %in% c('beta')){
+            M0 <- bf( ccontent + 1 ~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
+                     shape ~ os*nvc) + negbinomial()  #log(dau_cversion + 1))
         }
         if(channel %in% c("nightly")){
-            M0 <- bf( ccontent + 1 | weights(ccr.wt*wts)~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
+            M0 <- bf( ccontent + 1 ~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
                      shape ~ os)+negbinomial()
         }
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='cmi'){
-        M0<- bf( log(1+dau_cm_crasher_cversion)|weights(wts)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+        M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os*nvc) #+s(nvc,m=1))
         if(channel %in% c('beta')){
-            M0 <- bf(log(1 + dau_cm_crasher_cversion)|weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version) ,sigma ~ os + nvc)
+            M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version) ,sigma ~ os*nvc)
         }
         if(channel %in% c('nightly')){
-            M0 <- bf(log(1 + dau_cm_crasher_cversion)|weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version) ,sigma ~ os)
+            M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version) ,sigma ~ os)
         }
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='cci'){
-        M0<- bf( log(1+dau_cc_crasher_cversion)|weights(wts)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os+s(nvc,m=1))
+        M0<- bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os*nvc) #+s(nvc,m=1))
         if(channel %in% c('beta')){
-            M0 <- bf( log(1 + dau_cc_crasher_cversion) |weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version),sigma ~ os+ nvc)
+            M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os*nvc) 
         }
         if(channel %in% c("nightly")){
-            M0 <- bf( log(1 + dau_cc_crasher_cversion) |weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version),sigma ~ os)
+            M0 <- bf( log(1 + dau_cc_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os)
         }
         if(!is.null(bff)) M0 <- bff
   }
   ffunc(M0,data,list0=list0)
 }
 
-Predict <- function(M,ascale='response',...){
+Predict <- function(M,D,ascale='response',...){
     fa <- family(M)$fam
     l <- list(...)
     if(fa=='negbinomial' & is.null(l$leaveScaleAlone)) ascale='linear'
-    p <- fitted(M,scale=ascale,...)
+    p <- fitted(M,newdata=D,scale=ascale,...)
     return(p)
 }
 
@@ -75,7 +76,7 @@ getPredictions <- function(M,D, wh=NULL,givenx=NULL,summary=FALSE,ascale='respon
         if(is.null(wh)) stop("model type is missing")
     }
     if(is.null(givenx)){
-        x <-Predict(M,ascale=ascale,newdata=D,summary=summary,...)
+        x <-Predict(M,D,ascale=ascale,summary=summary,...)
     }else{
         x <-givenx
     }

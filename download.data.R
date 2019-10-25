@@ -427,21 +427,28 @@ unique(nightly.releases.for.model)
 
 dall.rel2 <- g$q(glue("select * from analysis.sguha_crash_rate_raw where channel = 'release' and major in ({whichv})",
          whichv = paste(unique(release.releases.for.model[,major]),collapse=",")),-1)
-dall.rel2 <- dall.rel2[nvc > 0][,":="(cmi.logit=boot::logit(cmi),cci.logit=boot::logit(cci),nvc.logit=boot::logit(nvc),cmr.wt = 1*(cmain >0), ccr.wt = 1*(ccontent > 0))]
+dall.rel2 <- dall.rel2[nvc > 0,] 
 
 dall.beta2 <- g$q(glue("select * from analysis.sguha_crash_rate_raw where channel = 'beta' and major in ({whichv})",
          whichv = paste(unique(beta.releases.for.model[,major]),collapse=",")),-1)
-dall.beta2 <- dall.beta2[nvc > 0][,":="(cmi.logit=boot::logit(cmi),cci.logit=boot::logit(cci),nvc.logit=boot::logit(nvc),cmr.wt = 1*(cmain >0), ccr.wt = 1*(ccontent > 0))]
+dall.beta2 <- dall.beta2[nvc > ,0]
 
 dall.nightly2 <- g$q(glue("select * from analysis.sguha_crash_rate_raw where channel = 'nightly' and major in ({whichv})",
                           whichv = paste(unique(nightly.releases.for.model),collapse=',')),-1)
 
-dall.nightly2 <- dall.nightly2[nvc > 0][,":="(cmi.logit=boot::logit(cmi),cci.logit=boot::logit(cci),nvc.logit=boot::logit(nvc),cmr.wt = 1*(cmain >0), ccr.wt = 1*(ccontent > 0))]
+dall.nightly2 <- dall.nightly2[nvc > 0,]
 
 
-dall.rel2[, wts := 1]
-dall.beta2[, wts:=1]
-dall.nightly2[,wts := 1]
+addOSFactor <- function(d){
+    d[, osGroup := sapply(os, function(k) if(k=="Linux") "Linux" else "Win/Darwin")]
+    d
+}
+dall.rel2 <- addOSFactor(dall.rel2)
+dall.beta2 <- addOSFactor(dall.beta2)
+dall.nightly2 <- addOSFactor(dall.nightly2)
+##dall.rel2[, wts := 1]
+##dall.beta2[, wts:=1]
+##dall.nightly2[,wts := 1]
 
 
 ## BUILD MODELS
@@ -517,3 +524,44 @@ ci.cm.nightly <- label(value(ci.cm.nightly.f),'cmi')
 ci.cc.nightly <- label(value(ci.cc.nightly.f),'cci')
 slackr("Nightly CHAINS DONE!")
 
+
+
+
+
+### ROugh Work: To What Extent Does Sigma Depend on NVC
+if(FALSE){
+
+    ci.cc.nightly.old <-  label(make.a.model(d.nightly,'cci'
+                                            ,bff= bf( log(1 + dau_cc_crasher_cversion) |weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version),sigma ~ os+ nvc)
+                                             ,channel='nightly'),'cci')
+
+    ci.cc.beta.new <- label(make.a.model(d.beta,'cci',channel='beta'),'cci')
+    
+    f=rbind(d.nightly[, list(nvc, cmr,ccr,cci,cmi,os,ch='nightly')],
+        d.beta[, list(nvc, cmr,ccr,cci,cmi,os,ch='beta')],
+        d.rel[, list(nvc, cmr,ccr,cci,cmi,os,ch='rel')])[order(ch,os, nvc),]
+
+ggplot(f[ch=='nightly',], aes(nvc, cci,color=os))+geom_point()+geom_smooth()
+dev.off()
+
+
+    cr.cm.beta.new2<- future({make.a.model(d.beta,'cmr',channel='beta')})
+    cr.cm.rel.new<- future({make.a.model(d.rel,'cmr',channel='release')})    
+    cr.cm.beta.new2<- value(cr.cm.beta.new2)
+    cr.cm.rel.new <- value(cr.cm.rel.new)
+
+    cr.cm.nightly.new <-  make.a.model(d.beta,'cmr',channel='nightly')
+    
+f2 <- f[cmr<=Inf,{
+    g <- loess(cmi ~ nvc)
+    list(r = fitted(g), nvc=nvc) #fitted(g))
+},by=list(os, ch)]
+    
+H <- function(x) abs(x)
+ggplot(f2[ch=='rel' & r<quantile(r,0.99),], aes(nvc, H(r),color=os))+geom_point()+geom_smooth(method='loess')
+ggplot(f2[ch=='beta'  & r<quantile(r,0.99),], aes(nvc, H(r),color=os))+geom_point()+geom_smooth(method='loess')
+ggplot(f2[ch=='nightly'  & r<quantile(r,0.99),], aes(nvc, H(r),color=os))+geom_point()+geom_smooth(method='loess')
+dev.off()
+
+
+}

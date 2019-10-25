@@ -17,6 +17,7 @@ To run the python data pull routine, the conda environment needs to be activated
 
 ```python
 conda activate mc2
+
 ```
 
 
@@ -36,6 +37,10 @@ To run the model, R needs to be installed, along with packages:
 - reticulate (to call python)
 - rjson
 
+
+# Gotchas
+- if you run the data pulling code shortly after a new release, and did not pull data in the
+previous days, then those days' data will be missing for the previous major release versions.
 
 ## Using buildhub_bid.py
 

@@ -15,7 +15,7 @@ import buildhub_bid as bh_bid
 # import src.buildhub_bid as bh_bid
 
 
-SQL_FNAME = "src/download_template.sql"
+SQL_FNAME = "data/download_template.sql"
 dbg = lambda: None
 
 os_dtype = pd.CategoricalDtype(
@@ -555,3 +555,9 @@ def pull_all_model_data(bq_read):
     )
 
     return df_all
+
+
+############################################
+# Pull model data after it's been uploaded #
+############################################
+

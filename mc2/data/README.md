@@ -32,3 +32,8 @@ Most of the download functionality is in `download_bq.py`. The overall strategy 
     - most of this funtionality is channel specific, in functions named `prod_det_process_{channel}()`
     - functions that fill in the sql template have names patterned as `query_from_row_{channel}`
 - For beta, also download build information from buildhub. We can't get version information from cliens_daily, so we need to get the version -> build_id information from buildhub, and query those build_id's from cliens_daily.
+
+
+# Download after updating table
+
+Use `download_bq.pull_model_data(bq_read_fn, channel, n_majors: int, analysis_table)` to download all the data in the mission control table that correspond to the channel and `n_majors` most recent major versions.

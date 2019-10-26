@@ -5,6 +5,7 @@ from functools import partial
 import os
 import re
 import sys
+import tempfile
 
 import pandas as pd
 from pandas import DataFrame
@@ -560,4 +561,59 @@ def pull_all_model_data(bq_read):
 ############################################
 # Pull model data after it's been uploaded #
 ############################################
+def pull_model_data_pre_query(
+    bq_read_fn, channel, n_majors, analysis_table="wbeard_crash_rate_raw"
+):
+    pre_query = """
+    select distinct major from analysis.{table}
+    where channel = '{channel}'
+    ORDER BY major desc
+    LIMIT {n}
+    """.format(
+        table=analysis_table, n=n_majors, channel=channel
+    )
+    pre_data = bq_read_fn(pre_query)
+    prev_majors = pre_data.major.astype(int).tolist()
+    prev_major_strs = ", ".join(map(str, prev_majors))
+    print(
+        "Previous majors for `{}` were: {}. Pulling now...".format(
+            channel, prev_majors
+        )
+    )
 
+    return prev_major_strs
+
+
+def pull_model_data_(bq_read_fn, channel, n_majors, analysis_table):
+    prev_major_strs = pull_model_data_pre_query(
+        bq_read_fn, channel, n_majors, analysis_table
+    )
+
+    pull_all_recent_query = """
+    select * from analysis.{table}
+    where channel = '{channel}'
+          and major in ({major_strs})
+    """.format(
+        table=analysis_table, channel=channel, major_strs=prev_major_strs
+    )
+    print("Running query:\n", pull_all_recent_query)
+    df = bq_read_fn(pull_all_recent_query)
+    return df
+
+
+def pull_model_data(bq_read_fn, channel, n_majors: int, analysis_table):
+    """
+    Given a channel and a number of recent major version, return all of the
+    uploaded raw mission control v2 data that matches the `n_majors` most
+    recent major version of that channel.
+
+    First do this by querying the MC v2 table for what those major versions
+    are.
+
+    This will write the file to a temporary feather file and return the filename.
+    """
+    df = pull_model_data_(bq_read_fn, channel, n_majors, analysis_table)
+    with tempfile.NamedTemporaryFile(delete=False, mode="w+") as fp:
+        df.to_feather(fp, index=False)
+    print("feather file saved to {}".format(fp.name))
+    return fp.name

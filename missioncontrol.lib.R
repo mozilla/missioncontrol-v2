@@ -1,3 +1,4 @@
+library(logging)
 library(glue)
 library(data.table)
 library(vegawidget)
@@ -8,8 +9,15 @@ library(brms)
 library(rjson)
 library(future)
 library(curl)
-plan(multicore)
+library(feather)
+library(rmarkdown)
 
+if(!exists("missioncontrol.lib.R")){
+    ## executed only once
+    basicConfig()
+    plan(multicore)
+    missioncontrol.lib.R <- TRUE
+}
 
 
 ffunc <- function(M,D,list0=NULL)  brm(M,data=D, chains = 4,

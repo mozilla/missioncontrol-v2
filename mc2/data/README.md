@@ -35,7 +35,9 @@ python data/crud.py main --creds_loc "<path to bigquery creds>"  \
 
 Download data after it's been processed and uploaded
 ```bash
-python data/crud.py dl_raw --channel release --n_majors 3 --cache False
+python data/crud.py dl_raw --channel release --n_majors 3 \
+    --creds_loc "~/creds.json" --outname '/tmp/out.fth' \
+    --cache True
 ```
 
 

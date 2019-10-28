@@ -1,14 +1,6 @@
-library(parallel)
-library(brms)
-library(glue)
-library(data.table)
-library(rjson)
-library(future)
-library(reticulate)
-plan(multicore)
-library(curl)
-slack.start() ##requires prefix.R
 source("missioncontrol.lib.R")
+slack.start() ##requires prefix.R
+
 
 
 

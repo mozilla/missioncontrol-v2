@@ -89,6 +89,7 @@ def dl_raw(
     n_majors: int,
     creds_loc=None,
     analysis_table="missioncontrol_v2_raw_data",
+    outname=None,
     cache=False,
 ):
     """
@@ -98,7 +99,11 @@ def dl_raw(
     """
     bq_read_fn = mk_bq_reader(creds_loc=creds_loc, cache=cache)
     fname = download_raw_data(
-        bq_read_fn, channel, n_majors, analysis_table=analysis_table
+        bq_read_fn,
+        channel,
+        n_majors,
+        analysis_table=analysis_table,
+        outname=outname,
     )
     return fname
 

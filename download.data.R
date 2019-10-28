@@ -431,7 +431,7 @@ dall.rel2 <- dall.rel2[nvc > 0,]
 
 dall.beta2 <- g$q(glue("select * from analysis.sguha_crash_rate_raw where channel = 'beta' and major in ({whichv})",
          whichv = paste(unique(beta.releases.for.model[,major]),collapse=",")),-1)
-dall.beta2 <- dall.beta2[nvc > ,0]
+dall.beta2 <- dall.beta2[nvc > 0,]
 
 dall.nightly2 <- g$q(glue("select * from analysis.sguha_crash_rate_raw where channel = 'nightly' and major in ({whichv})",
                           whichv = paste(unique(nightly.releases.for.model),collapse=',')),-1)
@@ -529,39 +529,17 @@ slackr("Nightly CHAINS DONE!")
 
 
 ### ROugh Work: To What Extent Does Sigma Depend on NVC
-if(FALSE){
-
-    ci.cc.nightly.old <-  label(make.a.model(d.nightly,'cci'
-                                            ,bff= bf( log(1 + dau_cc_crasher_cversion) |weights(wts) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1) + (1 + os | c_version),sigma ~ os+ nvc)
-                                             ,channel='nightly'),'cci')
-
-    ci.cc.beta.new <- label(make.a.model(d.beta,'cci',channel='beta'),'cci')
+if(FALSE){    
+    f2 <- f[cmr<=Inf,{
+        g <- loess(cci ~ nvc)
+        list(r = fitted(g)(residuals(g)), nvc=nvc) #fitted(g))
+    },by=list(os, ch)]
     
-    f=rbind(d.nightly[, list(nvc, cmr,ccr,cci,cmi,os,ch='nightly')],
-        d.beta[, list(nvc, cmr,ccr,cci,cmi,os,ch='beta')],
-        d.rel[, list(nvc, cmr,ccr,cci,cmi,os,ch='rel')])[order(ch,os, nvc),]
-
-ggplot(f[ch=='nightly',], aes(nvc, cci,color=os))+geom_point()+geom_smooth()
-dev.off()
-
-
-    cr.cm.beta.new2<- future({make.a.model(d.beta,'cmr',channel='beta')})
-    cr.cm.rel.new<- future({make.a.model(d.rel,'cmr',channel='release')})    
-    cr.cm.beta.new2<- value(cr.cm.beta.new2)
-    cr.cm.rel.new <- value(cr.cm.rel.new)
-
-    cr.cm.nightly.new <-  make.a.model(d.beta,'cmr',channel='nightly')
-    
-f2 <- f[cmr<=Inf,{
-    g <- loess(cmi ~ nvc)
-    list(r = fitted(g), nvc=nvc) #fitted(g))
-},by=list(os, ch)]
-    
-H <- function(x) abs(x)
-ggplot(f2[ch=='rel' & r<quantile(r,0.99),], aes(nvc, H(r),color=os))+geom_point()+geom_smooth(method='loess')
-ggplot(f2[ch=='beta'  & r<quantile(r,0.99),], aes(nvc, H(r),color=os))+geom_point()+geom_smooth(method='loess')
-ggplot(f2[ch=='nightly'  & r<quantile(r,0.99),], aes(nvc, H(r),color=os))+geom_point()+geom_smooth(method='loess')
-dev.off()
+    H <- function(x) abs(x)
+    ggplot(f2[ch=='rel' & r<quantile(r,0.99),], aes(nvc, H(r),color=os))+geom_point()+geom_smooth(method='loess')
+    ggplot(f2[ch=='beta'  & r<quantile(r,0.99),], aes(nvc, H(r),color=os))+geom_point()+geom_smooth(method='loess')
+    ggplot(f2[ch=='nightly'  & r<quantile(r,0.99),], aes(nvc, H(r),color=os))+geom_point()+geom_smooth(method='loess')
+    dev.off()
 
 
 }

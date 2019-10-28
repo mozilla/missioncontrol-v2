@@ -4,7 +4,7 @@ An alternate view of crash and stability
 ## Installation instructions
 The python files assume a base conda installation. To install the python dependencies, create a conda environment using the `environment.yml` file:
 
-```python
+```bash
 cd missioncontrol-v2
 conda env create -f environment.yml
 ```
@@ -16,9 +16,10 @@ This will create a conda env named `mc2`.
 
 
 ### Model data download
-To run the python data pull routine, the conda environment needs to be activated
+To run the python data pull routine, the conda environment needs to be activated, and a flag set to not get the python paths mixed up
 
-```python
+```bash
+export PYTHONNOUSERSITE=True
 conda activate mc2
 ```
 There are python files to download the required data in [mc2/data](mc2/data). See the README in [mc2/data](mc2/data) for more info.

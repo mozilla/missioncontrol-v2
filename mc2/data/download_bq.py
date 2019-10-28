@@ -601,7 +601,7 @@ def pull_model_data_(bq_read_fn, channel, n_majors, analysis_table):
     return df
 
 
-def pull_model_data(bq_read_fn, channel, n_majors: int, analysis_table):
+def download_raw_data(bq_read_fn, channel, n_majors: int, analysis_table):
     """
     Given a channel and a number of recent major version, return all of the
     uploaded raw mission control v2 data that matches the `n_majors` most
@@ -613,7 +613,9 @@ def pull_model_data(bq_read_fn, channel, n_majors: int, analysis_table):
     This will write the file to a temporary feather file and return the filename.
     """
     df = pull_model_data_(bq_read_fn, channel, n_majors, analysis_table)
-    with tempfile.NamedTemporaryFile(delete=False, mode="w+") as fp:
-        df.to_feather(fp, index=False)
-    print("feather file saved to {}".format(fp.name))
-    return fp.name
+    ntf = tempfile.NamedTemporaryFile(delete=False, mode="w+")
+    fname = ntf.name
+    df.to_feather(fname)
+
+    print("feather file saved to {}".format(fname))
+    return fname

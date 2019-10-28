@@ -1,6 +1,6 @@
 # Bigquery download
 
-The main entry point for these python download functions is [crud.main](src/crud.py) with the following signature.
+The main entry point for these python download functions is [crud.main](crud.py) with the following signature.
 
 
 ```python
@@ -21,6 +21,22 @@ While debugging, it could be usefuly to pass
 - `drop_first = True`, to delete the table before uploading the data
 - `add_schema = True` to manual specify the table schema after dropping the table
 - custom `table_name` to not override the table currently in use
+
+## Example CLI commands
+
+Process and upload raw data
+```bash
+conda activate mc2
+cd mc2
+python data/crud.py main --creds_loc "<path to bigquery creds>"  \
+    --table_name wbeard_crash_rate_raw --cache True \
+    --drop_first False --add_schema False \
+```
+
+Download data after it's been processed and uploaded
+```bash
+python data/crud.py dl_raw --channel release --n_majors 3 --cache False
+```
 
 
 # Strategy

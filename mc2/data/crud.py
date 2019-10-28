@@ -13,7 +13,7 @@ import fire
 from google.oauth2 import service_account  # noqa
 from google.cloud import bigquery  # noqa
 
-from download_bq import pull_all_model_data
+from download_bq import pull_all_model_data, download_raw_data
 from upload_bq import delete_versions, drop_table, upload
 
 # from src.download_bq import pull_all_model_data
@@ -84,6 +84,25 @@ def mk_query_func(creds_loc=None):
     return client.query
 
 
+def dl_raw(
+    channel,
+    n_majors: int,
+    creds_loc=None,
+    analysis_table="missioncontrol_v2_raw_data",
+    cache=False,
+):
+    """
+    Wrapper for download_bq.download_raw_data(). After running `main`,
+    this will download rows corresponding to the specified `channel`
+    and save them to a feather format file.
+    """
+    bq_read_fn = mk_bq_reader(creds_loc=creds_loc, cache=cache)
+    fname = download_raw_data(
+        bq_read_fn, channel, n_majors, analysis_table=analysis_table
+    )
+    return fname
+
+
 def main(
     add_schema: bool = False,
     creds_loc=None,
@@ -111,5 +130,4 @@ def main(
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
-    # main()
+    fire.Fire({"main": main, "dl_raw": dl_raw})

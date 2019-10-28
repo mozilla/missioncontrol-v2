@@ -1,7 +1,6 @@
 name: mc2
 dependencies:
 - python=3.6
-# pip install python-box
 
 # Bare necessities
 - flake8

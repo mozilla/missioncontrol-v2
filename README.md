@@ -13,19 +13,39 @@ This will create a conda env named `mc2`.
 
 
 ## Instructions to run
+
+
+### Model data download
 To run the python data pull routine, the conda environment needs to be activated
 
 ```python
 conda activate mc2
+```
+There are python files to download the required data in [mc2/data](mc2/data). See the README in [mc2/data](mc2/data) for more info.
 
+The main entry point for these python download functions is [crud.main](mc2/data/crud.py) with the following signature:
+
+
+```python
+crud.main(
+    add_schema: bool = False,
+    creds_loc=None,
+    cache: bool=False,
+    table_name="wbeard_crash_rate_raw",
+    drop_first: bool=False,
+)
 ```
 
+It requires the filepath of the bigquery credentials to be passed as `creds_loc`.
 
 
-## Model data download
-There are python files to download the required data in `src/`. Creating a conda env with `environment.yml` should download all the required dependencies to get it running. See the README in `src` for more info. The scripts assume bigquery credentials are stored in a file whose path can be passed to `src.crud.main(creds_loc=creds_loc)`.
+While debugging, it could be useful to pass
+- `cache = True`, so that it will cache the results of bigquery sql pulls with joblib
+- `drop_first = True`, to delete the table before uploading the data
+- `add_schema = True` to manual specify the table schema after dropping the table
+- custom `table_name` to not override the table currently in use
 
-## Run model
+### Run model
 To run the model, R needs to be installed, along with packages:
 
 - brms (to run model)
@@ -40,7 +60,7 @@ To run the model, R needs to be installed, along with packages:
 
 # Gotchas
 - if you run the data pulling code shortly after a new release, and did not pull data in the
-previous days, then those days' data will be missing for the previous major release versions.
+previous days, then those days' data could be missing for the previous major release versions.
 
 ## Using buildhub_bid.py
 
@@ -54,7 +74,7 @@ release
 
 ```
 
-## Test
+## Testing
 ```
 $ ipython
 import sys
@@ -63,6 +83,3 @@ import src.crud as crud
 %load_ext autoreload
 %autoreload 2
 ```
-
-# TODO
-- clean up environment.yml

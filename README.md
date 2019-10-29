@@ -15,7 +15,8 @@ sudo apt -y update
 sudo apt -y install python3-pip
 sudo pip3 install bq-utils
 
-gcloud auth login
+
+gcloud auth activate-service-account --key-file=/home/sguha/gcloud.json # your service account credential file
 gcloud config set project moz-fx-data-derived-datasets
 bq init # choose the number corresponding to the above project
 ```

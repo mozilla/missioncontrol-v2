@@ -12,7 +12,7 @@ def delete_versions_OLD(df, query_func, table_name="wbeard_crash_rate_raw"):
     before upload of new data.
     """
     q_temp = (
-        "delete from analysis.{table_name} where major={major:.0f} and channel='{channel}'"
+        "delete from `moz-fx-data-derived-datasets`.analysis.{table_name} where major={major:.0f} and channel='{channel}'"
     )
     for major, channel in (
         df[["major", "channel"]].drop_duplicates().itertuples(index=False)
@@ -31,7 +31,7 @@ def delete_versions(df, query_func, table_name="wbeard_crash_rate_raw"):
     """
     df = df[["channel", "c_version", "date"]]
     q_temp = (
-        "delete from analysis.{table_name} "
+        "delete from `moz-fx-data-derived-datasets`.analysis.{table_name} "
         "where c_version='{c_version}' "
         "and channel='{channel}' and date in ({dates})"
     )
@@ -78,7 +78,7 @@ def get_schema(df, as_str=False):
 
 
 def drop_table(table_name="wbeard_crash_rate_raw"):
-    cmd = ["bq", "rm", "-f", "-t", "analysis.{}".format(table_name)]
+    cmd = ["bq", "rm", "-f", "-t", "`moz-fx-data-derived-datasets`.analysis.{}".format(table_name)]
     print("running command", cmd)
     run_command(cmd, "Success! Table {} dropped.".format(table_name))
 

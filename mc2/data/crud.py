@@ -142,7 +142,7 @@ def main(
     # Double check: print how many rows
     bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
     n_rows = bq_read_no_cache(
-        "select count(*) from analysis.{}".format(table_name)
+        "select count(*) from `moz-fx-data-derived-datasets`.analysis.{}".format(table_name)
     ).iloc[0, 0]
     print("=> {} now has {} rows".format(table_name, n_rows))
 

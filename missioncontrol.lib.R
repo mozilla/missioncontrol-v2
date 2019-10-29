@@ -22,7 +22,7 @@ if(!exists("missioncontrol.lib.R")){
 
 ffunc <- function(M,D,list0=NULL)  brm(M,data=D, chains = 4,
                                        control = if(is.null(list0))
-                                                     list(adapt_delta = 0.999, max_treedepth=12)
+                                                     list(adapt_delta = 0.999, max_treedepth=13)
                                                  else list0
                                      , cores = 4,iter=3000)
 

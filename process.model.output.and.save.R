@@ -42,7 +42,7 @@ loginfo("Beta Posteriors Complete")
 loginfo("Nightly Posteriors Complete")
 
 
-message("Starting Summaries")
+loginfo("Starting Summaries")
 
 
 release.usage <- makeUsageSummary(release.current.vs.previous)
@@ -64,12 +64,15 @@ nightly.summary <- makeSummaryTable(nightly.current.vs.previous)
 ## Doesn't compare two versions!
 ###############################################################################################
 
+loginfo("Starting Evolution")
 release.evolution <- get.evolution(model=list( mr=cr.cm.rel,cr=cr.cc.rel,mi=ci.cm.rel,ci=ci.cc.rel),
                                 dataset = dall.rel2)
 beta.evolution <- get.evolution(model=list( mr=cr.cm.beta,cr=cr.cc.beta,mi=ci.cm.beta,ci=ci.cc.beta),
                                 dataset = dall.beta2)
 nightly.evolution <- get.evolution(model=list( mr=cr.cm.nightly,cr=cr.cc.nightly,mi=ci.cm.nightly,ci=ci.cc.nightly),
                                 dataset = dall.nightly2[c_version<=getPreviousVersion(dall.nightly2,"Linux",'nightly'),])
+
+
 
 
 allversions <- list(
@@ -82,6 +85,8 @@ n <- as.character(Sys.Date())
 n <- as.character(dall.rel2[,max(date)])
 gen.time <- Sys.time()
 data.file <- glue("/tmp/models-{n}.Rdata",n=n)
+loginfo(glue("Saving Data to temp file: {data.file}"))
+
 save.list <- list(
     "allversions","gen.time",
     "cr.cm.rel","cr.cc.rel","ci.cm.rel","ci.cc.rel",
@@ -97,6 +102,6 @@ system(glue("cp {data.file} ./all.the.data.Rdata"))
 
 system(glue("gsutil cp {data.file}  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/"))
 system(glue("gsutil cp all.the.data.Rdata  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/"))
-slackr(glue("Data file saved at   gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/{data.file}. Download using gsutil cp"))
+loginfo(glue("Data file saved at   gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/{data.file}. Download using gsutil cp"))
 
 processDownloadsWorked <- TRUE

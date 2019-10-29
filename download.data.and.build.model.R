@@ -11,12 +11,13 @@ runner <- glue("#!/bin/sh
 ## also bigquery utils(bqutils) needs to be initialized/logged in  else the uploads will fail
 # /home/sguha/anaconda3/bin/conda  activate mc2
 cd mc2
-python data/crud.py main --creds_loc {BQCREDS}  --table_name missioncontrol_v2_raw_data --cache True --drop_first False --add_schema False
+python data/crud.py main --creds_loc '{BQCREDS}'  --table_name missioncontrol_v2_raw_data --cache True --drop_first False --add_schema False
 ")
 writeLines(runner,con="./runner.sh")
 res  <- system2("sh", "./runner.sh",stderr=TRUE)
 if(any(grepl("exception",res))) {
     logerror("Problem with Creating Raw Data")
+    logerror(paste(res, collapse="\n"))
     stop("Problem with Creating Raw Data")
 }
 

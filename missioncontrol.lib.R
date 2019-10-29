@@ -1,5 +1,23 @@
+library(logging)
 library(glue)
 library(data.table)
+library(vegawidget)
+library(DT)
+library(formattable)
+library(parallel)
+library(brms)
+library(rjson)
+library(future)
+library(curl)
+library(feather)
+library(rmarkdown)
+
+if(!exists("missioncontrol.lib.R")){
+    ## executed only once
+    basicConfig()
+    plan(multicore)
+    missioncontrol.lib.R <- TRUE
+}
 
 
 ffunc <- function(M,D,list0=NULL)  brm(M,data=D, chains = 4,
@@ -376,10 +394,6 @@ getPreviousVersion <- function(D,s, channel){
 ####################################################################################################
 
 ## A Sample Dashboard Output For Beta Looks like
-
-library(sparkline)
-library(DT)
-library(formattable)
 whatColor <- function(r,i){
   if(r > i) type='reg'  else type='imp'
   if(type=='reg'){
@@ -484,7 +498,7 @@ makeSummaryTable <- function(b){
 ################################################################################
 
 
-library(vegawidget)
+
 plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,shiny=NULL,showlegend=TRUE,pointSize=65
                          ,cversionType='ordinal'){
     if(cversionType=='temporal')

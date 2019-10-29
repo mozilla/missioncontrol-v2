@@ -103,6 +103,7 @@ source("process.model.and.build.board.R")
 
 And you're done. All of this ought to take roughtly 50 minutes. The models take about 40 minutes. 
 
+(the above commands are present in the single bash file `complete.runner.sh`)
 
 # Gotchas
 - if you run the data pulling code shortly after a new release, and did not pull data in the

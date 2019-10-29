@@ -32,6 +32,9 @@ if(processDownloadsWorked){
     loginfo("Creating Dashboards")
     genf("public")
     genf("moco")
+    loginfo("Public: gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/html/public/")
+    loginfo("Private: gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/html/private/")
+    loginfo("Archive: gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/html/archive/")
 }else{
     logerror("Something went wrong processing downloads, stopping")
     stop("Something went wrong processing downloads, stopping")

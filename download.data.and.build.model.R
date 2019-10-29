@@ -1,16 +1,18 @@
 setwd("~/missioncontrol-v2/")
 source("missioncontrol.lib.R")
 
+BQCREDS <- "~/gcloud.json"
+
 loginfo("Starting Downloading Data")
 
-runner <- "#!/bin/sh
+runner <- glue("#!/bin/sh
 ## you need to have conda installed somewhere and a path to conda
 ## and hence remvoe the sguha in the following path
 ## also bigquery utils(bqutils) needs to be initialized/logged in  else the uploads will fail
-/home/sguha/anaconda3/bin/conda  activate mc2
+# /home/sguha/anaconda3/bin/conda  activate mc2
 cd mc2
-python data/crud.py main --creds_loc ~/gcloud.json --table_name missioncontrol_v2_raw_data --cache True --drop_first False --add_schema False
-"
+python data/crud.py main --creds_loc {BQCREDS}  --table_name missioncontrol_v2_raw_data --cache True --drop_first False --add_schema False
+")
 writeLines(runner,con="./runner.sh")
 system("sh ./runner.sh")
 
@@ -23,9 +25,9 @@ getModelDataForChannel <- function(ch, v,asfeather=FALSE){
 ## you need to have conda installed somewhere and a path to conda
 ## and hence remvoe the sguha in the following path
 ## also bigquery utils(bqutils) needs to be initialized/logged in  else the uploads will fail
-/home/sguha/anaconda3/bin/conda  activate mc2
+## /home/sguha/anaconda3/bin/conda  activate mc2
 cd mc2
-python data/crud.py dl_raw --creds_loc ~/gcloud.json --channel {ch} --n_majors {v} --cache False --outname '{rtemp}'
+python data/crud.py dl_raw --creds_loc {BQCREDS}  --channel {ch} --n_majors {v} --cache False --outname '{rtemp}'
 ")
     writeLines(runner,con="./runner.sh")
     loginfo(glue("Starting Gettting Model Data for channel {ch} and nversions {v}"))
@@ -82,3 +84,4 @@ ci.cm.nightly <- label(value(ci.cm.nightly.f),'cmi')
 ci.cc.nightly <- label(value(ci.cc.nightly.f),'cci')
 loginfo("Finished Nightly Models")
 
+loginfo("Finished Modelling")

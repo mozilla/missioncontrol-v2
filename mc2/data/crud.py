@@ -81,7 +81,15 @@ def cache_reader(bq_read):
 def mk_query_func(creds_loc=None):
     creds = get_creds(creds_loc=creds_loc)
     client = bigquery.Client(project=creds.project_id, credentials=creds)
-    return client.query
+
+    def blocking_query(*a, **k):
+        job = client.query(*a, **k)
+        for i in job:
+            break
+        assert job.done(), "Uh oh, job not done??"
+        return job
+
+    return blocking_query
 
 
 def dl_raw(

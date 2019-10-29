@@ -52,6 +52,7 @@ conda acvtivate mc2
 - start R in the `missioncontrol-v2` directory, you'll get a message about `renv` being installed. Let it happen. Once it has,
 
 ```
+options(Ncpus=14)
 renv::restore()
 ```
 
@@ -63,7 +64,7 @@ By now eveything is installed. Lets run
 ## Instructions to run
 
 
-### Model data download
+### Download Data and Build Model
 
 We'll call from R,
 
@@ -81,6 +82,9 @@ conda acvtivate mc2
 source("download.data.and.build.model.R")
 ```
 
+note, you don't have to start R, you can just do `Rscript download.data.and.build.model.R`. Running inside R has the advantage of debugging if things go wrong.
+
+### Process Model Output
 
 - then run the following. This command munges model output, and saves
   all the model information in an Rdata file and uploads to 
@@ -89,6 +93,8 @@ source("download.data.and.build.model.R")
 ```
 source("process.model.and.build.board.R")
 ```
+
+(or `Rscript process.model.and.build.board.R`). 
 
 - Once this is done, we generate the dashboards using rmarkdown which
   will produce static HTML files and uploads them to gs. There are two

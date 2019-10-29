@@ -2,62 +2,108 @@
 An alternate view of crash and stability
 
 ## Installation instructions
-The python files assume a base conda installation. To install the python dependencies, create a conda environment using the `environment.yml` file:
 
-```bash
-cd missioncontrol-v2
-conda env create -f environment.yml
+This code is designed to be 'easy' to install and repeatable. That is if the underlying data doesn't change the output should not either.
+
+- Strongly recommend you use a 16 core (at least) compute intensive
+  GCP instance. I don't believe this works on general purpose
+  instances. I used a Ubuntu 18.04 LTS release with 30GB disk space
+- Setup your instances and be sure to upload your BigQuery service account credentials (for querying BigQuery via python)
+
+```
+sudo apt -y update 
+sudo apt -y install python3-pip
+sudo pip3 install bq-utils
+
+
+gcloud auth activate-service-account --key-file=/home/sguha/gcloud.json # your service account credential file
+gcloud config set project moz-fx-data-derived-datasets
+bq init # choose the number corresponding to the above project
 ```
 
-This will create a conda env named `mc2`.
+- Install R on your instances
+
+```
+sudo apt install apt-transport-https software-properties-common
+
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
+
+sudo add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu bionic-cran35/'
+
+sudo apt update
+sudo apt install r-base
+sudo apt install libssl-dev
+sudo apt install libcurl4-openssl-dev
+```
+
+
+- Time to install Conda, download fromhere https://www.anaconda.com/distribution/#download-section (choose Linux, Python 3.7 x86-64 installer)
+- Install it, log out, log back in and run `conda init bash` and log out and log back in
+
+- Clone the repo `git clone  https://github.com/mozilla/missioncontrol-v2`
+- switch to the `missionctrol-v2` directory
+
+```
+conda env create -f environment.yml
+conda acvtivate mc2
+```
+
+
+- you've installed R, the following instructions will download all the required packages
+- start R in the `missioncontrol-v2` directory, you'll get a message about `renv` being installed. Let it happen. Once it has,
+
+```
+options(Ncpus=14)
+renv::restore()
+```
+
+- and say `Y` to install the packages.
+
+By now eveything is installed. Lets run
 
 
 ## Instructions to run
 
 
-### Model data download
-To run the python data pull routine, the conda environment needs to be activated, and a flag set to not get the python paths mixed up
+### Download Data and Build Model
 
-```bash
+We'll call from R,
+
+- change directory to `missioncontrol-v2`
+- run the following (the environment variable prevents paths from getting mixed up)
+
+```
 export PYTHONNOUSERSITE=True
-conda activate mc2
-```
-There are python files to download the required data in [mc2/data](mc2/data). See the README in [mc2/data](mc2/data) for more info.
-
-The main entry point for these python download functions is [crud.main](mc2/data/crud.py) with the following signature:
-
-
-```python
-crud.main(
-    add_schema: bool = False,
-    creds_loc=None,
-    cache: bool=False,
-    table_name="wbeard_crash_rate_raw",
-    drop_first: bool=False,
-)
+conda acvtivate mc2
 ```
 
-It requires the filepath of the bigquery credentials to be passed as `creds_loc`.
+- start R, the following file has a path  to a BigQuery credentials(`BQCREDS` in the above R file) . You need this(a service account json file)
 
+```
+source("download.data.and.build.model.R")
+```
 
-While debugging, it could be useful to pass
-- `cache = True`, so that it will cache the results of bigquery sql pulls with joblib
-- `drop_first = True`, to delete the table before uploading the data
-- `add_schema = True` to manual specify the table schema after dropping the table
-- custom `table_name` to not override the table currently in use
+note, you don't have to start R, you can just do `Rscript download.data.and.build.model.R`. Running inside R has the advantage of debugging if things go wrong.
 
-### Run model
-To run the model, R needs to be installed, along with packages:
+### Process Model Output
 
-- brms (to run model)
-- curl
-- data.table (for data manipulation)
-- future
-- glue
-- parallel
-- reticulate (to call python)
-- rjson
+- then run the following. This command munges model output, and saves
+  all the model information in an Rdata file and uploads to 
+  `gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/`
 
+```
+source("process.model.and.build.board.R")
+```
+
+(or `Rscript process.model.and.build.board.R`). 
+
+- Once this is done, we generate the dashboards using rmarkdown which
+  will produce static HTML files and uploads them to gs. There are two
+  versions, one for public (sans DAU) and for us(with DAU).
+
+And you're done. All of this ought to take roughtly 50 minutes. The models take about 40 minutes. 
+
+(the above commands are present in the single bash file `complete.runner.sh`)
 
 # Gotchas
 - if you run the data pulling code shortly after a new release, and did not pull data in the

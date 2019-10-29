@@ -17,7 +17,7 @@ library(formattable)
 library(shiny)
 library(knitr)
 knitr::opts_chunk$set(echo=FALSE, warning=FALSE,messages=FALSE)
-source("../missioncontrol.lib.R")
+
 ```
 
 

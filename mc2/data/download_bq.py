@@ -565,7 +565,7 @@ def pull_model_data_pre_query(
     bq_read_fn, channel, n_majors, analysis_table="wbeard_crash_rate_raw"
 ):
     pre_query = """
-    select distinct major from analysis.{table}
+    select distinct major from `moz-fx-data-derived-datasets`.analysis.{table}
     where channel = '{channel}'
     ORDER BY major desc
     LIMIT {n}
@@ -590,7 +590,7 @@ def pull_model_data_(bq_read_fn, channel, n_majors, analysis_table):
     )
 
     pull_all_recent_query = """
-    select * from analysis.{table}
+    select * from `moz-fx-data-derived-datasets`.analysis.{table}
     where channel = '{channel}'
           and major in ({major_strs})
     """.format(

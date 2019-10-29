@@ -81,7 +81,15 @@ def cache_reader(bq_read):
 def mk_query_func(creds_loc=None):
     creds = get_creds(creds_loc=creds_loc)
     client = bigquery.Client(project=creds.project_id, credentials=creds)
-    return client.query
+
+    def blocking_query(*a, **k):
+        job = client.query(*a, **k)
+        for i in job:
+            break
+        assert job.done(), "Uh oh, job not done??"
+        return job
+
+    return blocking_query
 
 
 def dl_raw(
@@ -130,6 +138,14 @@ def main(
 
     delete_versions(df_all, query_func, table_name=table_name)
     upload(df_all, table_name=table_name, add_schema=add_schema)
+
+    # Double check: print how many rows
+    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
+    n_rows = bq_read_no_cache(
+        "select count(*) from `moz-fx-data-derived-datasets`.analysis.{}".format(table_name)
+    ).iloc[0, 0]
+    print("=> {} now has {} rows".format(table_name, n_rows))
+
     if return_df:
         return df_all
 

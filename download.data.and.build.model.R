@@ -14,7 +14,11 @@ cd mc2
 python data/crud.py main --creds_loc {BQCREDS}  --table_name missioncontrol_v2_raw_data --cache True --drop_first False --add_schema False
 ")
 writeLines(runner,con="./runner.sh")
-system("sh ./runner.sh")
+res  <- system2("sh", "./runner.sh",stderr=TRUE)
+if(any(grepl("exception",res))) {
+    logerror("Problem with Creating Raw Data")
+    stop("Problem with Creating Raw Data")
+}
 
 loginfo("Finished Downloading Data")
 
@@ -31,7 +35,12 @@ python data/crud.py dl_raw --creds_loc {BQCREDS}  --channel {ch} --n_majors {v} 
 ")
     writeLines(runner,con="./runner.sh")
     loginfo(glue("Starting Gettting Model Data for channel {ch} and nversions {v}"))
-    system("sh ./runner.sh")
+    res  <- system2("sh", "./runner.sh",stderr=TRUE)
+    if(any(grepl("(E|e)xception",res))) {
+        logerror(glue("Problem with Downloading Model Data for channel {ch}"))
+        stop(glue("Problem with Downloading Model Data for channel {ch}"))
+    }
+
     loginfo(glue("Finished Gettting Model Data for channel {ch} and nversions {v}"))
     if(asfeather) feather(rtemp) else data.table(data.frame(feather(rtemp)))
 }

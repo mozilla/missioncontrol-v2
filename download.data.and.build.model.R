@@ -43,7 +43,12 @@ python data/crud.py dl_raw --creds_loc {BQCREDS}  --channel {ch} --n_majors {v} 
     }
 
     loginfo(glue("Finished Gettting Model Data for channel {ch} and nversions {v}"))
-    if(asfeather) feather(rtemp) else data.table(data.frame(feather(rtemp)))
+    if(asfeather) feather(rtemp)
+    else{
+        a <- data.table(data.frame(feather(rtemp)))
+        a[, date:=as.Date(date)]
+        a
+    }
 }
 
 dall.rel2 <- data.table(getModelDataForChannel("release",3))[nvc>0,]

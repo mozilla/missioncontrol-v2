@@ -2,7 +2,10 @@ processDownloadsWorked <- FALSE
 operating.systems <- c("Windows_NT","Darwin","Linux","overall")
 loginfo("Starting posteriors")
 
-release.current.vs.previous <- lapply(operating.systems,function(os){
+## The %<% is a future, see https://cran.r-project.org/web/packages/future/future.pdf
+## search for 'future' function.
+
+release.current.vs.previous %<-% lapply(operating.systems,function(os){
     compare.two.versions(versiona = getCurrentVersion(dall.rel2,os,'release'),
                          versionb = getPreviousVersion(dall.rel2,os,'release'),
                          oschoice = os,
@@ -10,11 +13,8 @@ release.current.vs.previous <- lapply(operating.systems,function(os){
                          model    = list( mr=cr.cm.rel,cr=cr.cc.rel,mi=ci.cm.rel,ci=ci.cc.rel),
                          doLatest = FALSE)
 })
-names(release.current.vs.previous) <- operating.systems
 
-loginfo("Release Posteriors Complete")
-
-  beta.current.vs.previous <- lapply(operating.systems,function(os){
+  beta.current.vs.previous  %<-% lapply(operating.systems,function(os){
     compare.two.versions(versiona = getCurrentVersion(dall.beta2,os,'beta'),
                          versionb = getPreviousVersion(dall.beta2,os,'beta'),
                          oschoice = os,
@@ -22,13 +22,12 @@ loginfo("Release Posteriors Complete")
                          model    = list( mr=cr.cm.beta,cr=cr.cc.beta,mi=ci.cm.beta,ci=ci.cc.beta),
                          doLatest = TRUE)
   })
-  names(beta.current.vs.previous) <- operating.systems
 
-loginfo("Beta Posteriors Complete")
+
 ## It doesn't make sense to set the previous version something that is yesterdays
 ## There is so little data. Might as well set it to some version with at least 
 
-  nightly.current.vs.previous <- lapply(operating.systems,function(os){
+  nightly.current.vs.previous  %<-% lapply(operating.systems,function(os){
     compare.two.versions(versiona = getPreviousVersion(dall.nightly2,os,'nightly'),
                          versionb = getMaxVersionBeforeX(dall.nightly2, os,'nightly',
                                                          c(getCurrentVersion(dall.nightly2,os,'beta'),getPreviousVersion(dall.nightly2,os,'nightly'))),
@@ -37,9 +36,12 @@ loginfo("Beta Posteriors Complete")
                          model    = list( mr=cr.cm.nightly,cr=cr.cc.nightly,mi=ci.cm.nightly,ci=ci.cc.nightly),
                          doLatest = TRUE)
   })
-  names(nightly.current.vs.previous) <- operating.systems
 
-loginfo("Nightly Posteriors Complete")
+
+names(release.current.vs.previous) <- operating.systems
+names(beta.current.vs.previous) <- operating.systems
+names(nightly.current.vs.previous) <- operating.systems
+loginfo(" Posteriors Complete")
 
 
 loginfo("Starting Summaries")

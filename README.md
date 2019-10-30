@@ -103,7 +103,20 @@ source("process.model.and.build.board.R")
 
 And you're done. All of this ought to take roughtly 50 minutes. The models take about 40 minutes. 
 
-(the above commands are present in the single bash file `complete.runner.sh`)
+(the above commands are present in the single bash file `complete.runner.sh`) e.g.
+
+```
+sh complete.runner.sh  2>&1 | tee logfile
+```
+
+It is a good idea to save the logfile to say
+`gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/`
+so that when someone needs to debug they can read the logfile for informtation.
+
+```
+gsutil cp logfile gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/
+```
+
 
 # Gotchas
 - if you run the data pulling code shortly after a new release, and did not pull data in the

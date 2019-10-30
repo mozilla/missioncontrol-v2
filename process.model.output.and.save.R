@@ -102,8 +102,8 @@ save.list <- list(
 save(list=unlist(save.list),file=data.file)
 system(glue("cp {data.file} ./all.the.data.Rdata"))
 
-system(glue("gsutil cp {data.file}  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/"))
-system(glue("gsutil cp all.the.data.Rdata  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/"))
-loginfo(glue("Data file saved at   gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/{data.file}. Download using gsutil cp"))
+#system(glue("gsutil cp {data.file}  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/"))
+#system(glue("gsutil cp all.the.data.Rdata  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/"))
+#loginfo(glue("Data file saved at   gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/{data.file}. Download using gsutil cp"))
 
 processDownloadsWorked <- TRUE

@@ -53,7 +53,7 @@ python data/crud.py dl_raw --creds_loc {BQCREDS}  --channel {ch} --n_majors {v} 
 
 dall.rel2 <- data.table(getModelDataForChannel("release",3))[nvc>0,]
 dall.beta2 <- data.table(getModelDataForChannel("beta",3))[nvc>0,]
-dall.nightly2 <- data.table(getModelDataForChannel("nightly",2))[nvc>0,]
+dall.nightly2 <- data.table(getModelDataForChannel("nightly",3))[nvc>0,]
 
 
 ## BUILD MODELS

@@ -1,3 +1,5 @@
+load("all.the.data.Rdata")
+
 if(!file.exists("~/html")) {
     dir.create("~/html")
     dir.create("~/html/public/")

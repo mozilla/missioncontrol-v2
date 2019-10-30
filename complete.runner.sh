@@ -7,7 +7,7 @@ export PYTHONNOUSERSITE=True
 eval "$(conda shell.bash hook)"
 conda activate mc2
 Rscript download.data.and.build.model.R 
-Rscript process.model.and.build.board.R 
+Rscript process.model.output.and.save.R
 Rscript create.dashboards.static.R
 
 ## run as sh complete.runner.sh  2>&1 | tee logfile

@@ -83,7 +83,7 @@ ci.cm.beta.f <- future({ make.a.model(d.beta,'cmi',channel='beta') })
 ci.cc.beta.f <- future({ make.a.model(d.beta,'cci',channel='beta') })
 cr.cm.beta <- label(value(cr.cm.beta.f),'cmr');loginfo("Finished Beta cr.cm");
 cr.cc.beta <- label(value(cr.cc.beta.f),'ccr');loginfo("Finished Beta cr.cc");
-ci.cm.beta <- label( value(ci.cm.beta.f),'cmi';loginfo("Finished Beta ci.cm");)
+ci.cm.beta <- label( value(ci.cm.beta.f),'cmi');loginfo("Finished Beta ci.cm");
 ci.cc.beta <- label(value(ci.cc.beta.f),'cci');loginfo("Finished Beta ci.cc");
 loginfo("Finished Beta Models")
 

@@ -20,13 +20,12 @@ if(!exists("missioncontrol.lib.R")){
 }
 
 
-ffunc <- function(M,D,list0=NULL)  brm(M,data=D, chains = 4,
+ffunc <- function(M,D,list0=NULL,iter=4000,thin=1)  brm(M,data=D, chains = 4,
                                        control = if(is.null(list0))
                                                      list(adapt_delta = 0.999, max_treedepth=13)
                                                  else list0
-                                     , cores = 4,iter=3000)
-
-make.a.model <- function(data,wh,channel='not-nightly',bff=NULL,list0=NULL){
+                                     , cores = 4,iter=iter,thin=thin)
+make.a.model <- function(data,wh,channel='not-nightly',bff=NULL,list0=NULL,iter=4000,thin=1){
   ## See wbeards work on nightly: https://metrics.mozilla.com/protected/wbeard/mc/nightly_model.html
   alter <- TRUE
     if(wh=="cmr"){
@@ -74,7 +73,7 @@ make.a.model <- function(data,wh,channel='not-nightly',bff=NULL,list0=NULL){
         }
         if(!is.null(bff)) M0 <- bff
   }
-  ffunc(M0,data,list0=list0)
+  ffunc(M0,data,list0=list0,thin=thin,iter=iter)
 }
 
 Predict <- function(M,D,ascale='response',...){

@@ -88,8 +88,9 @@ n <- as.character(dall.rel2[,max(date)])
 gen.time <- Sys.time()
 data.file <- glue("/tmp/models-{n}.Rdata",n=n)
 loginfo(glue("Saving Data to temp file: {data.file}"))
-
+processDownloadsWorked <- TRUE
 save.list <- list(
+    "processDownloadsWorked",
     "allversions","gen.time",
     "cr.cm.rel","cr.cc.rel","ci.cm.rel","ci.cc.rel",
     "cr.cm.beta","cr.cc.beta","ci.cm.beta","ci.cc.beta",
@@ -102,8 +103,8 @@ save.list <- list(
 save(list=unlist(save.list),file=data.file)
 system(glue("cp {data.file} ./all.the.data.Rdata"))
 
-system(glue("gsutil cp {data.file}  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/"))
-system(glue("gsutil cp all.the.data.Rdata  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/"))
-loginfo(glue("Data file saved at   gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/{data.file}. Download using gsutil cp"))
+#system(glue("gsutil cp {data.file}  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/"))
+#system(glue("gsutil cp all.the.data.Rdata  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/"))
+#loginfo(glue("Data file saved at   gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/{data.file}. Download using gsutil cp"))
 
-processDownloadsWorked <- TRUE
+

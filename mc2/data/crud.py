@@ -123,7 +123,19 @@ def main(
     table_name="wbeard_crash_rate_raw",
     drop_first=False,
     return_df=False,
+    force=False,
 ):
+    if table_name == "missioncontrol_v2_raw_data":
+        if cache:
+            print(
+                "WARNING--CACHE TURNED ON. YOU SHOULD DISABLE UNLESS DEBUGGING"
+            )
+        if drop_first and not force:
+            raise ValueError(
+                "If you really want to drop {}, pass force == True".format(
+                    table_name
+                )
+            )
     if cache:
         print("Cache turned on.")
     else:
@@ -142,7 +154,9 @@ def main(
     # Double check: print how many rows
     bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
     n_rows = bq_read_no_cache(
-        "select count(*) from `moz-fx-data-derived-datasets`.analysis.{}".format(table_name)
+        "select count(*) from `moz-fx-data-derived-datasets`.analysis.{}".format(
+            table_name
+        )
     ).iloc[0, 0]
     print("=> {} now has {} rows".format(table_name, n_rows))
 

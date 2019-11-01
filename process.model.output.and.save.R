@@ -107,7 +107,7 @@ save.list <- list(
     "cr.cm.beta","cr.cc.beta","ci.cm.beta","ci.cc.beta",
     "cr.cm.nightly","cr.cc.nightly","ci.cm.nightly","ci.cc.nightly",
     "dall.rel2","dall.beta2","dall.nightly2",
-    "release.current.vs.previous","release.usage","release.summary","release.evolution",
+    "release.current.vs.previous","release.current.vs.previous.realNVC","release.usage","release.summary","release.evolution",
     "beta.current.vs.previous","beta.usage","beta.summary","beta.evolution",
     "nightly.current.vs.previous","nightly.usage","nightly.summary","nightly.evolution"  
 )

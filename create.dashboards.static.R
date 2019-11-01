@@ -1,3 +1,4 @@
+source("missioncontrol.lib.R")
 load("all.the.data.Rdata")
 
 if(!file.exists("~/html")) {

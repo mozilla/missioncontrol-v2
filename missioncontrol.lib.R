@@ -12,11 +12,32 @@ library(curl)
 library(feather)
 library(rmarkdown)
 
+
 if(!exists("missioncontrol.lib.R")){
     ## executed only once
     basicConfig()
     plan(multicore)
     missioncontrol.lib.R <- TRUE
+}
+
+
+## Based on the data the following apple-apple comparison adoptions were chose
+## to estimate final rates
+## e.g.  dall.rel2[, list(a=.SD[,max(nvc)]),by=list(c_version,os)][, quantile(a,0.5),by=os]
+adoptionsCompare <- function(os,ch,DF=FALSE){
+    f <- data.table(channel =rep(c("release","beta","nightly"),each=3),
+               os  = rep(c("Linux","Windows_NT","Darwin"),3),
+               adopt =  c(0.4468343,0.7819889,0.5782132,
+                          0.2690685,0.5137107,0.3553570,
+                          0.2593343, 0.3811480,0.2736847))
+    if(!DF) f[channel==ch & os==os, adopt] else f
+}
+
+loadArchiveData <- function(date){
+    system(glue("gsutil cp gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/models-{date}.Rdata /tmp/" ))
+    e <- new.env()
+    load(glue("/tmp/models-{date}.Rdata"),envir=e)
+    e[,]
 }
 
 
@@ -162,9 +183,13 @@ getCredibleIntervals <- function(D,model,TR=1/100/2){
 
 
 get.evolution <- function(model, dataset){
-  endingPoint <- dataset[, tail(.SD[order(date),],1), by=list(c_version,os)]
-  ci.from.model <- getCredibleIntervals(endingPoint, model)
-  cbind(endingPoint[, list(c_version, os,major, minor, date, nvc)], ci.from.model)[order(os,major,minor,date),]
+    endingPoint <- dataset[, tail(.SD[order(date),],1), by=list(c_version,os)]
+    pp=adoptionsCompare(DF=TRUE)
+    endingPoint <- merge(endingPoint,pp,by=c("os","channel"))
+    endingPoint[, nvcActual := nvc]; endingPoint[, nvc := adopt];
+    ci.from.model <- getCredibleIntervals(endingPoint, model)
+    ## Replace the nvc above with the median value per OS/Channel combination
+    cbind(endingPoint[, list(c_version, os,major, minor, date, nvc=nvcActual)], ci.from.model)[order(os,major,minor,date),]
 }
 
 
@@ -264,6 +289,9 @@ compare.two.versions <- function(versiona, versionb,oschoice, dataset,model,doLa
     if(oschoice=='overall'){
         D <- D[, mw :=  usage_cversion/sum(usage_cversion)  ,by=list(clz,date)]
     }
+    pp=adoptionsCompare(DF=TRUE)
+    D <- merge(D,pp,by=c("os","channel"))
+    D[, nvcActual := nvc]; D[, nvc := adopt];
 
     callAndEdit <- function(model,D, vaData,vbData,squashOS=FALSE){
       if(is.null(model$scope)){

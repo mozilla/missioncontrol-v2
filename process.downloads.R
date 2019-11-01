@@ -64,7 +64,6 @@ nightly.summary <- makeSummaryTable(nightly.current.vs.previous)
 ## which indicates the estimate crash rates and incidences of different versions (major/minor)
 ## Doesn't compare two versions!
 ###############################################################################################
-
 release.evolution <- get.evolution(model=list( mr=cr.cm.rel,cr=cr.cc.rel,mi=ci.cm.rel,ci=ci.cc.rel),
                                 dataset = dall.rel2)
 beta.evolution <- get.evolution(model=list( mr=cr.cm.beta,cr=cr.cc.beta,mi=ci.cm.beta,ci=ci.cc.beta),

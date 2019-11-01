@@ -33,15 +33,33 @@ adoptionsCompare <- function(os,ch,DF=FALSE){
     if(!DF) f[channel==ch & os==os, adopt] else f
 }
 
-loadArchiveData
-<- function(date
-           ,loc="gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive"){
-    system(gsub("//","/",glue("gsutil cp {loc}/models-{date}.Rdata /tmp/")))
-    e <- new.env()
-    load(glue("/tmp/models-{date}.Rdata"),envir=e)
-    e[,]
+getArchiveLoc <- function(){
+    return("gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive")
 }
 
+loadArchiveData<- function(date
+           ,loc=getArchiveLoc()){
+    system(glue("gsutil cp {loc}/models-{date}.Rdata /tmp/"))
+    e <- new.env()
+    load(glue("/tmp/models-{date}.Rdata"),envir=e)
+    e
+}
+
+fitFromModel <- function(date,ch,newdata,loc=getArchiveLoc(),bindData=FALSE){
+    rbindlist(lapply(date,function(d){
+        x <- loadArchiveData(d,loc)
+        M <- if(ch=='release') {
+                 list( mr=x$cr.cm.rel,cr=x$cr.cc.rel,mi=x$ci.cm.rel,ci=x$ci.cc.rel)
+             }else if(ch=='beta'){
+                 list( mr=x$cr.cm.beta,cr=x$cr.cc.beta,mi=x$ci.cm.beta,ci=x$ci.cc.beta)
+             }else if(ch=='nightly'){
+                 list( mr=x$cr.cm.nightly,cr=x$cr.cc.nightly,mi=x$ci.cm.nightly,ci=x$ci.cc.nightly)
+             }else stop("bad channel")
+        y <- cbind(data.table(modelDate = d,channel=ch),getCredibleIntervals(newdata,M))
+        if(bindData) cbind(newdata,y) else y
+    }))
+}
+        
 
 ffunc <- function(M,D,list0=NULL,iter=4000,thin=1)  brm(M,data=D, chains = 4,
                                        control = if(is.null(list0))

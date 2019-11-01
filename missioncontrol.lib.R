@@ -33,8 +33,10 @@ adoptionsCompare <- function(os,ch,DF=FALSE){
     if(!DF) f[channel==ch & os==os, adopt] else f
 }
 
-loadArchiveData <- function(date){
-    system(glue("gsutil cp gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/models-{date}.Rdata /tmp/" ))
+loadArchiveData
+<- function(date
+           ,loc="gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive"){
+    system(gsub("//","/",glue("gsutil cp {loc}/models-{date}.Rdata /tmp/")))
     e <- new.env()
     load(glue("/tmp/models-{date}.Rdata"),envir=e)
     e[,]

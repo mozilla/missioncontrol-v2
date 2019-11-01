@@ -83,7 +83,6 @@ conda acvtivate mc2
 source("download.data.and.build.model.R")
 ```
 
-note, you don't have to start R, you can just do `Rscript download.data.and.build.model.R`. Running inside R has the advantage of debugging if things go wrong.
 
 ### Process Model Output
 
@@ -95,7 +94,7 @@ note, you don't have to start R, you can just do `Rscript download.data.and.buil
 source("process.model.and.build.board.R")
 ```
 
-(or `Rscript process.model.and.build.board.R`). 
+
 
 - Once this is done, we generate the dashboards using rmarkdown which
   will produce static HTML files and uploads them to gs. There are two

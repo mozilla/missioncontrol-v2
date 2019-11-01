@@ -14,6 +14,17 @@ release.current.vs.previous %<-% lapply(operating.systems,function(os){
                          doLatest = FALSE)
 })
 
+release.current.vs.previous.realNVC %<-% lapply(operating.systems,function(os){
+    compare.two.versions(versiona = getCurrentVersion(dall.rel2,os,'release'),
+                         versionb = getPreviousVersion(dall.rel2,os,'release'),
+                         oschoice = os,
+                         dataset  = dall.rel2,
+                         model    = list( mr=cr.cm.rel,cr=cr.cc.rel,mi=ci.cm.rel,ci=ci.cc.rel),
+                         doLatest = FALSE,
+                         normalizeNVC = FALSE)
+})
+  names(release.current.vs.previous.realNVC) <- operating.systems
+
   beta.current.vs.previous  %<-% lapply(operating.systems,function(os){
     compare.two.versions(versiona = getCurrentVersion(dall.beta2,os,'beta'),
                          versionb = getPreviousVersion(dall.beta2,os,'beta'),

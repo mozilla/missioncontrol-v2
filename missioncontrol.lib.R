@@ -232,7 +232,7 @@ posteriorsTransForModel <- function(pc,nr){
     list(comparisons = reldifferences, summary= means)
 }
 
-compare.two.versions <- function(versiona, versionb,oschoice, dataset,model,doLatest=TRUE){
+compare.two.versions <- function(versiona, versionb,oschoice, dataset,model,doLatest=TRUE,normalizeNVC=TRUE){
   ## compare versionb to versiona(base)
   ## using model, labelled as crashtype
   ## Take data corresponding to versiona
@@ -289,9 +289,11 @@ compare.two.versions <- function(versiona, versionb,oschoice, dataset,model,doLa
     if(oschoice=='overall'){
         D <- D[, mw :=  usage_cversion/sum(usage_cversion)  ,by=list(clz,date)]
     }
-    pp=adoptionsCompare(DF=TRUE)
-    D <- merge(D,pp,by=c("os","channel"))
-    D[, nvcActual := nvc]; D[, nvc := adopt];
+    if(normalizeNVC){
+        pp=adoptionsCompare(DF=TRUE)
+        D <- merge(D,pp,by=c("os","channel"))
+        D[, nvcActual := nvc]; D[, nvc := adopt];
+    }
 
     callAndEdit <- function(model,D, vaData,vbData,squashOS=FALSE){
       if(is.null(model$scope)){

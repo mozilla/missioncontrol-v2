@@ -208,98 +208,98 @@ makeEvolutionFigure(release.evolution,'Linux',"Content Crash Incidence % for Rel
 
 
 
-<!-- <div class = "row"> -->
-<!-- <div class = "col-md-6 col-md-offset-3"> -->
-<!-- <h2> Rollout</h2> -->
-<!-- <ul class="nav nav-tabs"> -->
-<!--  <li class="active"><a href="#release_win_rollout" data-toggle="tab" >Windows</a></li> -->
-<!--  <li><a href="#release_darwin_rollout" data-toggle="tab">Darwin</a></li> -->
-<!--  <li><a href="#release_linux_rollout" data-toggle="tab" >Linux</a></li>   -->
-<!-- </ul> -->
-<!-- </div> -->
-<!-- </div> -->
+<div class = "row">
+<div class = "col-md-6 col-md-offset-3">
+<h2> Rollout</h2>
+<ul class="nav nav-tabs">
+ <li class="active"><a href="#release_win_rollout" data-toggle="tab" >Windows</a></li>
+ <li><a href="#release_darwin_rollout" data-toggle="tab">Darwin</a></li>
+ <li><a href="#release_linux_rollout" data-toggle="tab" >Linux</a></li>
+</ul>
+</div>
+</div>
 
-<!-- <div class = "row"> -->
-<!-- <div class = "col-md-8 col-md-offset-2"> -->
-<!-- <br/> -->
-<!-- <div class="tab-content"> -->
+<div class = "row">
+<div class = "col-md-8 col-md-offset-2">
+<br/>
+<div class="tab-content">
 
-<!-- <div id="release_win_rollout" class="tab-pane fade in active"> -->
-<!-- <div class = "col-md-6"> -->
-<!-- ```{r, out.extra='id="vgo1"'} -->
-<!-- RE.WI2 <- 400 -->
-<!-- plotRolloutFigure(release.current.vs.previous,oss='Windows_NT', "Browser Crash Rate Comparison for Windows_NT,Release",whi='cmr',xtip='Rate',width=RE.WI2,height=200) -->
-<!-- ``` -->
-<!-- </div> -->
+<div id="release_win_rollout" class="tab-pane fade in active">
+<div class = "col-md-6">
+```{r, out.extra='id="vgo1"'}
+RE.WI2 <- 400
+plotRolloutFigure(release.current.vs.previous.realNVC,oss='Windows_NT', "Browser Crash Rate Comparison for Windows_NT,Release",whi='cmr',xtip='Rate',width=RE.WI2,height=200)
+```
+</div>
 
-<!-- <div class = "col-md-6"> -->
-<!-- ```{r} -->
-<!-- plotRolloutFigure(release.current.vs.previous,oss='Windows_NT', "Browser Crash Incidence Comparison for Windows_NT,Release",whi='cmi',xtip='Incidence',width=RE.WI2,height=200) -->
-<!-- ``` -->
-<!-- </div> -->
-<!-- <div class = "col-md-6"> -->
-<!-- ```{r} -->
-<!-- plotRolloutFigure(release.current.vs.previous,oss='Windows_NT', "Content Crash Rate Comparison for Windows_NT,Release",whi='ccr',xtip='Rate',width=RE.WI2,height=200) -->
-<!-- ``` -->
-<!-- </div> -->
-<!-- <div class = "col-md-6"> -->
-<!-- ```{r} -->
-<!-- plotRolloutFigure(release.current.vs.previous,oss='Windows_NT', "Content Crash Incidence Comparison for Windows_NT,Release",whi='cci',xtip='Incidence',width=RE.WI2,height=200) -->
-<!-- ``` -->
-<!-- </div> -->
-<!-- </div> -->
-
-
-
-<!-- <div id="release_darwin_rollout" class="tab-pane fade in"> -->
-<!-- <div class = "col-md-6"> -->
-<!-- ```{r} -->
-<!-- plotRolloutFigure(release.current.vs.previous,oss='Darwin', "Browser Crash Rate %Comparison for Darwin,Release",whi='cmr',xtip='Rate',width=RE.WI2,height=200) -->
-<!-- ``` -->
-<!-- </div> -->
-
-<!-- <div class = "col-md-6"> -->
-<!-- ```{r} -->
-<!-- plotRolloutFigure(release.current.vs.previous,oss='Darwin', "Browser Crash Incidence Comparison for Darwin,Release",whi='cmi',xtip='Incidence',width=RE.WI2,height=200) -->
-<!-- ``` -->
-<!-- </div> -->
-<!-- <div class = "col-md-6"> -->
-<!-- ```{r} -->
-<!-- plotRolloutFigure(release.current.vs.previous,oss='Darwin', "Content Crash Rate Comparison for Darwin,Release",whi='ccr',xtip='Rate',width=RE.WI2,height=200) -->
-<!-- ``` -->
-<!-- </div> -->
-<!-- <div class = "col-md-6"> -->
-<!-- ```{r} -->
-<!-- plotRolloutFigure(release.current.vs.previous,oss='Darwin', "Content Crash Incidence Comparison for Darwin,Release",whi='cci',xtip='Incidence',width=RE.WI2,height=200) -->
-<!-- ``` -->
-<!-- </div> -->
-<!-- </div> -->
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous.realNVC,oss='Windows_NT', "Browser Crash Incidence Comparison for Windows_NT,Release",whi='cmi',xtip='Incidence',width=RE.WI2,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous.realNVC,oss='Windows_NT', "Content Crash Rate Comparison for Windows_NT,Release",whi='ccr',xtip='Rate',width=RE.WI2,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous.realNVC,oss='Windows_NT', "Content Crash Incidence Comparison for Windows_NT,Release",whi='cci',xtip='Incidence',width=RE.WI2,height=200)
+```
+</div>
+</div>
 
 
 
-<!-- <div id="release_linux_rollout" class="tab-pane fade in"> -->
-<!-- <div class = "col-md-6"> -->
-<!-- ```{r} -->
-<!-- plotRolloutFigure(release.current.vs.previous,oss='Linux', "Browser Crash Rate Comparison for Linux,Release",whi='cmr',xtip='Rate',width=RE.WI2,height=200) -->
-<!-- ``` -->
-<!-- </div> -->
+<div id="release_darwin_rollout" class="tab-pane fade in">
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous.realNVC,oss='Darwin', "Browser Crash Rate %Comparison for Darwin,Release",whi='cmr',xtip='Rate',width=RE.WI2,height=200)
+```
+</div>
 
-<!-- <div class = "col-md-6"> -->
-<!-- ```{r} -->
-<!-- plotRolloutFigure(release.current.vs.previous,oss='Linux', "Browser Crash Incidence Comparison for Linux,Release",whi='cmi',xtip='Incidence',width=RE.WI2,height=200) -->
-<!-- ``` -->
-<!-- </div> -->
-<!-- <div class = "col-md-6"> -->
-<!-- ```{r} -->
-<!-- plotRolloutFigure(release.current.vs.previous,oss='Linux', "Content Crash Rate Comparison for Linux,Release",whi='ccr',xtip='Rate',width=RE.WI2,height=200) -->
-<!-- ``` -->
-<!-- </div> -->
-<!-- <div class = "col-md-6"> -->
-<!-- ```{r} -->
-<!-- plotRolloutFigure(release.current.vs.previous,oss='Linux', "Content Crash Incidence Comparison for Linux,Release",whi='cci',xtip='Incidence',width=RE.WI2,height=200) -->
-<!-- ``` -->
-<!-- </div> -->
-<!-- </div> -->
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous.realNVC,oss='Darwin', "Browser Crash Incidence Comparison for Darwin,Release",whi='cmi',xtip='Incidence',width=RE.WI2,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous.realNVC,oss='Darwin', "Content Crash Rate Comparison for Darwin,Release",whi='ccr',xtip='Rate',width=RE.WI2,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous.realNVC,oss='Darwin', "Content Crash Incidence Comparison for Darwin,Release",whi='cci',xtip='Incidence',width=RE.WI2,height=200)
+```
+</div>
+</div>
+
+
+
+<div id="release_linux_rollout" class="tab-pane fade in">
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous.realNVC,oss='Linux', "Browser Crash Rate Comparison for Linux,Release",whi='cmr',xtip='Rate',width=RE.WI2,height=200)
+```
+</div>
+
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous.realNVC,oss='Linux', "Browser Crash Incidence Comparison for Linux,Release",whi='cmi',xtip='Incidence',width=RE.WI2,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous.realNVC,oss='Linux', "Content Crash Rate Comparison for Linux,Release",whi='ccr',xtip='Rate',width=RE.WI2,height=200)
+```
+</div>
+<div class = "col-md-6">
+```{r}
+plotRolloutFigure(release.current.vs.previous.realNVC,oss='Linux', "Content Crash Incidence Comparison for Linux,Release",whi='cci',xtip='Incidence',width=RE.WI2,height=200)
+```
+</div>
+</div>
 
 
 

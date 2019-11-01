@@ -507,7 +507,7 @@ def pull_all_model_data(bq_read):
     dbg.sql = sql_template
     dbg.bq_read = bq_read
 
-    with pull_done("Pulling release data"):
+    with pull_done("\nPulling release data"):
         df_release = pull_data_release(
             pd_release_download, sql_template, bq_read
         )
@@ -525,7 +525,7 @@ def pull_all_model_data(bq_read):
     dbg.pd_beta_download = pd_beta_download
     # raise ValueError
 
-    with pull_done("Pulling beta data"):
+    with pull_done("\nPulling beta data"):
         df_beta = pull_data_beta(
             # todo: debug process=False
             pd_beta_download,
@@ -538,7 +538,7 @@ def pull_all_model_data(bq_read):
         pd_beta
     )
 
-    with pull_done("Pulling nightly data"):
+    with pull_done("\nPulling nightly data"):
         df_nightly = pull_data_nightly(
             pd_nightly_download, sql_template, bq_read, process=True
         )

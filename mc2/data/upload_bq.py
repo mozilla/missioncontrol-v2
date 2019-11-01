@@ -29,6 +29,9 @@ def delete_versions(df, query_func, table_name="wbeard_crash_rate_raw"):
     Drop all unique ('channel', 'c_version', 'date') values in `table_name`. To be used
     before upload of new data.
     """
+    if not check_table_exists(query_func, table_name):
+        print('Table does not yet exist. Not dropping rows')
+        return
     df = df[["channel", "c_version", "date"]]
     q_temp = (
         "delete from `moz-fx-data-derived-datasets`.analysis.{table_name} "
@@ -52,6 +55,18 @@ def delete_versions(df, query_func, table_name="wbeard_crash_rate_raw"):
         print("Executing `{}`...".format(q), end="")
         query_func(q)
         print(" Done.")
+
+
+def check_table_exists(query_func, table_name):
+    q = """
+    SELECT count(*) as exist FROM `moz-fx-data-derived-datasets`.analysis.__TABLES__
+    WHERE table_id='{}'
+    """.format(
+        table_name
+    )
+    [row] = query_func(q)
+    [exists] = row.values()
+    return bool(exists)
 
 
 def get_schema(df, as_str=False):
@@ -78,7 +93,13 @@ def get_schema(df, as_str=False):
 
 
 def drop_table(table_name="wbeard_crash_rate_raw"):
-    cmd = ["bq", "rm", "-f", "-t", "`moz-fx-data-derived-datasets`.analysis.{}".format(table_name)]
+    cmd = [
+        "bq",
+        "rm",
+        "-f",
+        "-t",
+        "`moz-fx-data-derived-datasets`.analysis.{}".format(table_name),
+    ]
     print("running command", cmd)
     run_command(cmd, "Success! Table {} dropped.".format(table_name))
 

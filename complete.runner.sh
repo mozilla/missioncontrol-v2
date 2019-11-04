@@ -15,10 +15,12 @@ else
 fi
 unset __conda_setup
 # <<< conda initialize <<<
-
+export PATH=/snap/bin:$PATH
 export PYTHONNOUSERSITE=True
+
 ## see https://github.com/conda/conda/issues/7980 for activating conda in a bash script
-eval "$(conda shell.bash hook)"
+## though might not be needed given the above
+## eval "$(conda shell.bash hook)"
 conda activate mc2
 Rscript complete.runner.R 
 ## run as sh complete.runner.sh  2>&1 | tee logfile

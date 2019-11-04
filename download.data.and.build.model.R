@@ -15,7 +15,7 @@ python data/crud.py main --creds_loc '{BQCREDS}'  --table_name missioncontrol_v2
 writeLines(runner,con="./runner.sh")
 res  <- system2("sh", "./runner.sh",stderr=TRUE,stdout=TRUE)
 loginfo(paste(res, collapse="\n"))
-if(any(grepl("exception",res))) {
+if(any(grepl("(E|e)xception",res))|| any(grepl("(f|F)ailed",res))){
     logerror("Problem with Creating Raw Data")
 
     stop("Problem with Creating Raw Data")
@@ -38,7 +38,7 @@ python data/crud.py dl_raw --creds_loc {BQCREDS}  --channel {ch} --n_majors {v} 
     loginfo(glue("Starting Gettting Model Data for channel {ch} and nversions {v}"))
     res  <- system2("sh", "./runner.sh",stderr=TRUE,stdout=TRUE)
     loginfo(paste(res, collapse="\n"))
-    if(any(grepl("(E|e)xception",res))) {
+    if(any(grepl("(E|e)xception",res))|| any(grepl("(f|F)ailed",res))){
         logerror(glue("Problem with Downloading Model Data for channel {ch}"))
         stop(glue("Problem with Downloading Model Data for channel {ch}"))
     }

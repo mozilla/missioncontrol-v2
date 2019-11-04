@@ -245,7 +245,7 @@ dall.release.new <- dall.release.new[, ":="( major = as.numeric(sapply(c_version
 
 
 
-buildhub <- import("buildhub_bid")
+buildhub <- import_from_path("buildhub_bid","mc2/data")
 builds <- local({
  FIX <- function(f)
    paste(unlist(lapply(f,function(s) sprintf("'%s'",s))),collapse=',')
@@ -417,7 +417,7 @@ unique(nightly.releases.for.model)
 ## Current and last two versions:
 
 
-dall.rel2 <- g$q(glue("select * from analysis.sguha_crash_rate_raw where channel = 'release' and major in ({whichv})",
+dall.rel2 <- g$q(glue("select * from analysis.missioncontrol_v2_raw_data where channel = 'release' and major in ({whichv})",
          whichv = paste(unique(release.releases.for.model[,major]),collapse=",")),-1)
 dall.rel2 <- dall.rel2[nvc > 0,] 
 

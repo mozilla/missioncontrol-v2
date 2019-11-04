@@ -184,8 +184,9 @@ getPredictions <- function(M,D, wh=NULL,givenx=NULL,summary=FALSE,ascale='respon
  
 
 label <- function(M,x){
-  attr(M,"model.type") <- x
-  M
+    S <- M
+    attr(S,"model.type") <- x
+    S
 }
 
 

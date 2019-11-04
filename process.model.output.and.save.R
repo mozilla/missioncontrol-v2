@@ -83,7 +83,7 @@ release.evolution <- get.evolution(model=list( mr=cr.cm.rel,cr=cr.cc.rel,mi=ci.c
 beta.evolution <- get.evolution(model=list( mr=cr.cm.beta,cr=cr.cc.beta,mi=ci.cm.beta,ci=ci.cc.beta),
                                 dataset = dall.beta2)
 nightly.evolution <- get.evolution(model=list( mr=cr.cm.nightly,cr=cr.cc.nightly,mi=ci.cm.nightly,ci=ci.cc.nightly),
-                                dataset = dall.nightly2[c_version<=getPreviousVersion(dall.nightly2,"Linux",'nightly'),])
+                                dataset = dall.nightly2[c_version<=getCurrentVersion(dall.nightly2,"Linux",'nightly'),])
 
 
 

@@ -45,9 +45,22 @@ loadArchiveData<- function(date
     e
 }
 
-fitFromModel <- function(date,ch,newdata,loc=getArchiveLoc(),bindData=FALSE){
+fitFromModel <- function(date,ch,newdata,normalizeNVC=TRUE,loc=getArchiveLoc(),bindData=NULL){
+    if(normalizeNVC == TRUE){
+        pp=adoptionsCompare(DF=TRUE)
+        newdata2 <- merge(newdata,pp,by=c("os","channel"))
+        newdata2[, nvc := adopt];
+    }else{
+        newdata2 <- newdata
+    }
     rbindlist(lapply(date,function(d){
-        x <- loadArchiveData(d,loc)
+        x <- tryCatch({
+            loadArchiveData(d,loc)
+        }, error=function(e){
+            warning(glue("Could not find {d} in {loc}, ignoring"))
+            NULL
+        })
+        if(is.null(x)) return(NULL)
         M <- if(ch=='release') {
                  list( mr=x$cr.cm.rel,cr=x$cr.cc.rel,mi=x$ci.cm.rel,ci=x$ci.cc.rel)
              }else if(ch=='beta'){
@@ -55,8 +68,11 @@ fitFromModel <- function(date,ch,newdata,loc=getArchiveLoc(),bindData=FALSE){
              }else if(ch=='nightly'){
                  list( mr=x$cr.cm.nightly,cr=x$cr.cc.nightly,mi=x$ci.cm.nightly,ci=x$ci.cc.nightly)
              }else stop("bad channel")
-        y <- cbind(data.table(modelDate = d,channel=ch),getCredibleIntervals(newdata,M))
-        if(bindData) cbind(newdata,y) else y
+        y <- cbind(data.table(modelDate = d,channel=ch),getCredibleIntervals(newdata2,M))
+        if (is(bindData,"data.frame")){
+           y <-  cbind(bindData,y)
+        }
+        y
     }))
 }
         

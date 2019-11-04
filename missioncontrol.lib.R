@@ -84,7 +84,7 @@ ffunc <- function(M,D,list0=NULL,iter=4000,thin=1)  brm(M,data=D, chains = 4,
                                                      list(adapt_delta = 0.999, max_treedepth=13)
                                                  else list0
                                      , cores = 4,iter=iter,thin=thin)
-make.a.model <- function(data,wh,channel='not-nightly',bff=NULL,list0=NULL,iter=4000,thin=1){
+make.a.model <- function(data,wh,channel='not-nightly',bff=NULL,list0=NULL,iter=4000,thin=1,priorSim=FALSE){
   ## See wbeards work on nightly: https://metrics.mozilla.com/protected/wbeard/mc/nightly_model.html
   alter <- TRUE
     if(wh=="cmr"){
@@ -131,8 +131,9 @@ make.a.model <- function(data,wh,channel='not-nightly',bff=NULL,list0=NULL,iter=
             M0 <- bf( log(1 + dau_cc_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os)
         }
         if(!is.null(bff)) M0 <- bff
-  }
-  ffunc(M0,data,list0=list0,thin=thin,iter=iter)
+    }
+    if(priorSim){ return(M0) }
+    else  ffunc(M0,data,list0=list0,thin=thin,iter=iter)
 }
 
 Predict <- function(M,D,ascale='response',...){

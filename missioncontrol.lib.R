@@ -75,6 +75,8 @@ fitFromModel <- function(date,ch,newdata,normalizeNVC=TRUE,loc=getArchiveLoc(),b
         y
     }))
 }
+## Example:
+## fitFromModel(c("2019-10-30","2019-10-31","2019-11-01"), ch='nightly', newdata=dnew,bindData=dnew[,list(os,c_version,date,nvc,cmr,ccr,cmi,cci)])
         
 
 ffunc <- function(M,D,list0=NULL,iter=4000,thin=1)  brm(M,data=D, chains = 4,

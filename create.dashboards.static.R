@@ -2,6 +2,7 @@ source("missioncontrol.lib.R")
 load("all.the.data.Rdata")
 
 if(!file.exists("~/html")) {
+    system("rm -rf ~/html")
     dir.create("~/html")
     dir.create("~/html/public/")
     dir.create("~/html/private")

@@ -40,7 +40,7 @@ currentVersion <- c(name=nightly.current.vs.previous$Windows_NT$versiona,
 
 olderVersion <- c(name=nightly.current.vs.previous$Windows_NT$versionb,
                     days = dall.nightly2[os=='Windows_NT' & c_version ==nightly.current.vs.previous$Windows_NT$versionb, .N])
-makeActiveMenuBar("nightly",generatedText = glue("Using data till {till}",till=dall.nightly2[,max(date)]))
+makeActiveMenuBar("nightly",generatedText = glue("Using data till {till}, render time: {wh} UTC",till=dall.nightly2[,max(date)],wh=strftime(gen.time,"%c" )))
 ```
 
 

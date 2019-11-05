@@ -38,7 +38,7 @@ currentVersion <- c(name=release.current.vs.previous$Windows_NT$versiona,
 
 olderVersion <- c(name=release.current.vs.previous$Windows_NT$versionb,
                     days = dall.rel2[os=='Windows_NT' & c_version ==release.current.vs.previous$Windows_NT$versionb, .N])
-makeActiveMenuBar("release",generatedText = glue("Using data till {till}",till=dall.rel2[,max(date)]))
+makeActiveMenuBar("release",generatedText = glue("Using data till {till}, render time: {wh} UTC",till=dall.rel2[,max(date)],wh=strftime(gen.time,"%c" )))
 ```
 
 

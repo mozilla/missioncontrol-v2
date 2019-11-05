@@ -86,6 +86,14 @@ nightly.evolution <- get.evolution(model=list( mr=cr.cm.nightly,cr=cr.cc.nightly
                                 dataset = dall.nightly2[c_version<=getCurrentVersion(dall.nightly2,"Linux",'nightly'),])
 
 
+##################################################
+## Make BigQuery Tables for Model Output
+##################################################
+toBq <- rbind(
+    fittedTableForBQ(dall.rel2, model=list( mr=cr.cm.rel,cr=cr.cc.rel,mi=ci.cm.rel,ci=ci.cc.rel)),
+    fittedTableForBQ(dall.beta2, model=list( mr=cr.cm.beta,cr=cr.cc.beta,mi=ci.cm.beta,ci=ci.cc.beta)),
+    fittedTableForBQ(dall.nightly2, model=list( mr=cr.cm.nightly,cr=cr.cc.nightly,mi=ci.cm.nightly,ci=ci.cc.nightly)))
+
 
 
 allversions <- list(
@@ -96,12 +104,14 @@ allversions <- list(
 
 n <- as.character(Sys.Date())
 n <- as.character(dall.rel2[,max(date)])
+toBq[, "modelDate" := n]
+
 gen.time <- Sys.time()
 data.file <- glue("/tmp/models-{n}.Rdata",n=n)
 loginfo(glue("Saving Data to temp file: {data.file}"))
 processDownloadsWorked <- TRUE
 save.list <- list(
-    "processDownloadsWorked",
+    "processDownloadsWorked","toBQ",
     "allversions","gen.time",
     "cr.cm.rel","cr.cc.rel","ci.cm.rel","ci.cc.rel",
     "cr.cm.beta","cr.cc.beta","ci.cm.beta","ci.cc.beta",

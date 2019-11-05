@@ -75,6 +75,19 @@ fitFromModel <- function(date,ch,newdata,normalizeNVC=TRUE,loc=getArchiveLoc(),b
         y
     }))
 }
+
+
+fittedTableForBQ <- function(thedata,models){
+    pp=adoptionsCompare(DF=TRUE)
+    newdata2 <- merge(thedata,pp,by=c("os","channel"))
+    newdata2[, originalnvc := nvc]
+    newdata2[, nvc := adopt];
+    newdata2 <- newdata2[,{
+        tail(.SD[order(date),],1)
+        },by=list(channel,os, c_version,major,minor)]
+    cbind(newdata2[,list(date,channel,os,c_version,major,minor,nvc=originalnvc, nvcBaseline=nvc,cmr,ccr,cmi,cci)],getCredibleIntervals(newdata2,models))
+}
+    
 ## Example:
 ## fitFromModel(c("2019-10-30","2019-10-31","2019-11-01"), ch='nightly', newdata=dnew,bindData=dnew[,list(os,c_version,date,nvc,cmr,ccr,cmi,cci)])
         

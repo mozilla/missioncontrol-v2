@@ -56,6 +56,10 @@ dall.rel2 <- data.table(getModelDataForChannel("release",3))[nvc>0,]
 dall.beta2 <- data.table(getModelDataForChannel("beta",3))[nvc>0,]
 dall.nightly2 <- data.table(getModelDataForChannel("nightly",3))[nvc>0,]
 
+loginfo("Using following dates")
+print(dall.rel2[, list(channel='release',UsingDateTill=max(date)),by=os][order(os),])
+print(dall.beta2[, list(channel='beta',UsingDateTill=max(date)),by=os][order(os),])
+print(dall.nightly2[, list(channel='nightly',UsingDateTill=max(date)),by=os][order(os),])
 
 ## BUILD MODELS
 loginfo("Started Release Models")

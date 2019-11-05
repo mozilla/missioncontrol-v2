@@ -528,7 +528,7 @@ if(FALSE){
     },by=list(os, ch)]
     
     H <- function(x) abs(x)
-    ggplot(f2[ch=='rel' & r<quantile(r,0.99),], aes(nvc, H(r),color=os))+geom_point()+geom_smooth(method='loess')
+    ggplot(f2[ch=='rel' & r<quantile(r,0.99),], aes(nvc, H(r),colo=os))+geom_point()+geom_smooth(method='loess')
     ggplot(f2[ch=='beta'  & r<quantile(r,0.99),], aes(nvc, H(r),color=os))+geom_point()+geom_smooth(method='loess')
     ggplot(f2[ch=='nightly'  & r<quantile(r,0.99),], aes(nvc, H(r),color=os))+geom_point()+geom_smooth(method='loess')
     dev.off()

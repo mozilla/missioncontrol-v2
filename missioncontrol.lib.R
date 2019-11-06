@@ -311,8 +311,9 @@ compare.two.versions <- function(versiona, versionb,oschoice, dataset,model,doLa
                          dataset[c_version %in% versionb & os %in% oschoice,][order(date),]
                      }
     if(oschoice=="overall"){
+#        browser()
         af <- versiona.data[, list(n=.N),by=os]
-        versionb.data <- versionb.data[, head(.SD[order(date),],af[af$os==.BY$os,n]),by=os]
+        versionb.data <- versionb.data[, head(.SD[order(date),],max(0,af[af$os==.BY$os,n])),by=os]
     }else{
         versionb.data <- head(versionb.data,nrow(versiona.data))
     }

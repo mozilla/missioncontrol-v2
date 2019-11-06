@@ -1,50 +1,9 @@
-WITH SAMPLING AS (
-  SELECT
-    'nightly' AS chan,
-    'Linux' AS sos,
-    1 AS NBUCKS
-  UNION ALL
-  SELECT
-    'nightly' AS chan,
-    'Darwin' AS sos,
-    1 AS NBUCKS
-  UNION ALL
-  SELECT
-    'nightly' AS chan,
-    'Windows_NT' AS sos,
-    1 AS NBUCKS
-  UNION ALL
-  SELECT
-    'beta' AS chan,
-    'Linux' AS sos,
-    1 AS NBUCKS
-  UNION ALL
-  SELECT
-    'beta' AS chan,
-    'Darwin' AS sos,
-    1 AS NBUCKS
-  UNION ALL
-  SELECT
-    'beta' AS chan,
-    'Windows_NT' AS sos,
-    1 AS NBUCKS
-  UNION ALL
-  SELECT
-    'release' AS chan,
-    'Linux' AS sos,
-    1 AS NBUCKS
-  UNION ALL
-  SELECT
-    'release' AS chan,
-    'Darwin' AS sos,
-    1 AS NBUCKS
-  UNION ALL
-  SELECT
-    'release' AS chan,
-    'Windows_NT' AS sos,
-    3 AS NBUCKS
-),
-a1 AS (
+CREATE TEMP FUNCTION os_chan_buckets(os string, chan string) AS (
+  case (os, chan) when ('Windows_NT', 'release') then 3
+    else 1 end
+);
+
+with a1 AS (
   SELECT
     --- TOTAL USAGE ON FIREFOX
     submission_date_s3 AS date,
@@ -53,9 +12,6 @@ a1 AS (
     count(DISTINCT(client_id)) AS dau_all
   FROM
     telemetry.clients_daily_v6 HH
-  LEFT JOIN
-    SAMPLING ON HH.os = SAMPLING.sos
-    AND HH.normalized_channel = SAMPLING.chan
   WHERE
     submission_date_s3 >= '{current_version_release}'
     AND submission_date_s3 <= DATE_ADD(
@@ -68,7 +24,7 @@ a1 AS (
     AND normalized_channel = '{norm_channel}'
     AND MOD(
       ABS(FARM_FINGERPRINT(MD5(client_id))),
-      SAMPLING.NBUCKS
+      os_chan_buckets(HH.os, HH.normalized_channel)
     ) = 0
   GROUP BY
     1,
@@ -84,9 +40,6 @@ a2 AS (
     count(DISTINCT(client_id)) AS dau_cversion
   FROM
     telemetry.clients_daily_v6 HH
-  LEFT JOIN
-    SAMPLING ON HH.os = SAMPLING.sos
-    AND HH.normalized_channel = SAMPLING.chan
   WHERE
     submission_date_s3 >= '{current_version_release}'
     AND submission_date_s3 <= DATE_ADD(
@@ -101,7 +54,7 @@ a2 AS (
     -- {linux_release_cdaily_build_id}
     AND MOD(
       ABS(FARM_FINGERPRINT(MD5(client_id))),
-      SAMPLING.NBUCKS
+      os_chan_buckets(HH.os, HH.normalized_channel)
     ) = 0
   GROUP BY
     1,
@@ -150,9 +103,6 @@ b1 AS (
     ) AS ccontent
   FROM
     {crash_src} JJ
-  LEFT JOIN
-    SAMPLING ON JJ.os_name = SAMPLING.sos
-    AND JJ.normalized_channel = SAMPLING.chan
   WHERE
     submission_date >= '{current_version_release}'
     AND submission_date <= DATE_ADD(
@@ -169,7 +119,7 @@ b1 AS (
     AND profile_created <= 20089
     AND MOD(
       ABS(FARM_FINGERPRINT(MD5(client_id))),
-      SAMPLING.NBUCKS
+      os_chan_buckets(JJ.os_name, JJ.normalized_channel)
     ) = 0
   GROUP BY
     1,
@@ -187,9 +137,6 @@ b2 AS (
     sum(coalesce(crashes_detected_plugin_sum, 0)) AS cplugin
   FROM
     telemetry.clients_daily_v6 HH
-  LEFT JOIN
-    SAMPLING ON HH.os = SAMPLING.sos
-    AND HH.normalized_channel = SAMPLING.chan
   WHERE
     submission_date_s3 >= '{current_version_release}'
     AND submission_date_s3 <= DATE_ADD(
@@ -204,7 +151,7 @@ b2 AS (
     -- {linux_release_cdaily_build_id}
     AND MOD(
       ABS(FARM_FINGERPRINT(MD5(client_id))),
-      SAMPLING.NBUCKS
+      os_chan_buckets(HH.os, HH.normalized_channel)
     ) = 0
   GROUP BY
     1,

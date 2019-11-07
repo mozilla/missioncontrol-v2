@@ -46,7 +46,7 @@ Most of the download functionality is in `download_bq.py`. The overall strategy 
 - Download release data from [product details](https://product-details.mozilla.org/1.0/firefox.json) to get basic dates and release version data
 - Use information from product details to fill in the sql template string that pulls
     - DAU and active hours data from cliens_daily
-    - crash data from crash_summary
+    - crash data from `telemetry.crash` pings
     - most of this funtionality is channel specific, in functions named `prod_det_process_{channel}()`
     - functions that fill in the sql template have names patterned as `query_from_row_{channel}`
 - For beta, also download build information from buildhub. We can't get version information from cliens_daily, so we need to get the version -> build_id information from buildhub, and query those build_id's from cliens_daily.

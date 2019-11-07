@@ -38,15 +38,14 @@ def strong_bool(b):
 
 
 def get_creds(creds_loc=None):
-    if creds_loc is None:
-        creds_loc = abspath(
-            expanduser(
-                "~/repos/moz-fx-data-derived-datasets-46a8a03da99b-wbeard.json"
+    if not creds_loc:
+        creds_loc = os.environ.get("BQCREDS")
+        if not creds_loc:
+            raise RuntimeError(
+                "Bigquery credentials not passed, or found in environment."
             )
-        )
-    else:
-        creds_loc = abspath(expanduser(creds_loc))
 
+    creds_loc = abspath(expanduser(creds_loc))
     creds = service_account.Credentials.from_service_account_file(creds_loc)
     return creds
 
@@ -135,6 +134,18 @@ def main(
     return_df: bool = False,
     force: bool = False,
 ):
+    """
+    Process and upload raw data. For debugging (including dropping the test table):
+    python data/crud.py main \
+        --table_name="missioncontrol_v2_raw_data_test" --cache=True \
+        --drop_first=True --add_schema=True \
+        --creds_loc="<path to bigquery creds>"
+
+    To drop the production table, pass `--force=True`.
+    When called from the command line, it won't return anything by default,
+    but if calling as a python function, passing `return_df` will have it
+    return the resulting dataframe.
+    """
     add_schema, cache, drop_first, return_df, force = map(
         strong_bool, [add_schema, cache, drop_first, return_df, force]
     )

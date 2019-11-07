@@ -13,24 +13,33 @@ crud.main(
 )
 ```
 
-It requires the filepath of the bigquery credentials to be passed as `creds_loc`.
+It requires the filepath of the bigquery credentials to be passed as `creds_loc`. If no argument is passed, the program will try to use the `BQCREDS` environment variable.
 
 
-While debugging, it could be usefuly to pass
+While debugging, it could be useful to pass
 - `cache = True`, so that it will cache the results of bigquery sql pulls with joblib
 - `drop_first = True`, to delete the table before uploading the data
-- `add_schema = True` to manual specify the table schema after dropping the table
-- custom `table_name` to not override the table currently in use
+- `add_schema = True` to manually specify the table schema after dropping the table
+- custom `table_name` not override the production table (currently `missioncontrol_v2_raw_data`)
 
 ## Example CLI commands
 
-Process and upload raw data
+Process and upload raw data. For debugging (including dropping the test table):
 ```bash
 conda activate mc2
 cd mc2
-python data/crud.py main --creds_loc "<path to bigquery creds>"  \
-    --table_name wbeard_crash_rate_raw --cache True \
-    --drop_first False --add_schema False \
+python data/crud.py main \
+    --table_name="missioncontrol_v2_raw_data_test" --cache=True \
+    --drop_first=True --add_schema=True \
+    --creds_loc="<path to bigquery creds>"
+```
+
+For the production table, the call would be
+```bash
+export BQCREDS="<path to bigquery creds>"
+conda activate mc2
+cd mc2
+python data/crud.py main --table_name="missioncontrol_v2_raw_data"
 ```
 
 Download data after it's been processed and uploaded

@@ -98,7 +98,7 @@ def drop_table(table_name="wbeard_crash_rate_raw"):
         "rm",
         "-f",
         "-t",
-        "`moz-fx-data-derived-datasets`.analysis.{}".format(table_name),
+        "moz-fx-data-derived-datasets.analysis.{}".format(table_name),
     ]
     print("running command", cmd)
     run_command(cmd, "Success! Table {} dropped.".format(table_name))

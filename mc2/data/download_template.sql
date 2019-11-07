@@ -79,47 +79,43 @@ b1 AS (
   --- NEED CLIENT_ID TO JOIN on DAILY TO GET CRASH RATE
   SELECT
     client_id,
-    submission_date AS date,
-    os_name AS os,
+    date(submission_timestamp) AS date,
+    environment.system.os.name AS os,
     sum(
       case
-        WHEN payload.processType IS NULL
-        OR payload.processType = 'main' THEN 1
+        WHEN payload.process_type IS NULL
+        OR payload.process_type = 'main' THEN 1
         ELSE 0
       end
     ) AS cmain,
     sum(
-      case
-        WHEN payload.processType = 'content'
-        AND (
-          udf.get_key(payload.metadata, 'ipc_channel_error') IS NULL
-          OR (
-            udf.get_key(payload.metadata, 'ipc_channel_error') IS NOT NULL
-            AND udf.get_key(payload.metadata, 'ipc_channel_error') != 'ShutdownKill'
-          )
-        ) THEN 1
-        ELSE 0
+      case when payload.process_type = 'content'
+            and (coalesce(payload.metadata.ipc_channel_error,
+                 'other') != 'ShutdownKill')
+      then 1 else 0
       end
     ) AS ccontent
   FROM
-    {crash_src} JJ
+    telemetry.crash JJ
   WHERE
-    submission_date >= '{current_version_release}'
-    AND submission_date <= DATE_ADD(
+    date(submission_timestamp) >= '{current_version_release}'
+    AND date(submission_timestamp) <= DATE_ADD(
       DATE '{current_version_release}',
       INTERVAL {nday} DAY
     )
-    AND os_name IN ('Linux', 'Windows_NT', 'Darwin')
-    -- {linux_os_comment} AND os_name = 'Linux'
-    AND application = 'Firefox'
+    AND environment.system.os.name IN ('Linux', 'Windows_NT', 'Darwin')
+    -- {linux_os_comment} AND environment.system.os.name = 'Linux'
+    AND application.name = 'Firefox'
     AND normalized_channel = '{norm_channel}'
-    AND {build_version_field} IN ({current_version_crash})
-    -- {linux_release_crash_build_id}
-    AND profile_created >= 12418
-    AND profile_created <= 20089
+    AND {crash_build_version_field} IN ({current_version_crash})
+    -- {linux_release_crash_build_id} todo: check crash ping source
+    -- aka 12418
+    AND environment.profile.creation_date >= UNIX_DATE(date('2004-01-01'))
+    -- no more than 2 days into the future
+    AND environment.profile.creation_date <= UNIX_DATE(current_date()) + 2
     AND MOD(
       ABS(FARM_FINGERPRINT(MD5(client_id))),
-      os_chan_buckets(JJ.os_name, JJ.normalized_channel)
+      os_chan_buckets(JJ.environment.system.os.name, JJ.normalized_channel)
     ) = 0
   GROUP BY
     1,
@@ -147,7 +143,8 @@ b2 AS (
     -- {linux_os_comment} AND os = 'Linux'
     AND app_name = 'Firefox'
     AND normalized_channel = '{norm_channel}'
-    AND {app_version_field} = '{current_version}' -- and profile_creation_date>=12418 and profile_creation_date<=20089
+    -- and profile_creation_date>=12418 and profile_creation_date<=20089
+    AND {app_version_field} = '{current_version}'
     -- {linux_release_cdaily_build_id}
     AND MOD(
       ABS(FARM_FINGERPRINT(MD5(client_id))),

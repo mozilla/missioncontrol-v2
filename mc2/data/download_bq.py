@@ -35,12 +35,6 @@ def read_product_details():
     return df
 
 
-def crash_source_date(d: dt.datetime):
-    if d < pd.to_datetime("2019-06-18"):
-        return "telemetry.crash_summary_v1"
-    return "telemetry.crash_summary_v2"
-
-
 def next_release_date(
     d: "pd.Series[dt.datetime]", max_days_future=365, use_today_as_max=False
 ):
@@ -154,9 +148,8 @@ def prod_det_process_release(df_all):
             ),
             channel="release",
             ndays=72,
-            crash_src=lambda x: x["date"].map(crash_source_date),
             app_version_field="app_version",
-            build_version_field="build_version",
+            crash_build_version_field="environment.build.version",
         )
         .assign(date=lambda x: x.date.dt.date, till=lambda x: x.till.dt.date)
     )  # better string repr
@@ -171,7 +164,7 @@ def prod_det_process_beta(df_all, vers2bids_beta):
     """
     days_future = 7
     app_version_field = "app_display_version"
-    build_version_field = "build_id"
+    crash_build_version_field = "environment.build.build_id"
     category = "dev"  # noqa
     channel = "beta"
     ndays = 14
@@ -194,9 +187,8 @@ def prod_det_process_beta(df_all, vers2bids_beta):
             till=lambda x: next_release_date(x["date"], days_future),
             channel=channel,
             ndays=ndays,
-            crash_src=lambda x: x["date"].map(crash_source_date),
             app_version_field=app_version_field,
-            build_version_field=build_version_field,
+            crash_build_version_field=crash_build_version_field,
         )
         # better string repr
         .assign(date=lambda x: x.date.dt.date, till=lambda x: x.till.dt.date)
@@ -233,16 +225,14 @@ def prod_det_process_nightly(pd_beta):
             date_pd=pd.date_range(beta_last_row.date, beta_last_row.till),
             version=beta_last_row.version,
             channel="nightly",
-            crash_src="telemetry.crash_summary_v2",
             app_version_field="substr(app_build_id,1,8)",
-            build_version_field="substr(build_id,1,8)",
+            crash_build_version_field="substr(environment.build.build_id, 1, 8)",
             ndays=7,
         )
     ).assign(
         buildid=lambda x: x.date_pd.dt.strftime("%Y%m%d"),
         date=lambda x: x.date_pd.dt.strftime("%Y-%m-%d"),
         till=lambda x: (x.date_pd + pd.Timedelta(days=7)).dt.date,
-        crash_src=lambda x: x.date_pd.map(crash_source_date),
     )
     recent_majs = [beta_last_row.major, beta_last_row.major + 1]
 
@@ -265,10 +255,8 @@ def sql_arg_dict(row):
         current_version_release=row.date,
         norm_channel=row.channel,
         app_version_field=row.app_version_field,
-        build_version_field=row.build_version_field,
+        crash_build_version_field=row.crash_build_version_field,
         nday=row.ndays,
-        crash_src=row.crash_src,
-        NBUCKS=1,
         # By default we need to ignore all of the special case
         # linux release args
         linux_release_cdaily_build_id="",
@@ -387,6 +375,7 @@ def pull_data_base(
     dfs = []
     for _ix, row in download_meta_data.iterrows():
         query = row2query(row, sql_template)
+        dbg.query = query
         df = bq_read(query)
         df2 = add_fields(df, row[version_col], row.date, row.till)
         dfs.append(df2)
@@ -496,13 +485,18 @@ def read(fname):
     return txt
 
 
-def pull_all_model_data(bq_read):
+def write(fname, txt):
+    with open(fname, "w") as fp:
+        fp.write(txt)
+
+
+def pull_all_model_data(bq_read, sql_fname=SQL_FNAME):
     pd_all = read_product_details()
     pd_release, pd_release_model, pd_release_download = prod_det_process_release(
         pd_all
     )
 
-    sql_template = read(SQL_FNAME)
+    sql_template = read(sql_fname)
     dbg.meta = pd_release_download
     dbg.sql = sql_template
     dbg.bq_read = bq_read
@@ -601,7 +595,9 @@ def pull_model_data_(bq_read_fn, channel, n_majors, analysis_table):
     return df
 
 
-def download_raw_data(bq_read_fn, channel, n_majors: int, analysis_table, outname=None):
+def download_raw_data(
+    bq_read_fn, channel, n_majors: int, analysis_table, outname=None
+):
     """
     Given a channel and a number of recent major version, return all of the
     uploaded raw mission control v2 data that matches the `n_majors` most

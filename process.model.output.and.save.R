@@ -23,7 +23,7 @@ release.current.vs.previous.realNVC %<-% lapply(operating.systems,function(os){
                          doLatest = FALSE,
                          normalizeNVC = FALSE)
 })
-  names(release.current.vs.previous.realNVC) <- operating.systems
+
 
   beta.current.vs.previous  %<-% lapply(operating.systems,function(os){
     compare.two.versions(versiona = getCurrentVersion(dall.beta2,os,'beta'),
@@ -50,6 +50,7 @@ release.current.vs.previous.realNVC %<-% lapply(operating.systems,function(os){
 
 
 names(release.current.vs.previous) <- operating.systems
+names(release.current.vs.previous.realNVC) <- operating.systems
 names(beta.current.vs.previous) <- operating.systems
 names(nightly.current.vs.previous) <- operating.systems
 loginfo(" Posteriors Complete")
@@ -111,7 +112,7 @@ data.file <- glue("/tmp/models-{n}.Rdata",n=n)
 loginfo(glue("Saving Data to temp file: {data.file}"))
 processDownloadsWorked <- TRUE
 save.list <- list(
-    "processDownloadsWorked","toBQ",
+    "processDownloadsWorked","toBq",
     "allversions","gen.time",
     "cr.cm.rel","cr.cc.rel","ci.cm.rel","ci.cc.rel",
     "cr.cm.beta","cr.cc.beta","ci.cm.beta","ci.cc.beta",

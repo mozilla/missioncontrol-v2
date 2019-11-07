@@ -131,7 +131,7 @@ make.a.model <- function(data,wh,channel='not-nightly',bff=NULL,list0=NULL,iter=
             M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version) ,sigma ~ os*nvc)
         }
         if(channel %in% c('nightly')){
-            M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version) ,sigma ~ os)
+            M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m=1,k=3,by=os) + (1 + os | c_version) ,sigma ~ os)
         }
         if(!is.null(bff)) M0 <- bff
     }
@@ -311,8 +311,9 @@ compare.two.versions <- function(versiona, versionb,oschoice, dataset,model,doLa
                          dataset[c_version %in% versionb & os %in% oschoice,][order(date),]
                      }
     if(oschoice=="overall"){
+#        browser()
         af <- versiona.data[, list(n=.N),by=os]
-        versionb.data <- versionb.data[, head(.SD[order(date),],af[af$os==.BY$os,n]),by=os]
+        versionb.data <- versionb.data[, head(.SD[order(date),],max(0,af[af$os==.BY$os,n])),by=os]
     }else{
         versionb.data <- head(versionb.data,nrow(versiona.data))
     }

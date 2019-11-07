@@ -8,8 +8,8 @@ if [[ $rc -eq 0 ]];  then
     rm -rf /tmp/private
     rm -rf /tmp/public
     mkdir /tmp/private /tmp/public
-    gsutil -m rsync -d -r gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/private/ /tmp/private/ && rsync -avz /tmp/private/ ~/mz/missioncontrol/ex1/mc2/
-    gsutil -m rsync -d -r gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/public/ /tmp/public/ && rsync -avz /tmp/public/ ~/pubsguha/mc2/
+    gsutil -q -m rsync -d -r gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/private/ /tmp/private/ && rsync -az /tmp/private/ ~/mz/missioncontrol/ex1/mc2/
+    gsutil -q -m rsync -d -r gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/public/ /tmp/public/ && rsync -az /tmp/public/ ~/pubsguha/mc2/
 else
     echo "ERROR ERROR"
 fi   

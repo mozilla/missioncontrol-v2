@@ -27,6 +27,16 @@ from upload_bq import delete_versions, drop_table, upload
 # bucket: 'moz-fx-data-derived-datasets-analysis'
 
 
+def strong_bool(b):
+    if isinstance(b, bool):
+        return b
+    bool_map = {"True": True, "False": False}
+    res = bool_map.get(b, None)
+    if res is None:
+        raise ValueError("Non-boolean value {} was passed".format(b))
+    return res
+
+
 def get_creds(creds_loc=None):
     if creds_loc is None:
         creds_loc = abspath(
@@ -119,12 +129,15 @@ def dl_raw(
 def main(
     add_schema: bool = False,
     creds_loc=None,
-    cache=False,
+    cache: bool = False,
     table_name="wbeard_crash_rate_raw",
-    drop_first=False,
-    return_df=False,
-    force=False,
+    drop_first: bool = False,
+    return_df: bool = False,
+    force: bool = False,
 ):
+    add_schema, cache, drop_first, return_df, force = map(
+        strong_bool, [add_schema, cache, drop_first, return_df, force]
+    )
     if table_name == "missioncontrol_v2_raw_data":
         if cache:
             print(

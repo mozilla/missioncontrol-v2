@@ -34,7 +34,7 @@ adoptionsCompare <- function(os,ch,DF=FALSE){
 }
 
 getArchiveLoc <- function(){
-    return("gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive")
+    return("gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/archive")
 }
 
 loadArchiveData<- function(date

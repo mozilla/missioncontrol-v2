@@ -101,9 +101,6 @@ def get_peak_date(vers_df, vers_col="dvers", date_col="date"):
     vers_df2 = vers_df.merge(
         agg_v_o_max_date, left_on=[vers_col, "os"], right_index=True
     ).sort_index()
-    # TODO: delete if it runs
-    # get_peak_date.vers_df = vers_df
-    # get_peak_date.vers_df2 = vers_df2
     assert_frame_equal(vers_df2.drop("peak_date", axis=1), vers_df)
 
     return vers_df2
@@ -245,9 +242,6 @@ def prod_det_process_nightly(pd_beta):
 #################
 # Build Queries #
 #################
-# TODO: would be nice to delete the Linux release specific download stuff
-# includes extra_linux_release_filter, query_from_row_release_linux,
-# pull_data_release_linux
 def sql_arg_dict(row):
     return dict(
         current_version=row.version,
@@ -257,37 +251,11 @@ def sql_arg_dict(row):
         app_version_field=row.app_version_field,
         crash_build_version_field=row.crash_build_version_field,
         nday=row.ndays,
-        # By default we need to ignore all of the special case
-        # linux release args
-        linux_release_cdaily_build_id="",
-        linux_release_crash_build_id="",
-        linux_os_comment="",
     )
 
 
 def to_sql_str_list(xs):
     return ", ".join("'{}'".format(s) for s in xs)
-
-
-def extra_linux_release_filter(version, version2bids):
-    """
-    version2bids: {
-        '68.0': [('68.0', '20190705220548', 1562378213307),
-                 ('68.0', '20190704163141', 1562278271530)], ...}
-    """
-    vers_bid_ts_xs = version2bids[version]
-    bids = [bid for vers, bid, ts in vers_bid_ts_xs]
-    str_bids = to_sql_str_list(bids)
-
-    crash_bid_clause = "\n\t\tAND build_id in ({bids})".format(bids=str_bids)
-    cdaily_bid_clause = "\n\t\tAND app_build_id in ({})".format(str_bids)
-    res = dict(
-        linux_release_cdaily_build_id=cdaily_bid_clause,
-        linux_release_crash_build_id=crash_bid_clause,
-        linux_os_comment="\n\t\t"
-        # build_id
-    )
-    return res
 
 
 def query_from_row_release(row, sql_template):
@@ -300,13 +268,6 @@ def query_from_row_release(row, sql_template):
     kwargs = sql_arg_dict(row)
     kwargs_release = dict(current_version_crash="'{}'".format(row.version))
     return sql_template.format(**kwargs, **kwargs_release)
-
-
-def query_from_row_release_linux(row, sql_template, version2bids):
-    kwargs = sql_arg_dict(row)
-    kwargs.update(dict(current_version_crash="'{}'".format(row.version)))
-    kwargs.update(extra_linux_release_filter(row.version, version2bids))
-    return sql_template.format(**kwargs)
 
 
 def query_from_row_beta(row, sql_template):
@@ -404,17 +365,6 @@ def pull_data_release(download_meta_data, sql_template, bq_read, process=True):
             .rename(columns={"dot": "minor"})
             .reset_index(drop=1)
         )
-    return data
-
-
-def pull_data_release_linux(
-    download_meta_data, sql_template, bq_read, version2bids
-):
-    query_fn = partial(query_from_row_release_linux, version2bids=version2bids)
-    data = pull_data_base(
-        sql_template, download_meta_data, query_fn, bq_read=bq_read
-    )
-    data = add_version_elements(data, rls_version_parse, "c_version", to=int)
     return data
 
 

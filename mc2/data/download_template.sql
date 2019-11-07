@@ -19,7 +19,6 @@ with a1 AS (
       INTERVAL {nday} DAY
     )
     AND os IN ('Linux', 'Windows_NT', 'Darwin')
-    -- {linux_os_comment} AND os = 'Linux'
     AND app_name = 'Firefox'
     AND normalized_channel = '{norm_channel}'
     AND MOD(
@@ -47,11 +46,9 @@ a2 AS (
       INTERVAL {nday} DAY
     )
     AND os IN ('Linux', 'Windows_NT', 'Darwin')
-    -- {linux_os_comment} AND os = 'Linux'
     AND app_name = 'Firefox'
     AND normalized_channel = '{norm_channel}' -- and profile_creation_date>=12418 and profile_creation_date<=20089
     AND {app_version_field} = '{current_version}'
-    -- {linux_release_cdaily_build_id}
     AND MOD(
       ABS(FARM_FINGERPRINT(MD5(client_id))),
       os_chan_buckets(HH.os, HH.normalized_channel)
@@ -104,11 +101,9 @@ b1 AS (
       INTERVAL {nday} DAY
     )
     AND environment.system.os.name IN ('Linux', 'Windows_NT', 'Darwin')
-    -- {linux_os_comment} AND environment.system.os.name = 'Linux'
     AND application.name = 'Firefox'
     AND normalized_channel = '{norm_channel}'
     AND {crash_build_version_field} IN ({current_version_crash})
-    -- {linux_release_crash_build_id} todo: check crash ping source
     -- aka 12418
     AND environment.profile.creation_date >= UNIX_DATE(date('2004-01-01'))
     -- no more than 2 days into the future
@@ -140,12 +135,10 @@ b2 AS (
       INTERVAL {nday} DAY
     )
     AND os IN ('Linux', 'Windows_NT', 'Darwin')
-    -- {linux_os_comment} AND os = 'Linux'
     AND app_name = 'Firefox'
     AND normalized_channel = '{norm_channel}'
     -- and profile_creation_date>=12418 and profile_creation_date<=20089
     AND {app_version_field} = '{current_version}'
-    -- {linux_release_cdaily_build_id}
     AND MOD(
       ABS(FARM_FINGERPRINT(MD5(client_id))),
       os_chan_buckets(HH.os, HH.normalized_channel)

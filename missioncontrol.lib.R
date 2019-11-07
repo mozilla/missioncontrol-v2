@@ -131,7 +131,7 @@ make.a.model <- function(data,wh,channel='not-nightly',bff=NULL,list0=NULL,iter=
             M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version) ,sigma ~ os*nvc)
         }
         if(channel %in% c('nightly')){
-            M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m=1,k=3,by=os) + (1 + os | c_version) ,sigma ~ os)
+            M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + os*log(1+nvc) + (1 + os | c_version) ,sigma ~ os)
         }
         if(!is.null(bff)) M0 <- bff
     }

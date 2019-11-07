@@ -1,5 +1,4 @@
 processDownloadsWorked <- FALSE
-source("./missioncontrol.lib.R")
 operating.systems <- c("Windows_NT","Darwin","Linux","overall")
 message("Starting posteriors")
 

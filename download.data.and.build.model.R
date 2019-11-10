@@ -105,3 +105,17 @@ ci.cc.nightly <- label(value(ci.cc.nightly.f),'cci');loginfo("Finished Nightly c
 loginfo("Finished Nightly Models")
 
 loginfo("Finished Modelling")
+
+
+all.models <- list("cr.cm.rel"=cr.cm.rel,"cr.cc.rel"=cr.cc.rel,"ci.cm.rel"=ci.cm.rel,"ci.cc.rel"=ci.cc.rel,
+               "cr.cm.beta"=cr.cm.beta,"cr.cc.beta"=cr.cc.beta,"ci.cm.beta"=ci.cm.beta,"ci.cc.beta"=ci.cc.beta,
+               "cr.cm.nightly"=cr.cm.nightly,"cr.cc.nightly"=cr.cc.nightly,"ci.cm.nightly"=ci.cm.nightly,"ci.cc.nightly"=ci.cc.nightly)
+
+bad.models <- names(all.models)[ unlist(Map(function(i,m){
+    if(any( brms::rhat(m) >=1.1)) TRUE else FALSE
+},names(all.models),all.models))]
+if(length(bad.models)>0){
+    loginfo(glue("The following models has R-hats>1.1, be careful {f}",f=paste(bad.models,collapse=", ")))
+}
+               
+               

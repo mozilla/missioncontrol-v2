@@ -1,17 +1,16 @@
 # TODO: modify release for linux build_ids
-from contextlib import contextmanager
 import datetime as dt
-from functools import partial
 import os
 import re
 import sys
 import tempfile
+from contextlib import contextmanager
+from functools import partial
 
+import buildhub_bid as bh_bid
 import pandas as pd
 from pandas import DataFrame
 from pandas.testing import assert_frame_equal
-
-import buildhub_bid as bh_bid
 
 # import src.buildhub_bid as bh_bid
 
@@ -461,7 +460,7 @@ def pull_all_model_data(bq_read, sql_fname=SQL_FNAME):
 
     docs_beta = bh_bid.pull_build_id_docs()
     vers2bids_beta = bh_bid.version2build_id_str(docs_beta)
-    pd_beta, pd_beta_model, pd_beta_download = prod_det_process_beta(
+    pd_beta, _pd_beta_model, pd_beta_download = prod_det_process_beta(
         pd_all, vers2bids_beta
     )
 

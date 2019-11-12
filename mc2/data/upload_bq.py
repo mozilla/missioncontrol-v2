@@ -2,25 +2,57 @@ import subprocess
 import tempfile
 
 import numpy as np
+import pandas as pd
 from pandas import Series
 
 
-def delete_versions_OLD(df, query_func, table_name="wbeard_crash_rate_raw"):
+def dates_to_sql_str(dates):
     """
-    @df: DataFrame[[major, channel]]
-    Drop all unique (major, channel) values in `table_name`. To be used
+    Format dates for SQL templates
+
+    >>> from pandas import Timestamp
+    >>> dates_to_sql_str([Timestamp('2019-10-01 00:00:00'), Timestamp('2019-10-02 00:00:00')])
+    => "'2019-10-01', '2019-10-02'"
+    """
+    dates = [d.strftime("%Y-%m-%d") for d in dates]
+    return ", ".join(map("'{}'".format, dates))
+
+
+def delete_model_versions(
+    df,
+    query_func,
+    table_name,
+    project_id="moz-fx-data-shared-prod",
+    dataset="analysis",
+):
+    """
+    Drop rows from model table with same model_date
     before upload of new data.
     """
-    q_temp = (
-        "delete from `moz-fx-data-derived-datasets`.analysis.{table_name} where major={major:.0f} and channel='{channel}'"
-    )
-    for major, channel in (
-        df[["major", "channel"]].drop_duplicates().itertuples(index=False)
+    sql_dataset_name = "`{}`.{}".format(project_id, dataset)
+    del dataset
+    if not check_table_exists(
+        query_func, table_name, sql_dataset_name=sql_dataset_name
     ):
-        q = q_temp.format(table_name=table_name, major=major, channel=channel)
-        print("Executing `{}`...".format(q), end="")
-        query_func(q)
-        print(" Done.")
+        print("Table does not yet exist. Not dropping rows")
+        return
+    q_temp = """
+    delete from {sql_dataset_name}.{table_name}
+    where model_date in ({model_dates})
+    """
+    mdates_str = (
+        df.model_date.pipe(pd.to_datetime)
+        .drop_duplicates()
+        .pipe(dates_to_sql_str)
+    )
+    q = q_temp.format(
+        sql_dataset_name=sql_dataset_name,
+        table_name=table_name,
+        model_dates=mdates_str,
+    )
+    print("Executing {}".format(q), end="\n...")
+    query_func(q)
+    print(" Done.")
 
 
 def delete_versions(df, query_func, table_name="wbeard_crash_rate_raw"):
@@ -30,7 +62,7 @@ def delete_versions(df, query_func, table_name="wbeard_crash_rate_raw"):
     before upload of new data.
     """
     if not check_table_exists(query_func, table_name):
-        print('Table does not yet exist. Not dropping rows')
+        print("Table does not yet exist. Not dropping rows")
         return
     df = df[["channel", "c_version", "date"]]
     q_temp = (
@@ -43,8 +75,7 @@ def delete_versions(df, query_func, table_name="wbeard_crash_rate_raw"):
         .drop_duplicates()
         .groupby(["channel", "c_version"])
     ):
-        dates = [d.strftime("%Y-%m-%d") for d in gdf.date]
-        dates_str = ", ".join(map("'{}'".format, dates))
+        dates_str = dates_to_sql_str(gdf.date)
 
         q = q_temp.format(
             table_name=table_name,
@@ -57,19 +88,96 @@ def delete_versions(df, query_func, table_name="wbeard_crash_rate_raw"):
         print(" Done.")
 
 
-def check_table_exists(query_func, table_name):
+def make_model_upload_cmd(
+    json_fname, full_table_name_noticks, schema, overwrite: bool = False
+):
+    # True => 'true'
+    replace_val = str(bool(overwrite)).lower()
+    cmds = [
+        "bq",
+        "load",
+        "--replace=" + replace_val,
+        "--project_id=moz-fx-data-bq-data-science",
+        "--source_format=NEWLINE_DELIMITED_JSON",
+        full_table_name_noticks,
+        json_fname,
+        schema,
+    ]
+    return cmds
+
+
+def process_model_df(df):
+    return df.rename(columns=lambda x: x.replace(".", "_")).assign(
+        date=lambda x: x.date.astype(str),
+        major=lambda x: x.major.astype(int),
+        minor=lambda x: x.minor.astype(int),
+    )
+
+
+def run_model_upload(
+    query_func,
+    feather_fname,
+    json_fname=None,
+    table_name="missioncontrol_v2_model_output_test",
+    project_id="moz-fx-data-shared-prod",
+    dataset="analysis",
+    overwrite=False,
+):
+    """
+    Upload dataframe saved as feather file to `feather_fname`
+    up to BQ. Delete any rows if they have the same model date.
+    """
+    table_name_noticks = "{proj}:{dataset}.{table}".format(
+        proj=project_id, dataset=dataset, table=table_name
+    )
+
+    # Read, save df as json
+    df = pd.read_feather(feather_fname).pipe(process_model_df)
+    if json_fname is None:
+        json_fname = tempfile.NamedTemporaryFile(delete=False, mode="w+").name
+    print("Writing to temp file {}".format(json_fname))
+    df.to_json(json_fname, orient="records", lines=True)
+
+    # Generate schema
+    schema = get_schema(df, as_str=True, model_date="DATE")
+    load_cmd = make_model_upload_cmd(
+        json_fname=json_fname,
+        full_table_name_noticks=table_name_noticks,
+        schema=schema,
+        overwrite=overwrite,
+    )
+
+    # Delete potentially redundant rows
+    delete_model_versions(
+        df,
+        query_func,
+        table_name=table_name,
+        project_id=project_id,
+        dataset=dataset,
+    )
+
+    print("Uploading to {}".format(table_name_noticks))
+    res = run_command(load_cmd)
+    return res
+
+
+def check_table_exists(
+    query_func,
+    table_name,
+    sql_dataset_name="`moz-fx-data-derived-datasets`.analysis",
+):
     q = """
-    SELECT count(*) as exist FROM `moz-fx-data-derived-datasets`.analysis.__TABLES__
-    WHERE table_id='{}'
+    SELECT count(*) as exist FROM {dataset_name}.__TABLES__
+    WHERE table_id='{table_name}'
     """.format(
-        table_name
+        dataset_name=sql_dataset_name, table_name=table_name
     )
     [row] = query_func(q)
     [exists] = row.values()
     return bool(exists)
 
 
-def get_schema(df, as_str=False):
+def get_schema(df, as_str=False, **override):
     dtype_srs = df.dtypes
     dtype_srs.loc[dtype_srs == "category"] = "STRING"
     dtype_srs.loc[dtype_srs == "float64"] = "FLOAT64"
@@ -80,6 +188,10 @@ def get_schema(df, as_str=False):
         date="DATE", c_version_rel="DATE", major="INT64", minor="INT64"
     )
     dtype_srs.update(Series(manual_dtypes))
+    dtype_srs.update(Series(override))
+    missing_override_keys = set(override) - set(dtype_srs.index)
+    if missing_override_keys:
+        raise ValueError("Series missing keys {}".format(missing_override_keys))
 
     non_strings = dtype_srs.map(type).pipe(lambda x: x[x != str])
     if len(non_strings):
@@ -151,13 +263,3 @@ def run_command(cmd, success_msg="Success!"):
     else:
         print("Command Failed")
         print(output)
-
-
-# def upload(df, table_name="wbeard_crash_rate_raw", add_schema=False):
-#     cmd = mk_upload_cmd(df, table_name, add_schema=add_schema)
-#     success_msg = "Success! Data uploaded to {}".format(table_name)
-#     run_command(cmd, success_msg)
-
-
-# delete_versions(df, query_func, table_name="wbeard_crash_rate_raw")
-# upload(df, table_name="wbeard_crash_rate_raw", add_schema=False)

@@ -4,17 +4,17 @@
 # Optional:
 # pip install joblib
 
-from functools import partial
 import os
-from os.path import abspath, expanduser, exists
+from functools import partial
+from os.path import abspath, exists, expanduser
 
-import pandas as pd
 import fire
-from google.oauth2 import service_account  # noqa
+import pandas as pd
+from download_bq import download_raw_data, pull_all_model_data
 from google.cloud import bigquery  # noqa
+from google.oauth2 import service_account  # noqa
+from upload_bq import delete_versions, drop_table, run_model_upload, upload
 
-from download_bq import pull_all_model_data, download_raw_data
-from upload_bq import delete_versions, drop_table, upload
 
 # from src.download_bq import pull_all_model_data
 # from src.upload_bq import delete_versions, drop_table, upload
@@ -28,6 +28,10 @@ from upload_bq import delete_versions, drop_table, upload
 
 
 def strong_bool(b):
+    """
+    Make sure we don't accidentally pass a false string
+    in from bash that gets interpreted as true.
+    """
     if isinstance(b, bool):
         return b
     bool_map = {"True": True, "False": False}
@@ -88,6 +92,10 @@ def cache_reader(bq_read):
 
 
 def mk_query_func(creds_loc=None):
+    """
+    This function will block until the job is done...and
+    take a while if a lot of queries are repeatedly made.
+    """
     creds = get_creds(creds_loc=creds_loc)
     client = bigquery.Client(project=creds.project_id, credentials=creds)
 
@@ -99,6 +107,12 @@ def mk_query_func(creds_loc=None):
         return job
 
     return blocking_query
+
+
+def mk_query_func_async(creds_loc=None):
+    creds = get_creds(creds_loc=creds_loc)
+    client = bigquery.Client(project=creds.project_id, credentials=creds)
+    return client.query
 
 
 def dl_raw(
@@ -123,6 +137,27 @@ def dl_raw(
         outname=outname,
     )
     return fname
+
+
+def upload_model_data(
+    feather_fname,
+    creds_loc=None,
+    json_fname=None,
+    table_name="missioncontrol_v2_model_output",
+    project_id="moz-fx-data-shared-prod",
+    dataset="analysis",
+    overwrite=False,
+):
+    query_func = mk_query_func(creds_loc=creds_loc)
+    run_model_upload(
+        query_func,
+        feather_fname=feather_fname,
+        json_fname=json_fname,
+        table_name=table_name,
+        project_id=project_id,
+        dataset=dataset,
+        overwrite=overwrite,
+    )
 
 
 def main(
@@ -189,4 +224,6 @@ def main(
 
 
 if __name__ == "__main__":
-    fire.Fire({"main": main, "dl_raw": dl_raw})
+    fire.Fire(
+        {"main": main, "dl_raw": dl_raw, "upload_model_data": upload_model_data}
+    )

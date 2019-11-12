@@ -96,7 +96,7 @@ loginfo("Started Nightly Models")
 d.nightly <- dall.nightly2
 cr.cm.nightly.f <- future({ make.a.model(d.nightly,'cmr',channel='nightly',iter=8000,thin=5) })
 cr.cc.nightly.f <- future({ make.a.model(d.nightly,'ccr',channel='nightly',iter=8000,thin=5) })
-ci.cm.nightly.f <- future({ make.a.model(d.nightly,'cmi',channel='nightly',iter=8000,thin=5) })
+ci.cm.nightly.f <- future({ make.a.model(d.nightly,'cmi',channel='nightly',iter=12000,list0=list(adapt_delta = 0.99, max_treedepth=13)) })
 ci.cc.nightly.f <- future({ make.a.model(d.nightly,'cci',channel='nightly',iter=8000,thin=5) })
 cr.cm.nightly <- label(value(cr.cm.nightly.f),'cmr');loginfo("Finished Nightly cr.cm");
 cr.cc.nightly <- label(value(cr.cc.nightly.f),'ccr');loginfo("Finished Nightly cr.cc");

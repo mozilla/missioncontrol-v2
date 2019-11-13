@@ -158,6 +158,17 @@ def upload_model_data(
         dataset=dataset,
         overwrite=overwrite,
     )
+    full_sql_table_name = "`{}`.{}.{}".format(project_id, dataset, table_name)
+    print_rows(full_sql_table_name=full_sql_table_name, creds_loc=creds_loc)
+
+
+def print_rows(full_sql_table_name, creds_loc=None):
+    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
+    n_rows = bq_read_no_cache(
+        "select count(*) from {}".format(full_sql_table_name)
+    ).iloc[0, 0]
+    print("=> {} now has {} rows".format(full_sql_table_name, n_rows))
+    # `moz-fx-data-derived-datasets`.analysis.
 
 
 def main(
@@ -168,6 +179,7 @@ def main(
     drop_first: bool = False,
     return_df: bool = False,
     force: bool = False,
+    sql_dataset_name="`moz-fx-data-derived-datasets`.analysis",
 ):
     """
     Process and upload raw data. For debugging (including dropping the test table):
@@ -207,17 +219,13 @@ def main(
     print("Starting data pull")
     df_all = pull_all_model_data(bq_read)
 
-    delete_versions(df_all, query_func, table_name=table_name)
+    delete_versions(df_all, query_func=query_func, table_name=table_name)
     upload(df_all, table_name=table_name, add_schema=add_schema)
 
     # Double check: print how many rows
-    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
-    n_rows = bq_read_no_cache(
-        "select count(*) from `moz-fx-data-derived-datasets`.analysis.{}".format(
-            table_name
-        )
-    ).iloc[0, 0]
-    print("=> {} now has {} rows".format(table_name, n_rows))
+    print_rows(
+        "{}.{}".format(sql_dataset_name, table_name), creds_loc=creds_loc
+    )
 
     if return_df:
         return df_all

@@ -18,6 +18,17 @@ def dates_to_sql_str(dates):
     return ", ".join(map("'{}'".format, dates))
 
 
+def check_job_done(job):
+    """
+    Bigquery jobs are usually async. This will block
+    until they're done.
+    """
+    for i in job:
+        break
+    assert job.done(), "Uh oh, job not done??"
+    return job
+
+
 def delete_model_versions(
     df,
     query_func,

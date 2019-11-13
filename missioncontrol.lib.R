@@ -11,7 +11,7 @@ library(future)
 library(curl)
 library(feather)
 library(rmarkdown)
-library(future.apply)
+#library(future.apply)
 options(future.globals.maxSize= 850*1024^2 )
 Lapply <- lapply #future_lapply
 

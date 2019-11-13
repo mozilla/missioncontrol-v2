@@ -89,7 +89,7 @@ fittedTableForBQ <- function(thedata,models){
     newdata2 <- newdata2[,{
         tail(.SD[order(date),],1)
         },by=list(channel,os, c_version,major,minor)]
-    y <- cbind(newdata2[,list(date,channel,os,c_version,major,minor,nvc=originalnvc, nvcBaseline=nvc,cmr,ccr,cmi,cci)],getCredibleIntervals(newdata2,models))
+    y <- cbind(newdata2[,list(date,channel,os,c_version,major,minor,nvc=originalnvc, nvc_baseline=nvc,cmr,ccr,cmi,cci)],getCredibleIntervals(newdata2,models))
     colnames(y) <- gsub("\\.","_",colnames(y))
     y
 }

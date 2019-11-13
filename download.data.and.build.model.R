@@ -70,10 +70,10 @@ cr.cc.rel.f <- future({ make.a.model(d.rel,'ccr') })
 ci.cm.rel.f <- future({ make.a.model(d.rel,'cmi') })
 ci.cc.rel.f <- future({ make.a.model(d.rel,'cci') })
 
-cr.cm.rel <- label(value(cr.cm.rel.f),'cmr');loginfo("Finished Release cr.cm");
-cr.cc.rel <- label(value(cr.cc.rel.f),'ccr');loginfo("Finished Release cr.cc");
-ci.cm.rel <- label(value(ci.cm.rel.f),'cmi');loginfo("Finished Release ci.cm");
-ci.cc.rel <- label(value(ci.cc.rel.f),'cci');loginfo("Finished Release ci.cc");
+cr.cm.rel <- label(value(cr.cm.rel.f),'cmr');loginfo("Finished Release cr.cm"); 
+cr.cc.rel <- label(value(cr.cc.rel.f),'ccr');loginfo("Finished Release cr.cc"); 
+ci.cm.rel <- label(value(ci.cm.rel.f),'cmi');loginfo("Finished Release ci.cm"); 
+ci.cc.rel <- label(value(ci.cc.rel.f),'cci');loginfo("Finished Release ci.cc"); 
 
 loginfo("Finished Release Models")
 ## Beta Model

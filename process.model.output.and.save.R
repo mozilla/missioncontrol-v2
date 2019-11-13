@@ -114,6 +114,8 @@ loginfo(paste(res, collapse="\n"))
 if(any(grepl("(E|e)xception",res))|| any(grepl("(f|F)ailed",res))){
     logerror("Problem with Uploading Model Results")
     stop("Problem Uploading Model Results")
+}else{
+    loginfo("Successfully uploaded model results to missioncontrol_v2_model_output_test")
 }
 
 

@@ -107,7 +107,7 @@ runner <- glue('#!/bin/sh
 ## also bigquery utils(bqutils) needs to be initialized/logged in  else the uploads will fail
 # /home/sguha/anaconda3/bin/conda  activate mc2
 cd mc2
-python data/crud.py upload_model_data {atm}  --creds_loc "{BQCREDS}" --table_name=missioncontrol_v2_model_output_test',atm=atm)
+python data/crud.py upload_model_data {atm}  --creds_loc "{BQCREDS}" --table_name=missioncontrol_v2_model_output',atm=atm)
 writeLines(runner,con="./runner.sh")
 res  <- system2("sh", "./runner.sh",stderr=TRUE,stdout=TRUE)
 loginfo(paste(res, collapse="\n"))

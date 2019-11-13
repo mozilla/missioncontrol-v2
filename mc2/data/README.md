@@ -49,6 +49,16 @@ python data/crud.py dl_raw --channel release --n_majors 3 \
     --cache True
 ```
 
+Upload model posterior summaries, where `model_output.fth` is a feather format
+file with posterior information. Columns are assumed to have underscores
+instead of periods. This will first delete any rows in the specified database
+with the same `model_date` as in the dataframe. Note that this uploads to
+`moz-fx-data-shared-prod:analysis` by default.
+
+```bash
+python data/crud.py upload_model_data model_output.fth --table_name=missioncontrol_v2_model_output_test
+```
+
 
 # Strategy
 Most of the download functionality is in `download_bq.py`. The overall strategy to download everything is to

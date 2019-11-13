@@ -118,7 +118,16 @@ def make_model_upload_cmd(
 
 
 def process_model_df(df):
-    return df.rename(columns=lambda x: x.replace(".", "_")).assign(
+    def check_name(col):
+        err_msg = (
+            "Column name {} has wrong format. Should have `_` instead of `.`"
+        )
+        assert "." not in col, err_msg.format(col)
+
+        return col
+
+    assert "model_date" in df, "Model file missing `model_date` column"
+    return df.rename(columns=check_name).assign(
         date=lambda x: x.date.astype(str),
         major=lambda x: x.major.astype(int),
         minor=lambda x: x.minor.astype(int),

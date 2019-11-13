@@ -11,7 +11,8 @@ library(future)
 library(curl)
 library(feather)
 library(rmarkdown)
-
+library(future.apply)
+Lapply <- lapply #future_lapply
 
 if(!exists("missioncontrol.lib.R")){
     ## executed only once
@@ -245,200 +246,204 @@ get.evolution <- function(model, dataset){
     cbind(endingPoint[, list(c_version, os,major, minor, date, nvc=nvcActual)], ci.from.model)[order(os,major,minor,date),]
 }
 
-
-posteriorsTransForModel <- function(pc,nr){
-    ## the fact that prior version _might_ not have as many rows as current version
-    ## means nr wont be same for previous and current and this throws an error
-    ## basically dont do doLatest=FALSE for beta and nightly
-  ## Get Posterior Distribution of Relative Difference
-    versiona.post <- pc[1:nr,,drop=FALSE] 
-    versionb.post <- pc[(nr+1):(nr+nr),,drop=FALSE]
-    versionb.orig <- pc[(nr+nr+1):(nr+nr+nr),,drop=FALSE]
-    
-    reldifferences <- rbindlist(apply((versiona.post - versionb.post)/versionb.post,1,function(s){
-        data.table(lo=quantile(s,0.05,na.rm=TRUE),
-                   me = median(s,na.rm=TRUE), 
-                   hi = quantile(s,0.95,na.rm=TRUE),
-                   prReg = mean(s > 0.20,na.rm=TRUE),
-                   prImp = mean(s < -0.20,na.rm=TRUE)
-                   )
-    }))
-    ## Get Prob(VersionA>VersionB)
-    prob.a.gt.b <-as.numeric(sapply(1:nr,function(k){
-        x1 <- versiona.post[k,]
-        x2 <- versionb.post[k,]
-        prob <- mean(x1 > x2) # wilcox.test(x1,x2)
-        #prob$stat/(length(x1)*length(x2))
-    }))
-    
-    ## Summary means
-    means <-rbindlist(lapply(1:nr,function(k){
-        x1 <- versiona.post[k,]
-        x2 <- versionb.orig[k,]
-        data.table(versions=c('a','b'),
-                   lo = c(quantile(x1,0.05,na.rm=TRUE),quantile(x2,0.05,na.rm=TRUE)),
-                   me = c(quantile(x1,0.5,na.rm=TRUE),quantile(x2,0.5,na.rm=TRUE)),
-                   hi = c(quantile(x1,0.95,na.rm=TRUE),quantile(x2,0.95,na.rm=TRUE)))
-    }))
-    
-    reldifferences[, "probagtb" := prob.a.gt.b]
-    list(comparisons = reldifferences, summary= means)
-}
-
-compare.two.versions <- function(versiona, versionb,oschoice, dataset,model,doLatest=TRUE,normalizeNVC=TRUE){
-  ## compare versionb to versiona(base)
-  ## using model, labelled as crashtype
-  ## Take data corresponding to versiona
-  ## Take data correspnding to versionb and set its nvc to the value found in versiona
-  ## (in other words, how would versionb performed at versiona's adoption levels)
-  ## Fit these two data sets for every day present for them
-  ## and based on posterior estimates of rates and incidences
-  ## If we want the adoption figure (release yes, beta no , neightly no (doLatest))
-  ## a) Compute posterior distribution of relative difference for every day since release
-  ## For all
-  ## b) As of latest day, compute posterior distribution of relative difference
-  ## c) As of latest day, compute Prob(VersionA > Versionb) for differet incidences
-    versiona.data <- if(oschoice=="overall"){
-                         dataset[c_version %in% versiona ,]
-                     }else{
-                         dataset[c_version %in% versiona & os %in% oschoice,]
-                     }
-    versiona.data[, "since" := as.numeric(date - min(date)), by=list(os,c_version),]
-    if(any(nrow(versiona.data)==0)) stop(glue("Version A: {versiona} has no data"))
-    versionb.data <- if(oschoice=="overall") {
-                         dataset[c_version %in% versionb ,][order(date),]
-                     }else{
-                         dataset[c_version %in% versionb & os %in% oschoice,][order(date),]
-                     }
-    if(oschoice=="overall"){
-#        browser()
-        af <- versiona.data[, list(n=.N),by=os]
-        versionb.data <- versionb.data[, head(.SD[order(date),],max(0,af[af$os==.BY$os,n])),by=os]
+makePredictions <- function(model,D){
+    if(is.null(model$scope)){
+        a <- getPredictions(model, D)
     }else{
-        versionb.data <- head(versionb.data,nrow(versiona.data))
-    }
-    versionb.data[, "since" := as.numeric(date - min(date)), by=list(os,c_version),]
-    if(doLatest || oschoice=="overall"){
-        versiona.data <- versiona.data[,
-                                       tail(.SD[order(date),],1), by=list(os,c_version)][order(os,c_version,date),]
-        versionb.data <- versionb.data[,
-                                       tail(.SD[order(date),],1), by=list(os,c_version)][order(os,c_version,date),]
-    }
-    if(nrow(versiona.data) > nrow(versionb.data)){
-        g <- versionb.data[,  {
-            AS <- since
-            A1 <- versiona.data[os==.BY$os,]
-            A1 <- A1[!A1$since %in% AS,]            
-            A1$c_version = versionb
-            A1$os <- NULL
-            A1
-        },by=os]
-        versionb.data <- versionb.data[, .SD, by=os]
-        versionb.data <- rbind(versionb.data,g)[order(os,c_version,since),]
-    }
-    versionb.data.orig <- copy(versionb.data)
-    versionb.data <- versionb.data[order(os,date),];versiona.data <- versiona.data[order(os,date),]
-    versionb.data[, nvc :=  head(versiona.data$nvc,nrow(versionb.data))]
-    D <- rbind(versiona.data[,clz := "A"], versionb.data[,clz:='B'],versionb.data.orig[, clz := 'BO'])
-    if(oschoice=='overall'){
-        D <- D[, mw :=  usage_cversion/sum(usage_cversion)  ,by=list(clz,date)]
-    }
-    if(normalizeNVC){
-        pp=adoptionsCompare(DF=TRUE)
-        D <- merge(D,pp,by=c("os","channel"))
-        D[, nvcActual := nvc]; D[, nvc := adopt];
-    }
-
-    callAndEdit <- function(model,D, vaData,vbData,squashOS=FALSE){
-      if(is.null(model$scope)){
-          a <- getPredictions(model, D)
-      }else{
-          if(model$scope=='rate'){
-              a1 <- getPredictions(model$mr, D)
-              a2 <- getPredictions(model$cr,D)
-          }else{
-              a1 <- getPredictions(model$mi, D)
-              a2 <- getPredictions(model$ci,D)
-          }
-          a <- a1+a2
-      }
-      Mean <- function(s) exp(mean(log(s+1/100)))-1/100
-      if(squashOS==TRUE ){
-          osInfo <- D[,  list(os, date,c_version,clz)]
-          x <- cbind(osInfo, a)
-          ab <- x[,{
-              as.list(apply(.SD[,-1],2,Mean))
-          },by=list(date,c_version,clz)]
-          a <- as.matrix(ab[, -c(1,2,3)])
-      }
-    b <- posteriorsTransForModel(a,if(squashOS) nrow(vaData[, 1,by=list(date,c_version)]) else nrow(vaData))
-    comparisons <- b$comparison; summa <- b$summary
-    comparisons[,'label' :=  ifelse(is.null(model$scope),attr(model, 'model.type'),model$scope)]
-    summa[,'label' :=  ifelse(is.null(model$scope), attr(model, 'model.type'),model$scope)]
-    list(comparisons=comparisons, summary = summa,squashOS=squashOS)
-  }
-
-  
-  j <- list(callAndEdit(model$mr,D,versiona.data,squashOS=oschoice=="overall"),
-            callAndEdit(model$cr,D,versiona.data,squashOS=oschoice=="overall"),
-            callAndEdit(list(scope='rate',cr=model$cr,mr=model$mr),D,versiona.data,squashOS=oschoice=="overall"),
-            callAndEdit(model$mi,D,versiona.data,squashOS=oschoice=="overall"),
-            callAndEdit(model$ci,D,versiona.data,squashOS=oschoice=="overall"),
-            callAndEdit(list(scope='incidence',ci=model$ci,mi=model$mi),D,versiona.data,squashOS=oschoice=="overall")
-            )
-            
-  
-    j0 <- rbindlist(lapply(j, function(s) s$comparisons))
-    j0[, ":="(versiona = paste(as.character(versiona),collapse=","),
-              versionb=paste(as.character(versionb),collapse=","),
-              os=paste(oschoice,collapse=","))]
-    if(doLatest || oschoice=="overall"){
-        ## it is frustrating that linux makes things messy
-        ## in oschoice ='overall', there should be the same date for all os
-        ## given a version, yet Linux shows a different one
-        ## setting it to the same as Windows
-        fixMuls <- function(s){
-            if(length(unique(s$date)) > 1) {
-                s[os=='Linux', date := s[os=='Windows_NT',date]]
-            }
-            return(s)
+        if(model$scope=='rate'){
+            a1 <- getPredictions(model$mr, D)
+            a2 <- getPredictions(model$cr,D)
+        }else{
+            a1 <- getPredictions(model$mi, D)
+            a2 <- getPredictions(model$ci,D)
         }
-        versiona.data <- fixMuls(versiona.data)
-        versionb.data <- fixMuls(versionb.data)
-        versionb.data.orig <- fixMuls(versionb.data.orig)
+        a <- a1+a2
     }
-    
-    nvc  <- c(rbind(versiona.data[, list(nvc=sum(nvc)),by=list(date)]$nvc,
-                    versionb.data.orig[,list(nvc=sum(nvc)),by=list(date)]$nvc ))
-    dates  <- as.Date(c(rbind( versiona.data[, list(date=min(date)), by=date]$date,
-                              versionb.data.orig[,list(date=min(date)), by=date]$date)),
-                      origin='1970-01-01')
-    dau  <- c(rbind(versiona.data[, list(dau_all=sum(dau_all)),by=date]$dau_all,
-                    versionb.data.orig[, list(dau_all=sum(dau_all)),by=date]$dau_all))
-    dau_c  <- c(rbind(versiona.data[, list(dau_cversion=sum(dau_cversion)),by=date]$dau_cversion,
-                    versionb.data.orig[, list(dau_cversion=sum(dau_cversion)),by=date]$dau_cversion))
-    j1 <- rbindlist(lapply(j, function(s){
-        a <- s$summary
-        a[,":="(date= dates, nvc = nvc,dau=dau,dau_c=dau_c)]
-        a
-    }))
-    if(oschoice=="overall"){
-        usgTable <- dataset[c_version  %in% versiona,][date==max(date),]
-        usgTable <- usgTable[, list(nvc=sum(usage_cversion)/sum(usage_all),call=sum(call), dau_cversion=sum(dau_cversion))]
-    }else{
-        usgTable <- dataset[c_version %in% versiona &  os %in% oschoice,][order(date),]
-        usgTable <- tail(usgTable,1)[, list(nvc,call,dau_cversion) ]
-    }
-    list(comparison =   cbind(
-             versiona.data[, list(dau=sum(dau),dau_cversion=sum(dau_cversion), nvc=sum(usage_cversion)/sum(usage_all)),by=date ],
-             j0)[order(date),]
-       , summary = j1[order(versions,date),],usgTable = usgTable,
-         daysSinceRelease=as.numeric(Sys.Date()-min(versiona.data$date)),
-         versiona = versiona,versionb=versionb
-         )
+    a
 }
-#
-#compare.two.versions('69.0','68.0.2','Darwin', dall.rel2,model,FALSE)
+
+compare.two.versions.2 <- function(versiona,versionb,oschoice,
+                             dataset,model, doLatest=TRUE,normalizeNVC=TRUE){
+    ## oschoice is one of Windows_NT,Linux, Darwin
+    ## 'overall' is handled differently
+                                 
+    smz_fits <- function(m,D,oschoice,predsOnly=FALSE){
+        Mean <- function(s) exp(mean(log(s+1/100)))-1/100
+        predictions <- makePredictions(m,D)
+        if(oschoice=="overall"){
+            ab <- cbind(D[,list(date=date)],predictions)[, { as.list(apply(.SD[,-1],2,Mean)) },
+                                                         by=date]
+            predictions <- as.matrix(ab[, -c(1)])
+        }
+        if(predsOnly) return(predictions)
+        label <-  ifelse(is.null(m$scope), attr(m, 'model.type'),m$scope)
+        data.table(label=label,
+                   lo = apply(predictions,1, quantile, 0.05, na.rm = TRUE),
+                   me = apply(predictions,1, quantile, 0.5,  na.rm = TRUE),
+                   hi = apply(predictions,1, quantile, 0.90, na.rm = TRUE))
+    }
+    prep_data <- function(versiona.data,oschoice,normalizeNVC){
+        ## when nvc is normalized no point in using all rows, it will be same predictions,so use last
+        versiona.data <- versiona.data[, tail(.SD[order(date),],if(normalizeNVC) 1 else Inf),by=os]
+        ## to prevent weirdness in 'overall' we dont want only dates were windows exists
+        ## which means there might be some dates where the overall score is not based on Linux
+        ## because Linux is weeird and someetimes we dont get data for Linux
+        droppedOS <- FALSE
+        if(oschoice=='overall'){
+            n1 <- nrow(versiona.data)
+            versiona.data <- versiona.data[date %in% versiona.data[os=='Windows_NT',date],]
+            if(nrow(versiona.data)<n1) {
+                droppedOS <- TRUE
+                }
+        }
+        
+         versiona.fit.data <- versiona.data[, list(
+             date,channel,cmain, ccontent, dau=dau_all,dau_c=dau_cversion,
+             dau_cm_crasher_cversion,dau_cc_crasher_cversion,
+            usage_cm_crasher_cversion,usage_cc_crasher_cversion,usage_all,usage_cversion,
+            dau_cversion, nvcOriginal=nvc,
+            os, c_version)]
+        
+        if(normalizeNVC) {
+            versiona.fit.data <- merge(versiona.fit.data,adoptionsCompare(DF=TRUE)[,list(channel,os,nvc=adopt)],by=c("channel","os"))
+        }else {
+            versiona.fit.data[, nvc:=nvcOriginal]
+        }
+
+        return(list(droppedOS=droppedOS, versiona.data=versiona.data, versiona.fit.data=versiona.fit.data))
+    }
+        
+    make_cmp_dt <- function(versiona.data, dmodel, versiona,versionb,oschoice, normalizeNVC){
+        ## Same functions a make_smz_dt
+        da <- prep_data(versiona.data,oschoice, normalizeNVC)
+        va.data <- da$versiona.data
+        va.fit.data <- da$versiona.fit.data
+        da.fits <- smz_fits(dmodel, va.fit.data,oschoice,predsOnly=TRUE)
+        db.fits <- smz_fits(dmodel, copy(va.fit.data)[, c_version:=versionb][,],oschoice,predsOnly=TRUE)
+        reldifferences <- rbindlist(apply((da.fits - db.fits)/db.fits,1,function(s){
+            data.table(lo=quantile(s,0.05,na.rm=TRUE),
+                       me = median(s,na.rm=TRUE), 
+                       hi = quantile(s,0.95,na.rm=TRUE),
+                       prReg = mean(s > 0.20,na.rm=TRUE),
+                       prImp = mean(s < -0.20,na.rm=TRUE)
+                       )
+        }))
+        if(oschoice!='overall'){
+            cbind(va.fit.data[,list(date,dau,dau_cversion, nvc=nvcOriginal)],reldifferences,
+                  data.table(label=ifelse(is.null(dmodel$scope), attr(dmodel, 'model.type'),dmodel$scope),
+                             versiona=versiona,versionb=versionb, os=oschoice))
+        }else{
+            va.fit.data.agg <- va.fit.data[,list(dau=sum(dau),dau_cversion=sum(dau_cversion),nvc=sum(usage_cversion)/sum(usage_all)),by=date]
+            cbind(va.fit.data.agg,reldifferences,
+                  data.table(label=ifelse(is.null(dmodel$scope), attr(dmodel, 'model.type'),dmodel$scope),
+                             versiona=versiona,versionb=versionb, os=oschoice))
+        }
+    }
+    make_smz_dt <- function(versiona.data, dmodel, oschoice, normalizeNVC){
+        ## The estimates of crash rate are made at certain NVC values
+        ## (median) So that we can compare apples to apples. For example a
+        ## cversion might have been adopted by only 10% and another by
+        ## 25%, how can we compare the 'true' crash rate taking into
+        ## account the adoption effect?  By comparing at same nvc.
+        ## Let's get the different type of crash rates
+        
+        ## when nvc is normalized no point in using all rows, it will be same predictions,so use last
+        x <- prep_data(versiona.data, oschoice, normalizeNVC)
+        droppedOS <- x$droppedOS
+        versiona.data <- x$versiona.data
+        versiona.fit.data <- x$versiona.fit.data
+        if(droppedOS){
+            loginfo(glue("In computation of {oschoice} for {ch}, an OS might have been dropped during mean calcs",ch=versiona.data$os[1]))
+        }
+        if(normalizeNVC) {
+            versiona.fit.data <- merge(versiona.fit.data,adoptionsCompare(DF=TRUE)[,list(channel,os,nvc=adopt)],by=c("channel","os"))[, nvc:=nvc.y]
+        }else {
+            versiona.fit.data[, nvc:=nvcOriginal]
+        }
+        res <- if(oschoice!="overall"){
+                   do.call(cbind, list(versiona.fit.data[,list(date,nvc=nvcOriginal, dau, dau_c)],  smz_fits(dmodel, versiona.fit.data,oschoice )))
+               }else{
+                   versiona.fit.data.agg <- versiona.fit.data[,list(nvc=sum(usage_cversion)/sum(usage_all),dau=sum(dau),dau_c=sum(dau_c)),by=date]
+                   fits <- smz_fits(dmodel, versiona.fit.data,oschoice )
+                   cbind(versiona.fit.data.agg,fits)
+               }
+        res[, droppedOS:=droppedOS]
+        res
+    }
+                                 
+                                 
+                                 
+    make_usage <- function(da, va, osc){
+        if(osc!="overall"){
+            tail(da[c_version==va & os==osc, ][order(date),][,list(nvc=nvc, call=call,dau_cversion=dau_cversion)],1)
+        }else{
+            da[c_version==va,][date==max(date),][,list(nvc = sum(usage_cversion)/sum(usage_all),call=sum(call),dau_cversion=sum(dau_cversion))]
+        }
+    }
+                                 
+        
+    r <- list()
+    r$usgTable <- make_usage(dataset, versiona,oschoice)
+    r$versiona <- versiona
+    r$versionb <- versionb
+    r$daysSinceRelease <- dataset[c_version==versiona & os==oschoice, .N]
+
+    ## ##########################################################
+    ## Summaries
+    ## ##########################################################
+
+    ## Version A summary
+    versiona.data <-if(oschoice=='overall') {
+                        dataset[c_version==versiona , ][order(date), ]
+                    }else{
+                        dataset[c_version==versiona & os==oschoice, ][order(date), ]
+                    }
+    make_smz_dt(versiona.data, model$mr, oschoice, normalizeNVC)
+    versiona.smzs <- do.call(rbind, list(
+                                        make_smz_dt(versiona.data, model$mr, oschoice, normalizeNVC),
+                                        make_smz_dt(versiona.data, model$cr, oschoice, normalizeNVC),
+                                        make_smz_dt(versiona.data, list(scope='rate',cr=model$cr,mr=model$mr), oschoice, normalizeNVC),
+                                        make_smz_dt(versiona.data, model$mi, oschoice, normalizeNVC),
+                                        make_smz_dt(versiona.data, model$ci, oschoice, normalizeNVC),
+                                        make_smz_dt(versiona.data, list(scope='incidence',ci=model$ci,mi=model$mi), oschoice, normalizeNVC)))
+
+    ## Version B Summary
+    versionb.data <-if(oschoice=='overall') {
+                        dataset[c_version==versionb , ][order(date), ]
+                    }else{
+                        dataset[c_version==versionb & os==oschoice, ][order(date), ]
+                    }
+    versionb.smzs <- do.call(rbind, list(
+                                        make_smz_dt(versionb.data, model$mr, oschoice, normalizeNVC),
+                                        make_smz_dt(versionb.data, model$cr, oschoice, normalizeNVC),
+                                        make_smz_dt(versionb.data, list(scope='rate',cr=model$cr,mr=model$mr), oschoice, normalizeNVC),
+                                        make_smz_dt(versionb.data, model$mi, oschoice, normalizeNVC),
+                                        make_smz_dt(versionb.data, model$ci, oschoice, normalizeNVC),
+                                        make_smz_dt(versionb.data, list(scope='incidence',ci=model$ci,mi=model$mi), oschoice, normalizeNVC)))
+
+    ## Combine Version A and Version B summaries
+    r$summary  <- rbind(versiona.smzs[, "versions":='a'], versionb.smzs[, "versions":='b'])
+
+    ## ##########################################################
+    ## Relative Comparisons
+    ## Produce key results for dates of comparison
+    ## lo,me,hi of Relative Difference
+    ## Prob of Regression and Prob of Improvement
+    ## We assume Version B has the same adoption as Version A
+    ## and compare them 
+    ## ##########################################################
+    ab.cmp <- do.call(rbind, list(
+                                 make_cmp_dt(versiona.data, model$mr,versiona,versionb, oschoice, normalizeNVC),
+                                 make_cmp_dt(versiona.data, model$cr, versiona,versionb,oschoice, normalizeNVC),
+                                 make_cmp_dt(versiona.data, list(scope='rate',cr=model$cr,mr=model$mr), versiona,versionb,oschoice, normalizeNVC),
+                                 make_cmp_dt(versiona.data, model$mi, versiona,versionb,oschoice, normalizeNVC),
+                                 make_cmp_dt(versiona.data, model$ci,versiona,versionb, oschoice, normalizeNVC),
+                                 make_cmp_dt(versiona.data, list(scope='incidence',ci=model$ci,mi=model$mi), versiona,versionb,oschoice, normalizeNVC)))
+    r$comparison=ab.cmp
+    r
+    
+}
+
 
 getCurrentVersion <- function(D,s, channel){
     if(s=="overall") s <- "Windows_NT"

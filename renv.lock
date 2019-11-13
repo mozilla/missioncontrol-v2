@@ -529,10 +529,10 @@
     },
     "nlme": {
       "Package": "nlme",
-      "Version": "3.1-141",
+      "Version": "3.1-142",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "be8db89838a17117a4083e72350443e0"
+      "Hash": "461440bd0af49208d6ec9be46ad1e5de"
     },
     "openssl": {
       "Package": "openssl",

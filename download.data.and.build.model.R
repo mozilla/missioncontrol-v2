@@ -1,7 +1,7 @@
 setwd("~/missioncontrol-v2/")
 source("missioncontrol.lib.R")
 
-BQCREDS <- "~/gcloud.json"
+
 
 loginfo("Starting Downloading Data")
 
@@ -94,10 +94,10 @@ loginfo("Finished Beta Models")
 
 loginfo("Started Nightly Models")
 d.nightly <- dall.nightly2
-cr.cm.nightly.f <- future({ make.a.model(d.nightly,'cmr',channel='nightly',iter=10000) })
-cr.cc.nightly.f <- future({ make.a.model(d.nightly,'ccr',channel='nightly',iter=10000) })
-ci.cm.nightly.f <- future({ make.a.model(d.nightly,'cmi',channel='nightly',iter=10000,list0=list(adapt_delta = 0.99, max_treedepth=13)) })
-ci.cc.nightly.f <- future({ make.a.model(d.nightly,'cci',channel='nightly',iter=10000) })
+cr.cm.nightly.f <- future({ make.a.model(d.nightly,'cmr',channel='nightly',iter=4000) })
+cr.cc.nightly.f <- future({ make.a.model(d.nightly,'ccr',channel='nightly',iter=4000) })
+ci.cm.nightly.f <- future({ make.a.model(d.nightly,'cmi',channel='nightly',iter=4000,list0=list(adapt_delta = 0.99, max_treedepth=13)) })
+ci.cc.nightly.f <- future({ make.a.model(d.nightly,'cci',channel='nightly',iter=4000) })
 cr.cm.nightly <- label(value(cr.cm.nightly.f),'cmr');loginfo("Finished Nightly cr.cm");
 cr.cc.nightly <- label(value(cr.cc.nightly.f),'ccr');loginfo("Finished Nightly cr.cc");
 ci.cm.nightly <- label(value(ci.cm.nightly.f),'cmi');loginfo("Finished Nightly ci.cm");
@@ -119,4 +119,7 @@ if(length(bad.models)>0){
 }
                
                
-save(all.models, dall.rel2,dall.beta2,dall.nightly2,file="all.the.data.temporary.Rdata")
+save(cr.cm.rel,cr.cc.rel,ci.cm.rel,ci.cc.rel,
+     cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta,
+     cr.cm.nightly,cr.cc.nightly,ci.cm.nightly,
+     dall.rel2,dall.beta2,dall.nightly2,file="all.the.data.temporary.Rdata")

@@ -12,7 +12,10 @@ library(curl)
 library(feather)
 library(rmarkdown)
 library(future.apply)
+options(future.globals.maxSize= 850*1024^2 )
 Lapply <- lapply #future_lapply
+
+BQCREDS <- "~/gcloud.json"
 
 if(!exists("missioncontrol.lib.R")){
     ## executed only once
@@ -69,7 +72,7 @@ fitFromModel <- function(date,ch,newdata,normalizeNVC=TRUE,loc=getArchiveLoc(),b
              }else if(ch=='nightly'){
                  list( mr=x$cr.cm.nightly,cr=x$cr.cc.nightly,mi=x$ci.cm.nightly,ci=x$ci.cc.nightly)
              }else stop("bad channel")
-        y <- cbind(data.table(modelDate = d,channel=ch),getCredibleIntervals(newdata2,M))
+        y <- cbind(data.table(model_date = d,channel=ch),getCredibleIntervals(newdata2,M))
         if (is(bindData,"data.frame")){
            y <-  cbind(bindData,y)
         }
@@ -86,7 +89,9 @@ fittedTableForBQ <- function(thedata,models){
     newdata2 <- newdata2[,{
         tail(.SD[order(date),],1)
         },by=list(channel,os, c_version,major,minor)]
-    cbind(newdata2[,list(date,channel,os,c_version,major,minor,nvc=originalnvc, nvcBaseline=nvc,cmr,ccr,cmi,cci)],getCredibleIntervals(newdata2,models))
+    y <- cbind(newdata2[,list(date,channel,os,c_version,major,minor,nvc=originalnvc, nvcBaseline=nvc,cmr,ccr,cmi,cci)],getCredibleIntervals(newdata2,models))
+    colnames(y) <- gsub("\\.","_",colnames(y))
+    y
 }
     
 ## Example:
@@ -266,7 +271,6 @@ compare.two.versions.2 <- function(versiona,versionb,oschoice,
                              dataset,model, doLatest=TRUE,normalizeNVC=TRUE){
     ## oschoice is one of Windows_NT,Linux, Darwin
     ## 'overall' is handled differently
-                                 
     smz_fits <- function(m,D,oschoice,predsOnly=FALSE){
         Mean <- function(s) exp(mean(log(s+1/100)))-1/100
         predictions <- makePredictions(m,D)
@@ -353,7 +357,9 @@ compare.two.versions.2 <- function(versiona,versionb,oschoice,
         versiona.data <- x$versiona.data
         versiona.fit.data <- x$versiona.fit.data
         if(droppedOS){
-            loginfo(glue("In computation of {oschoice} for {ch}, an OS might have been dropped during mean calcs",ch=versiona.data$os[1]))
+            loginfo(glue("In computation of {oschoice} for {ch},version:{v}  an OS might have been dropped during mean calcs",ch=versiona.data$channel[1]
+                         ,v = versiona.data$c_version[1]
+                         ))
         }
         if(normalizeNVC) {
             versiona.fit.data <- merge(versiona.fit.data,adoptionsCompare(DF=TRUE)[,list(channel,os,nvc=adopt)],by=c("channel","os"))[, nvc:=nvc.y]
@@ -398,7 +404,6 @@ compare.two.versions.2 <- function(versiona,versionb,oschoice,
                     }else{
                         dataset[c_version==versiona & os==oschoice, ][order(date), ]
                     }
-    make_smz_dt(versiona.data, model$mr, oschoice, normalizeNVC)
     versiona.smzs <- do.call(rbind, list(
                                         make_smz_dt(versiona.data, model$mr, oschoice, normalizeNVC),
                                         make_smz_dt(versiona.data, model$cr, oschoice, normalizeNVC),

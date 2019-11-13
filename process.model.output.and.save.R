@@ -5,8 +5,8 @@ loginfo("Starting posteriors")
 ## The %<% is a future, see https://cran.r-project.org/web/packages/future/future.pdf
 ## search for 'future' function.
 
-release.current.vs.previous %<-% lapply(operating.systems,function(os){
-    compare.two.versions(versiona = getCurrentVersion(dall.rel2,os,'release'),
+release.current.vs.previous %<-% Lapply(operating.systems,function(os){
+    compare.two.versions.2(versiona = getCurrentVersion(dall.rel2,os,'release'),
                          versionb = getPreviousVersion(dall.rel2,os,'release'),
                          oschoice = os,
                          dataset  = dall.rel2,
@@ -14,8 +14,8 @@ release.current.vs.previous %<-% lapply(operating.systems,function(os){
                          doLatest = FALSE)
 })
 
-release.current.vs.previous.realNVC %<-% lapply(operating.systems,function(os){
-    compare.two.versions(versiona = getCurrentVersion(dall.rel2,os,'release'),
+release.current.vs.previous.realNVC %<-% Lapply(operating.systems,function(os){
+    compare.two.versions.2(versiona = getCurrentVersion(dall.rel2,os,'release'),
                          versionb = getPreviousVersion(dall.rel2,os,'release'),
                          oschoice = os,
                          dataset  = dall.rel2,
@@ -25,8 +25,8 @@ release.current.vs.previous.realNVC %<-% lapply(operating.systems,function(os){
 })
 
 
-  beta.current.vs.previous  %<-% lapply(operating.systems,function(os){
-    compare.two.versions(versiona = getCurrentVersion(dall.beta2,os,'beta'),
+beta.current.vs.previous  %<-% Lapply(operating.systems,function(os){
+    compare.two.versions.2(versiona = getCurrentVersion(dall.beta2,os,'beta'),
                          versionb = getPreviousVersion(dall.beta2,os,'beta'),
                          oschoice = os,
                          dataset  = dall.beta2,
@@ -38,8 +38,8 @@ release.current.vs.previous.realNVC %<-% lapply(operating.systems,function(os){
 ## It doesn't make sense to set the previous version something that is yesterdays
 ## There is so little data. Might as well set it to some version with at least 
 
-  nightly.current.vs.previous  %<-% lapply(operating.systems,function(os){
-    compare.two.versions(versiona = getPreviousVersion(dall.nightly2,os,'nightly'),
+nightly.current.vs.previous  %<-% Lapply(operating.systems,function(os){
+    compare.two.versions.2(versiona = getPreviousVersion(dall.nightly2,os,'nightly'),
                          versionb = getMaxVersionBeforeX(dall.nightly2, os,'nightly',
                                                          c(getCurrentVersion(dall.nightly2,os,'beta'),getPreviousVersion(dall.nightly2,os,'nightly'))),
                          oschoice = os,
@@ -123,10 +123,12 @@ save.list <- list(
     "nightly.current.vs.previous","nightly.usage","nightly.summary","nightly.evolution"  
 )
 save(list=unlist(save.list),file=data.file)
-system(glue("cp {data.file} ./all.the.data.Rdata"))
 
-system(glue("gsutil cp {data.file}  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/archive/"))
-system(glue("gsutil cp all.the.data.Rdata  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/archive/"))
-loginfo(glue("Data file saved at   gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/archive/{data.file}. Download using gsutil cp"))
+if(!exists("debugg")){
+    system(glue("cp {data.file} ./all.the.data.Rdata"))
+    system(glue("gsutil cp {data.file}  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/archive/"))
+    system(glue("gsutil cp all.the.data.Rdata  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/archive/"))
+    loginfo(glue("Data file saved at   gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/archive/{data.file}. Download using gsutil cp"))
+}
 
 

@@ -1,5 +1,5 @@
 source("missioncontrol.lib.R")
-load("all.the.data.Rdata")
+#load("all.the.data.Rdata")
 
 system("rm -rf ~/html")
 dir.create("~/html")
@@ -13,9 +13,11 @@ genf <- function(D,ch=c("release beta nightly faq")){
         if(grepl("release",ch)) render("mc2/release.Rmd",quiet = renderQuiet,params=list(dest=D));
         if(grepl("beta",ch)) render("mc2/beta.Rmd",quiet = renderQuiet,params=list(dest=D));
         if(grepl("nightly",ch)) render("mc2/nightly.Rmd",quiet = renderQuiet,params=list(dest=D))
-        if(grepl("faq",ch)) render("mc2/faq.Rmd",quiet = renderQuiet,params=list(dest=D))        
+        if(grepl("faq",ch)) render("mc2/faq.Rmd",quiet = renderQuiet,params=list(dest=D))
         system("rsync  --exclude '*py' --exclude '*cache' --exclude 'data' --exclude 'tests'  -az mc2/ ~/html/public/")
-        system(glue("gsutil -q -m rsync -d -r  ~/html/public/  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/public/"))
+        if(!exists("debugg")){
+            system(glue("gsutil -q -m rsync -d -r  ~/html/public/  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/public/"))
+        }
     }else if(D=="moco"){
         if(grepl("release",ch)) render("mc2/release.Rmd",quiet = renderQuiet,params=list(dest=D));
         if(grepl("beta",ch)) render("mc2/beta.Rmd",quiet = renderQuiet,params=list(dest=D));
@@ -24,9 +26,11 @@ genf <- function(D,ch=c("release beta nightly faq")){
         system("rsync  --exclude '*py' --exclude '*cache' --exclude 'data' --exclude 'tests'  -az mc2/ ~/html/private/")
         system(glue("mkdir ~/html//archive/{loc}; rsync -az ~/html/private/  ~/html/archive/{loc}/",
                     loc=dall.rel2[,max(date)]))
-        system(glue("gsutil -q -m rsync -d -r  ~/html/private/  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/private/"))
-        system(glue("gsutil -q -m rsync -d  -r ~/html/archive/{loc}/  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/archive/{loc}/"
-                  , loc=dall.rel2[,max(date)]))
+        if(!exists("debugg")){
+            system(glue("gsutil -q -m rsync -d -r  ~/html/private/  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/private/"))
+            system(glue("gsutil -q -m rsync -d  -r ~/html/archive/{loc}/  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/archive/{loc}/"
+                      , loc=dall.rel2[,max(date)]))
+        }
     }
 }
 

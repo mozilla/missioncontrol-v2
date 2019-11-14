@@ -78,16 +78,17 @@ function create_gnu_index ()
 
 }
 
+
 gcloud beta compute instances --project "moz-fx-dev-sguha-rwasm" start  "instance-1"
 sleep 10
-gcloud beta compute  --project "moz-fx-dev-sguha-rwasm" ssh  "instance-1" --command " cd /home/sguha/missioncontrol-v2 ; rm -rf logfile; sh complete.runner.sh  2>&1 | tee logfile"
+gcloud beta compute  --project "moz-fx-dev-sguha-rwasm" ssh  "instance-1" --ssh-flag="ConnectTimeout=10" --ssh-flag="ConnectionAttempts=2" --command " cd /home/sguha/missioncontrol-v2 ; rm -rf logfile; sh complete.runner.sh  2>&1 | tee logfile"
 rc=$?;
 rc=0
 if [[ $rc -eq 0 ]];  then
     rm -rf /tmp/private
     rm -rf /tmp/public
     mkdir -p /tmp/private /tmp/public
-#    gsutil -q -m rsync -d -r gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/private/ /tmp/private/ && rsync -az /tmp/private/ ~/mz/missioncontrol/ex1/mc2/
+    gsutil -q -m rsync -d -r gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/private/ /tmp/private/ && rsync -az /tmp/private/ ~/mz/missioncontrol/ex1/mc2/
     printf -v date '%(%Y-%m-%d)T\n' -1
     mkdir -p ~/pubsguha/mc2/archive/${date}
     gsutil -q -m rsync -d -r gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/public/ /tmp/public/ && rsync -az /tmp/public/ ~/pubsguha/mc2/ && rsync -az /tmp/public/ ~/pubsguha/mc2/archive/${date}

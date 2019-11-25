@@ -181,7 +181,7 @@ makeEvolutionFigure(nightly.evolution,'Darwin',"Content Crash Incidence % for Ni
 <div id="nightly_linux_evo" class="tab-pane fade in">
 <div class = "col-md-12">
 ```{r}
-makeEvolutionFigure(nightly.evolution,"Linux","Browser Crash Rate  for Nightly, Windows_NT","rate",whi="cmr",height=240,width=NE.W,
+makeEvolutionFigure(nightly.evolution,"Linux","Browser Crash Rate  for Nightly, Linux","rate",whi="cmr",height=240,width=NE.W,
                     pointSize=40,showAction=TRUE)
 ```
 </div>

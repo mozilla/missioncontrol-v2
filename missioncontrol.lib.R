@@ -81,14 +81,16 @@ fitFromModel <- function(date,ch,newdata,normalizeNVC=TRUE,loc=getArchiveLoc(),b
 }
 
 
-fittedTableForBQ <- function(thedata,models){
+fittedTableForBQ <- function(thedata,models,last=FALSE){
     pp=adoptionsCompare(DF=TRUE)
     newdata2 <- merge(thedata,pp,by=c("os","channel"))
     newdata2[, originalnvc := nvc]
     newdata2[, nvc := adopt];
-#    newdata2 <- newdata2[,{
-#        tail(.SD[order(date),],1)
-#        },by=list(channel,os, c_version,major,minor)]
+    if(last){
+        newdata2 <- newdata2[,{
+            tail(.SD[order(date),],1)
+        },by=list(channel,os, c_version,major,minor)]
+    }
     y <- cbind(newdata2[,list(date,channel,os,c_version,major,minor,nvc=originalnvc, nvc_baseline=nvc,cmr,ccr,cmi,cci)],getCredibleIntervals(newdata2,models))
     colnames(y) <- gsub("\\.","_",colnames(y))
     y

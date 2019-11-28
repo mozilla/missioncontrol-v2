@@ -3,7 +3,7 @@ import datetime as dt
 import itertools as it
 
 uri = "https://buildhub.moz.tools/api/search"
-
+keeprc = False
 
 def pull_build_id_docs(
     min_build_day="20180701", channel="beta", raw_json=False
@@ -50,7 +50,7 @@ def pull_build_id_docs(
 
 
 def extract_triplets(
-    doc, major_version=None, keep_rc=False, keep_release=False, agg=min
+    doc, major_version=None, keep_rc=keeprc, keep_release=False, agg=min
 ):
     """
     @major_version: int
@@ -84,7 +84,7 @@ def extract_triplets(
 
 
 def version2build_ids(
-    docs, major_version=None, keep_rc=False, keep_release=False
+    docs, major_version=None, keep_rc=keeprc, keep_release=False
 ):
     version_build_ids = [
         extract_triplets(
@@ -106,7 +106,7 @@ def version2build_ids(
 
 
 def version2build_id_str(
-    docs, major_version=None, keep_rc=False, keep_release=False
+    docs, major_version=None, keep_rc=keeprc, keep_release=False
 ):
     """
     Returns mapping of display version to 'sql' list of build_ids.
@@ -126,7 +126,7 @@ def version2build_id_str(
     }
 
 
-def version_filter(x, keep_rc=False, keep_release=False):
+def version_filter(x, keep_rc=keeprc, keep_release=False):
     if not keep_rc and "rc" in x:
         return False
     if not keep_release and ("b" not in x):
@@ -169,7 +169,7 @@ def main_release(vers=67):
         min_build_day=months_ago(12), channel="release"
     )
     res = version2build_ids(
-        result_docs, major_version=67, keep_rc=False, keep_release=True
+        result_docs, major_version=67, keep_rc=keeprc, keep_release=True
     )
     print(res)
 

@@ -97,9 +97,9 @@ n <- as.character(dall.rel2[,max(date)])
 toBq <- local({
     keepOnlyLast <- FALSE
     rbind(
-    fittedTableForBQ(dall.rel2, model=list( mr=cr.cm.rel,cr=cr.cc.rel,mi=ci.cm.rel,ci=ci.cc.rel),last=uselast),
-    fittedTableForBQ(dall.beta2, model=list( mr=cr.cm.beta,cr=cr.cc.beta,mi=ci.cm.beta,ci=ci.cc.beta),last=uselast),
-    fittedTableForBQ(dall.nightly2, model=list( mr=cr.cm.nightly,cr=cr.cc.nightly,mi=ci.cm.nightly,ci=ci.cc.nightly),last=uselast)
+    fittedTableForBQ(dall.rel2, model=list( mr=cr.cm.rel,cr=cr.cc.rel,mi=ci.cm.rel,ci=ci.cc.rel),last=keepOnlyLast),
+    fittedTableForBQ(dall.beta2, model=list( mr=cr.cm.beta,cr=cr.cc.beta,mi=ci.cm.beta,ci=ci.cc.beta),last=keepOnlyLast),
+    fittedTableForBQ(dall.nightly2, model=list( mr=cr.cm.nightly,cr=cr.cc.nightly,mi=ci.cm.nightly,ci=ci.cc.nightly),last=keepOnlyLast)
     )
 })
 toBq[, "model_date" := n]

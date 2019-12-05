@@ -3,7 +3,7 @@ source("missioncontrol.lib.R")
 
 
 ## Call as Rscript process.model.firefox.desktop.R --data_file=default is ./all.the.data.intermediate.Rdata --out=default is ./all.the.data.Rdata
-command.line <- commandArgs(asValues=TRUE,defaults=list(data_file="./all.the.data.intermediate.Rdata",out="./all.the.data.Rdata"),unique=TRUE)
+command.line <- commandArgs(asValues=TRUE,defaults=list(data_file="./all.the.data.intermediate.Rdata",out="./all.the.data.Rdata",model_out="./desktop_model_output.fthr"),unique=TRUE)
 loginfo(glue("loading data file from {command.line$data_file}"))
 load(command.line$data_file)
 
@@ -123,6 +123,9 @@ toBq <- local({
 })
 
 toBq[, "model_date" := n]
+write_feather(toBq,path=command.line$model_out)
+loginfo(glue("Wrote model output to {command.line$model_out}"))
+
 gen.time <- Sys.time()
 processDownloadsWorked <- TRUE
 save.list <- list(

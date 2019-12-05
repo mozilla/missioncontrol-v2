@@ -115,10 +115,10 @@ source("process.model.firefox.desktop.R")
 or
 
 ```
-Rscript process.models.firefox.desktop.R --data_file=./all.the.data.intermediate.Rdata --out=./all.the.data.Rdata
+Rscript process.models.firefox.desktop.R --data_file=./all.the.data.intermediate.Rdata --out=./all.the.data.Rdata --model_out=./desktop_model_output.fthr
 ```
 
-Aagin params are optional and those examples above are default.
+Aagin params are optional and those examples above are default. `model_output` is the output from the model that will be written to BQ.
 
 
 
@@ -134,7 +134,7 @@ source("backup.firefox.desktop.R")
 or
 
 ```
-Rscript backup.firefox.desktop.R  --data_file=default is ./all.the.data.Rdata (the --out from process.models.firefox.desktop.R) --backup=0
+Rscript backup.firefox.desktop.R  --data_file=default is ./all.the.data.Rdata -model_out (the --out and model_out from process.models.firefox.desktop.R) --backup=0
 ```
 
 `--backup` is 0 by default (will *not* backup). If you set this to 1, it will   backup to hardcoded GCP paths

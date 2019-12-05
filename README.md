@@ -105,7 +105,7 @@ All arguments are optional and the default value for debug is `0`, the feather f
 
 ### Process Model Output
 
-- then run the following. This command munges model output, and saves files locally.
+Then run the following. This command munges model output, and saves files locally.
 
 
 ```
@@ -134,10 +134,13 @@ source("backup.firefox.desktop.R")
 or
 
 ```
-Rscript backup.firefox.desktop.R  --data_file=default is ./all.the.data.Rdata (the --out from process.models.firefox.desktop.R)
+Rscript backup.firefox.desktop.R  --data_file=default is ./all.the.data.Rdata (the --out from process.models.firefox.desktop.R) --debug=0
 ```
 
+`--debug` is zero by default (will run and backup). If you set this to 1, it will just display what _would_ happen
+
 ### Create a Dashboard (and backup)
+
 
 This creates a dashboard and syncs the data to GCP
 
@@ -148,8 +151,11 @@ source("create.dashboards.static.R")
 or like above
 
 ```
-Rscript create.dashboards.static.R --data_file=default is ./all.the.data.Rdata (the --out from process.models.firefox.desktop.R)
+Rscript create.dashboards.static.R --data_file=default is ./all.the.data.Rdata (the --out from process.models.firefox.desktop.R) --backup=false
 ```
+
+The default for `backup` is `true` which will backup to hardcoded paths.
+
 
 And you're done. All of this ought to take roughtly 50 minutes. The models take about 40 minutes. 
 

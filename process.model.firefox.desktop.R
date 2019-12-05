@@ -115,7 +115,7 @@ allversions <- list(
 gen.time <- Sys.time()
 processDownloadsWorked <- TRUE
 save.list <- list(
-    "processDownloadsWorked","toBq","n",
+    "processDownloadsWorked","n",
     "allversions","gen.time",
     "cr.cm.rel","cr.cc.rel","ci.cm.rel","ci.cc.rel",
     "cr.cm.beta","cr.cc.beta","ci.cm.beta","ci.cc.beta",
@@ -123,7 +123,7 @@ save.list <- list(
     "dall.rel2","dall.beta2","dall.nightly2",
     "release.current.vs.previous","release.current.vs.previous.realNVC","release.usage","release.summary","release.evolution",
     "beta.current.vs.previous","beta.usage","beta.summary","beta.evolution",
-    "nightly.current.vs.previous","nightly.usage","nightly.summary","nightly.evolution","data.file"  
+    "nightly.current.vs.previous","nightly.usage","nightly.summary","nightly.evolution"
 )
 save(list=unlist(save.list),file=command.line$out)
 loginfo("Saved data to {command.line$out}")

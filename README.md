@@ -111,7 +111,7 @@ source("process.model.firefox.desktop.R")
 
 ### Backup
 
-- This will save model information, datasets and model output to GCP and BigQuery.See GCP output here: `gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/`
+This will save model information, datasets and model output to GCP and BigQuery.See GCP output here: `gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/`
 
 
 ```
@@ -120,6 +120,8 @@ source("backup.firefox.desktop.R")
 
 
 ### Create a Dashboard (and backup)
+
+This creates a dashboard and syncs the data to GCP
 
 ```
 source("create.dashboards.static.R")

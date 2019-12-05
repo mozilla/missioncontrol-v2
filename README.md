@@ -91,10 +91,8 @@ source("download.data.and.build.model.R")
   `gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/`
 
 ```
-source("process.model.and.build.board.R")
+source("process.model.output.and.save.R")
 ```
-
-
 
 - Once this is done, we generate the dashboards using rmarkdown which
   will produce static HTML files and uploads them to gs. There are two

@@ -41,7 +41,9 @@ python data/crud.py dl_raw --creds_loc {BQCREDS}  --channel {ch} --n_majors {v} 
     }
 }
 
-
+## You can call this like
+## this will run debug models, use the release feather as model input and download for other channels
+## Rscript build.models.firefox.desktop.R --debug=1 --release_raw=path-to-release-feather
 command.line <- commandArgs(asValues=TRUE,defaults=list(debug="0"),unique=TRUE)
 
 if(command.line$debug == "0"){
@@ -53,9 +55,9 @@ if(command.line$debug == "0"){
 }else stop(glue("Incorrect debug number passed: {command.line$debug}"))
 
 
-data.table(getModelDataForChannel("release",v=3,input_file=command.line$release_raw))[nvc>0,]
-dall.beta2 <- data.table(getModelDataForChannel("beta",v=3,input_file=command.line$beta_raw)))[nvc>0,]
-dall.nightly2 <- data.table(getModelDataForChannel("nightly",v=3,input_file=command.line$nightly_raw)))[nvc>0,]
+dall.rel2 <- data.table(getModelDataForChannel("release",v=3,input_file=command.line$release_raw))[nvc>0,]
+dall.beta2 <- data.table(getModelDataForChannel("beta",v=3,input_file=command.line$beta_raw))[nvc>0,]
+dall.nightly2 <- data.table(getModelDataForChannel("nightly",v=3,input_file=command.line$nightly_raw))[nvc>0,]
 
 loginfo("Using following dates")
 print(dall.rel2[, list(channel='release',UsingDateTill=max(date)),by=os][order(os),])
@@ -63,7 +65,7 @@ print(dall.beta2[, list(channel='beta',UsingDateTill=max(date)),by=os][order(os)
 print(dall.nightly2[, list(channel='nightly',UsingDateTill=max(date)),by=os][order(os),])
 
 ## BUILD MODELS
-loginfo("Started Release Models")
+loginfo(glue("Started Release Models, debug.mode = {debug.mode}"))
 ## Release model
 d.rel <- dall.rel2
 cr.cm.rel.f <- future({ make.a.model(d.rel,'cmr',debug=debug.mode) })
@@ -79,7 +81,7 @@ ci.cc.rel <- label(value(ci.cc.rel.f),'cci');loginfo("Finished Release ci.cc");
 loginfo("Finished Release Models")
 ## Beta Model
 
-loginfo("Started Beta Models")
+loginfo(glue("Started Beta Models, debug.mode = {debug.mode}"))
 d.beta <- dall.beta2
 cr.cm.beta.f <- future({ make.a.model(d.beta,'cmr',channel='beta',debug=debug.mode) })
 cr.cc.beta.f <- future({ make.a.model(d.beta,'ccr',channel='beta',debug=debug.mode) })
@@ -93,7 +95,7 @@ loginfo("Finished Beta Models")
 
 ## Nightly Model
 
-loginfo("Started Nightly Models")
+loginfo(glue("Started Nightly Models,  debug.mode = {debug.mode}"))
 d.nightly <- dall.nightly2
 cr.cm.nightly.f <- future({ make.a.model(d.nightly,'cmr',channel='nightly',debug=debug.mode,iter=4000) })
 cr.cc.nightly.f <- future({ make.a.model(d.nightly,'ccr',channel='nightly',debug=debug.mode,iter=4000) })

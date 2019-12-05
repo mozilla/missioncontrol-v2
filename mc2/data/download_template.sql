@@ -1,21 +1,28 @@
-CREATE TEMP FUNCTION os_chan_buckets(os string, chan string) AS (
+-- change current_version_release -> cur_vers_release_date
+CREATE TEMP FUNCTION os_chan_buckets(os string, chan string) as (
   case (os, chan) when ('Windows_NT', 'release') then 3
     else 1 end
 );
 
-with a1 AS (
-  SELECT
+with usage_base as (
+SELECT
     --- TOTAL USAGE ON FIREFOX
-    submission_date_s3 AS date,
+    submission_date_s3 as date,
     os,
-    sum(active_hours_sum) AS usage_all,
-    count(DISTINCT(client_id)) AS dau_all
+    active_hours_sum,
+    client_id,
+    -- version will be determined by value filled into
+    -- teplate variable `app_version_field`.
+    -- One of app_build_id, displ
+    app_version,         -- release
+    app_display_version, -- beta
+    app_build_id         -- nightly
   FROM
-    telemetry.clients_daily_v6 HH
+    telemetry.clients_daily_v6 
   WHERE
-    submission_date_s3 >= '{current_version_release}'
+    submission_date_s3 >= '{cur_vers_release_date}'
     AND submission_date_s3 <= DATE_ADD(
-      DATE '{current_version_release}',
+      DATE '{cur_vers_release_date}',
       INTERVAL {nday} DAY
     )
     AND os IN ('Linux', 'Windows_NT', 'Darwin')
@@ -23,81 +30,24 @@ with a1 AS (
     AND normalized_channel = '{norm_channel}'
     AND MOD(
       ABS(FARM_FINGERPRINT(MD5(client_id))),
-      os_chan_buckets(HH.os, HH.normalized_channel)
+      os_chan_buckets(os, normalized_channel)
     ) = 0
-  GROUP BY
-    1,
-    2
 ),
-a2 AS (
-  --- TOTAL USAGE ON FIREFOX ON LATEST VERSION
-  --- THIS AND THE ABOVE ARE USED FOR COMPUTING 'NVC'
-  SELECT
-    submission_date_s3 AS date,
-    os,
-    sum(active_hours_sum) AS usage_cversion,
-    count(DISTINCT(client_id)) AS dau_cversion
-  FROM
-    telemetry.clients_daily_v6 HH
-  WHERE
-    submission_date_s3 >= '{current_version_release}'
-    AND submission_date_s3 <= DATE_ADD(
-      DATE '{current_version_release}',
-      INTERVAL {nday} DAY
-    )
-    AND os IN ('Linux', 'Windows_NT', 'Darwin')
-    AND app_name = 'Firefox'
-    AND normalized_channel = '{norm_channel}' -- and profile_creation_date>=12418 and profile_creation_date<=20089
-    AND {app_version_field} = '{current_version}'
-    AND MOD(
-      ABS(FARM_FINGERPRINT(MD5(client_id))),
-      os_chan_buckets(HH.os, HH.normalized_channel)
-    ) = 0
-  GROUP BY
-    1,
-    2
-),
-A AS (
-  SELECT
-    a1.date,
-    a1.os,
-    a1.usage_all,
-    a1.dau_all,
-    a2.usage_cversion,
-    a2.dau_cversion
-  FROM
-    a1
-  JOIN
-    a2 ON a1.date = a2.date
-    AND a1.os = a2.os
-),
-b1 AS (
+
+crashes_base as (
   --- Total Crashes on Current Version
   --- NEED CLIENT_ID TO JOIN on DAILY TO GET CRASH RATE
   SELECT
     client_id,
-    date(submission_timestamp) AS date,
-    environment.system.os.name AS os,
-    sum(
-      case
-        WHEN payload.process_type IS NULL
-        OR payload.process_type = 'main' THEN 1
-        ELSE 0
-      end
-    ) AS cmain,
-    sum(
-      case when payload.process_type = 'content'
-            and (coalesce(payload.metadata.ipc_channel_error,
-                 'other') != 'ShutdownKill')
-      then 1 else 0
-      end
-    ) AS ccontent
+    date(submission_timestamp) as date,
+    environment.system.os.name as os,
+    payload
   FROM
-    telemetry.crash JJ
+    telemetry.crash
   WHERE
-    date(submission_timestamp) >= '{current_version_release}'
+    date(submission_timestamp) >= '{cur_vers_release_date}'
     AND date(submission_timestamp) <= DATE_ADD(
-      DATE '{current_version_release}',
+      DATE '{cur_vers_release_date}',
       INTERVAL {nday} DAY
     )
     AND environment.system.os.name IN ('Linux', 'Windows_NT', 'Darwin')
@@ -110,158 +60,149 @@ b1 AS (
     AND environment.profile.creation_date <= UNIX_DATE(current_date()) + 2
     AND MOD(
       ABS(FARM_FINGERPRINT(MD5(client_id))),
-      os_chan_buckets(JJ.environment.system.os.name, JJ.normalized_channel)
+      os_chan_buckets(environment.system.os.name, normalized_channel)
     ) = 0
-  GROUP BY
-    1,
-    2,
-    3
 ),
---- TOTAL HOURS FROM FOLKS WHO CRASHED
---- TO COMPUTE CRASH RATE
-b2 AS (
+
+--- TOTAL USAGE ON FIREFOX
+u1 as (
+  SELECT
+    date,
+    os,
+    sum(active_hours_sum) as usage_all,
+    count(distinct(client_id)) as dau_all
+  FROM
+    usage_base
+  GROUP BY 1, 2
+),
+
+--- TOTAL USAGE ON FIREFOX ON LATEST VERSION
+--- THIS AND THE ABOVE ARE USED FOR COMPUTING 'NVC'
+u2 as (
+  SELECT
+    date,
+    os,
+    sum(active_hours_sum) as usage_cversion,
+    count(distinct(client_id)) as dau_cversion
+  FROM
+    usage_base
+  WHERE
+    {app_version_field} = '{current_version}'
+  GROUP BY 1, 2
+),
+
+usage as (
+  SELECT
+    u1.date,
+    u1.os,
+    u1.usage_all,
+    u1.dau_all,
+    u2.usage_cversion,
+    u2.dau_cversion
+  FROM
+    u1
+  JOIN
+    u2 ON u1.date = u2.date
+    AND u1.os = u2.os
+),
+
+crashes as (
+  --- Total Crashes on Current Version
+  --- NEED CLIENT_ID TO JOIN on DAILY TO GET CRASH RATE
   SELECT
     client_id,
-    submission_date_s3 AS date,
-    os AS os,
-    sum(active_hours_sum) AS usage,
-    sum(coalesce(crashes_detected_plugin_sum, 0)) AS cplugin
+    date,
+    os,
+    -- main crash definition at
+    -- https://github.com/mozilla/bigquery-etl/blob/
+    -- 072e4af3b8245c2fc7f4ba5d4c5a87bf10c9c107/sql/
+    -- telemetry_derived/error_aggregates/query.sql#L100
+    countif(payload.process_type = 'main'
+            or payload.process_type is null) as cmain,
+    -- content crash definition at
+    -- https://github.com/mozilla/bigquery-etl/blob/
+    -- 072e4af3b8245c2fc7f4ba5d4c5a87bf10c9c107/sql/
+    -- telemetry_derived/error_aggregates/query.sql#L106
+    countif(regexp_contains(payload.process_type, 'content')
+            and not regexp_contains(
+                coalesce(payload.metadata.ipc_channel_error, ''),
+                'ShutDownKill')
+    ) as ccontent
   FROM
-    telemetry.clients_daily_v6 HH
-  WHERE
-    submission_date_s3 >= '{current_version_release}'
-    AND submission_date_s3 <= DATE_ADD(
-      DATE '{current_version_release}',
-      INTERVAL {nday} DAY
-    )
-    AND os IN ('Linux', 'Windows_NT', 'Darwin')
-    AND app_name = 'Firefox'
-    AND normalized_channel = '{norm_channel}'
-    -- and profile_creation_date>=12418 and profile_creation_date<=20089
-    AND {app_version_field} = '{current_version}'
-    AND MOD(
-      ABS(FARM_FINGERPRINT(MD5(client_id))),
-      os_chan_buckets(HH.os, HH.normalized_channel)
-    ) = 0
-  GROUP BY
-    1,
-    2,
-    3
+    crashes_base
+  GROUP BY 1, 2, 3
 ),
-b AS (
+
+--- TOTAL HOURS FROM FOLKS WHO CRASHED
+--- TO COMPUTE CRASH RATE
+crasher_usage as (
   SELECT
-    b1.date,
-    b1.os,
-    count(
-      DISTINCT(
-        case
-          WHEN b1.cmain > 0 THEN b1.client_id
-          ELSE NULL
-        end
-      )
-    ) AS dau_cm_crasher_cversion,
-    count(
-      DISTINCT(
-        case
-          WHEN b1.ccontent > 0 THEN b1.client_id
-          ELSE NULL
-        end
-      )
-    ) AS dau_cc_crasher_cversion,
-    count(
-      DISTINCT(
-        case
-          WHEN b2.cplugin > 0 THEN b1.client_id
-          ELSE NULL
-        end
-      )
-    ) AS dau_cp_crasher_cversion,
-    count(
-      DISTINCT(
-        case
-          WHEN (
-            b1.cmain > 0
-            OR b1.ccontent > 0
-            OR b2.cplugin > 0
-          ) THEN b1.client_id
-          ELSE NULL
-        end
-      )
-    ) AS dau_call_crasher_cversion,
-    sum(
-      case
-        WHEN b1.cmain > 0 THEN b2.usage
-        ELSE 0
-      end
-    ) AS usage_cm_crasher_cversion,
-    sum(
-      case
-        WHEN b1.ccontent > 0 THEN b2.usage
-        ELSE 0
-      end
-    ) AS usage_cc_crasher_cversion,
-    sum(
-      case
-        WHEN b2.cplugin > 0 THEN b2.usage
-        ELSE 0
-      end
-    ) AS usage_cp_crasher_cversion,
-    sum(
-      case
-        WHEN (
-          b1.cmain > 0
-          OR b1.ccontent > 0
-          OR b2.cplugin > 0
-        ) THEN b2.usage
-        ELSE 0
-      end
-    ) AS usage_call_crasher_cversion,
-    sum(cmain) AS cmain,
-    sum(ccontent) AS ccontent,
-    sum(cplugin) AS cplugin,
-    sum(cmain) + sum(ccontent) + sum(cplugin) AS call
+    client_id,
+    date,
+    os,
+    sum(active_hours_sum) as usage
   FROM
-    b1
-  JOIN
-    b2 ON b1.client_id = b2.client_id
-    AND b1.os = b2.os
-    AND b1.date = b2.date
+    usage_base
   WHERE
-    (b1.ccontent + b1.cmain) < 350 -- see https://sql.telemetry.mozilla.org/queries/64354/source
-  GROUP BY
-    1,
-    2
+    {app_version_field} = '{current_version}'
+  GROUP BY 1, 2, 3
 ),
-d AS (
+
+crashes_nvc as (
   SELECT
-    A.date,
-    A.os,
-    A.usage_all,
-    A.dau_all,
-    A.usage_cversion,
-    A.dau_cversion,
-    b.dau_cm_crasher_cversion,
-    b.dau_cc_crasher_cversion,
-    b.dau_cp_crasher_cversion,
-    b.dau_call_crasher_cversion,
-    b.usage_cm_crasher_cversion,
-    b.usage_cc_crasher_cversion,
-    b.usage_cp_crasher_cversion,
-    b.usage_call_crasher_cversion,
-    b.cmain,
-    b.ccontent,
-    b.cplugin,
-    b.call
+    cr.date,
+    cr.os,
+    count(distinct(
+        if(cr.cmain > 0, cr.client_id, null)
+    )) as dau_cm_crasher_cversion,
+    count(distinct(
+        if(cr.ccontent > 0, cr.client_id, null)
+    )) as dau_cc_crasher_cversion,
+    count(distinct(
+        if(cr.cmain > 0 or cr.ccontent > 0, cr.client_id, null)
+    )) as dau_call_crasher_cversion,
+    sum(if(cr.cmain > 0, cu.usage, 0)) as usage_cm_crasher_cversion,
+    sum(if(cr.ccontent > 0, cu.usage, 0)) as usage_cc_crasher_cversion,
+    sum(if(cr.cmain > 0 or cr.ccontent > 0, cu.usage, 0)) as usage_call_crasher_cversion,
+    sum(cmain) as cmain,
+    sum(ccontent) as ccontent,
+    sum(cmain) + sum(ccontent) as call
   FROM
-    b
+    crashes cr
   JOIN
-    A ON b.date = A.date
-    AND b.os = A.os
+    crasher_usage cu ON cr.client_id = cu.client_id
+    AND cr.os = cu.os
+    AND cr.date = cu.date
+  WHERE
+    -- see https://sql.telemetry.mozilla.org/queries/64354/source
+    (cr.ccontent + cr.cmain) < 350
+  GROUP BY 1, 2
+),
+
+res as (
+  SELECT
+    u.date,
+    u.os,
+    u.usage_all,
+    u.dau_all,
+    u.usage_cversion,
+    u.dau_cversion,
+    c.dau_cm_crasher_cversion,
+    c.dau_cc_crasher_cversion,
+    c.dau_call_crasher_cversion,
+    c.usage_cm_crasher_cversion,
+    c.usage_cc_crasher_cversion,
+    c.usage_call_crasher_cversion,
+    c.cmain,
+    c.ccontent,
+    c.call
+  FROM
+    crashes_nvc c
+  JOIN
+    usage u ON c.date = u.date
+    AND c.os = u.os
 )
-SELECT
-  *
-FROM
-  d
-ORDER BY
-  os,
-  date
+
+SELECT *
+FROM res
+ORDER BY os, date

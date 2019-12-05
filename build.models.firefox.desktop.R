@@ -129,5 +129,5 @@ if(length(bad.models)>0){
 loginfo(glue("Writing datasets to {command.line$out}"))
 save(cr.cm.rel,cr.cc.rel,ci.cm.rel,ci.cc.rel,
      cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta,
-     cr.cm.nightly,cr.cc.nightly,ci.cm.nightly,
+     cr.cm.nightly,cr.cc.nightly,ci.cm.nightly,ci.cc.nightly,
      dall.rel2,dall.beta2,dall.nightly2,file=command.line$out)

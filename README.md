@@ -95,17 +95,30 @@ Also it has a debug mode to run models very fast.
 ```
 source("build.models.firefox.desktop.R")
 ```
+You can also call this like
 
+```
+Rscript build.models.firefox.desktop.R --debug=1[or 0] --release_raw=path-to-release-feather --beta_raw=path-to-beta-feather --nightly_raw=path-to-nightly --out=./all.the.data.intermediate.Rdata
+```
+
+All arguments are optional and the default value for debug is `0`, the feather files will be downloaded and the output written to `all.the.data.intermediate.Rdata`
 
 ### Process Model Output
 
 - then run the following. This command munges model output, and saves files locally.
 
 
-
 ```
 source("process.model.firefox.desktop.R")
 ```
+
+or
+
+```
+Rscript process.models.firefox.desktop.R --data_file=./all.the.data.intermediate.Rdata --out=./all.the.data.Rdata
+```
+
+Aagin params are optional and those examples above are default.
 
 
 
@@ -118,6 +131,11 @@ This will save model information, datasets and model output to GCP and BigQuery.
 source("backup.firefox.desktop.R")
 ```
 
+or
+
+```
+Rscript backup.firefox.desktop.R  --data_file=default is ./all.the.data.Rdata (the --out from process.models.firefox.desktop.R)
+```
 
 ### Create a Dashboard (and backup)
 
@@ -125,7 +143,13 @@ This creates a dashboard and syncs the data to GCP
 
 ```
 source("create.dashboards.static.R")
-````
+```
+
+or like above
+
+```
+Rscript create.dashboards.static.R --data_file=default is ./all.the.data.Rdata (the --out from process.models.firefox.desktop.R)
+```
 
 And you're done. All of this ought to take roughtly 50 minutes. The models take about 40 minutes. 
 

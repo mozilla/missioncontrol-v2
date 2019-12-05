@@ -44,7 +44,10 @@ python data/crud.py dl_raw --creds_loc {BQCREDS}  --channel {ch} --n_majors {v} 
 ## You can call this like
 ## this will run debug models, use the release feather as model input and download for other channels
 ## Rscript build.models.firefox.desktop.R --debug=1 --release_raw=path-to-release-feather
-command.line <- commandArgs(asValues=TRUE,defaults=list(debug="0"),unique=TRUE)
+## You can also name the output file (default is ./all.the.data.intermediate.Rdata)
+## Rscript build.models.firefox.desktop.R --debug=1 --out=./all.the.data.intermediate.Rdata
+
+command.line <- commandArgs(asValues=TRUE,defaults=list(debug="0",out="./all.the.data.intermediate.Rdata"),unique=TRUE)
 
 if(command.line$debug == "0"){
     debug.mode <- 0
@@ -53,6 +56,8 @@ if(command.line$debug == "0"){
     debug.mode <- 1
     loginfo("Using debug models, much faster to run, less accurate. Please dont sync data to BQ")
 }else stop(glue("Incorrect debug number passed: {command.line$debug}"))
+
+
 
 
 dall.rel2 <- data.table(getModelDataForChannel("release",v=3,input_file=command.line$release_raw))[nvc>0,]
@@ -121,8 +126,8 @@ if(length(bad.models)>0){
     loginfo(glue("The following models has R-hats>1.1, be careful: {f}",f=paste(bad.models,collapse=", ")))
 }
                
-               
+loginfo(glue("Writing datasets to {command.line$out}"))
 save(cr.cm.rel,cr.cc.rel,ci.cm.rel,ci.cc.rel,
      cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta,
      cr.cm.nightly,cr.cc.nightly,ci.cm.nightly,
-     dall.rel2,dall.beta2,dall.nightly2,file="all.the.data.temporary.Rdata")
+     dall.rel2,dall.beta2,dall.nightly2,file=command.line$out)

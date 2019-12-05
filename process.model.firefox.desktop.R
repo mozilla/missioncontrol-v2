@@ -2,6 +2,12 @@ setwd("~/missioncontrol-v2/")
 source("missioncontrol.lib.R")
 
 
+## Call as Rscript process.model.firefox.desktop.R --data_file=default is ./all.the.data.intermediate.Rdata --out=default is ./all.the.data.Rdata
+command.line <- commandArgs(asValues=TRUE,defaults=list(data_file="./all.the.data.intermediate.Rdata",out="./all.the.data.Rdata"),unique=TRUE)
+loginfo(glue("loading data file from {command.line$data_file}"))
+load(command.line$data_file)
+
+
 processDownloadsWorked <- FALSE
 operating.systems <- c("Windows_NT","Darwin","Linux","overall")
 loginfo("Starting posteriors")
@@ -107,8 +113,6 @@ allversions <- list(
 
 
 gen.time <- Sys.time()
-data.file <- glue("/tmp/models-{n}.Rdata",n=n)
-loginfo(glue("Saving Data to temp file: {data.file}"))
 processDownloadsWorked <- TRUE
 save.list <- list(
     "processDownloadsWorked","toBq","n",
@@ -121,6 +125,5 @@ save.list <- list(
     "beta.current.vs.previous","beta.usage","beta.summary","beta.evolution",
     "nightly.current.vs.previous","nightly.usage","nightly.summary","nightly.evolution","data.file"  
 )
-save(list=unlist(save.list),file=data.file)
-system(glue("cp {data.file} ./all.the.data.Rdata"))
-loginfo("Saved data to {data.file} and ./all.data.Rdata")
+save(list=unlist(save.list),file=command.line$out)
+loginfo("Saved data to {command.line$out}")

@@ -1,6 +1,12 @@
 setwd("~/missioncontrol-v2/")
 source("missioncontrol.lib.R")
-load("all.the.data.Rdata")
+
+## Call as Rscript backup.firefox.desktop.R  --data_file=default is ./all.the.data.Rdata 
+command.line <- commandArgs(asValues=TRUE,defaults=list(data_file="./all.the.data.Rdata"),unique=TRUE)
+loginfo(glue("loading data file from {command.line$data_file}"))
+load(command.line$data_file)
+
+
 
 system("rm -rf ~/html")
 dir.create("~/html")

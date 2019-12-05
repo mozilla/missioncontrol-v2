@@ -112,11 +112,22 @@ allversions <- list(
 )
 
 
+
+toBq <- local({
+    keepOnlyLast <- FALSE
+    rbind(
+    fittedTableForBQ(dall.rel2, model=list( mr=cr.cm.rel,cr=cr.cc.rel,mi=ci.cm.rel,ci=ci.cc.rel),last=keepOnlyLast),
+    fittedTableForBQ(dall.beta2, model=list( mr=cr.cm.beta,cr=cr.cc.beta,mi=ci.cm.beta,ci=ci.cc.beta),last=keepOnlyLast),
+    fittedTableForBQ(dall.nightly2, model=list( mr=cr.cm.nightly,cr=cr.cc.nightly,mi=ci.cm.nightly,ci=ci.cc.nightly),last=keepOnlyLast)
+    )
+})
+
+toBq[, "model_date" := n]
 gen.time <- Sys.time()
 processDownloadsWorked <- TRUE
 save.list <- list(
     "processDownloadsWorked","n",
-    "allversions","gen.time",
+    "allversions","gen.time","toBq",
     "cr.cm.rel","cr.cc.rel","ci.cm.rel","ci.cc.rel",
     "cr.cm.beta","cr.cc.beta","ci.cm.beta","ci.cc.beta",
     "cr.cm.nightly","cr.cc.nightly","ci.cm.nightly","ci.cc.nightly",

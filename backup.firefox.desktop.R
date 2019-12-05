@@ -8,17 +8,6 @@ loginfo(glue("loading data file from {command.line$data_file}"))
 load(command.line$data_file)
 backup.mode <- command.line$backup
 
-
-toBq <- local({
-    keepOnlyLast <- FALSE
-    rbind(
-    fittedTableForBQ(dall.rel2, model=list( mr=cr.cm.rel,cr=cr.cc.rel,mi=ci.cm.rel,ci=ci.cc.rel),last=keepOnlyLast),
-    fittedTableForBQ(dall.beta2, model=list( mr=cr.cm.beta,cr=cr.cc.beta,mi=ci.cm.beta,ci=ci.cc.beta),last=keepOnlyLast),
-    fittedTableForBQ(dall.nightly2, model=list( mr=cr.cm.nightly,cr=cr.cc.nightly,mi=ci.cm.nightly,ci=ci.cc.nightly),last=keepOnlyLast)
-    )
-})
-
-toBq[, "model_date" := n]
 atm <- tempfile(fileext='.fth')
 write_feather(toBq,path=atm)
 runner <- glue('#!/bin/sh

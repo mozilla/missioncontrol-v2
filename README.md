@@ -121,10 +121,6 @@ source("backup.firefox.desktop.R")
 
 ### Create a Dashboard (and backup)
 
-- Once this is done, we generate the dashboards using rmarkdown which
-  will produce static HTML files and uploads them to gs. There are two
-  versions, one for public (sans DAU) and for us(with DAU).
-
 ```
 source("create.dashboards.static.R")
 ````

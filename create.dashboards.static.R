@@ -1,5 +1,6 @@
+setwd("~/missioncontrol-v2/")
 source("missioncontrol.lib.R")
-#load("all.the.data.Rdata")
+load("all.the.data.Rdata")
 
 system("rm -rf ~/html")
 dir.create("~/html")
@@ -48,9 +49,3 @@ if(processDownloadsWorked){
     stop("Something went wrong processing downloads, stopping")
 }
 
-## Upload Files to Google Cloud
-
-
-#print("Running Code on GS Server")
-#system('gcloud compute instances start "sguha-datascience" --zone=us-west1-b')
-#system('gcloud beta compute --project "moz-fx-dev-sguha-rwasm" ssh --zone "us-west1-b" "sguha-datascience" --comand=./runMCModels.R')

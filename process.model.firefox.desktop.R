@@ -126,4 +126,4 @@ save.list <- list(
     "nightly.current.vs.previous","nightly.usage","nightly.summary","nightly.evolution"
 )
 save(list=unlist(save.list),file=command.line$out)
-loginfo("Saved data to {command.line$out}")
+loginfo(glue("Saved data to {command.line$out}"))

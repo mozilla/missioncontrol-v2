@@ -134,10 +134,10 @@ source("backup.firefox.desktop.R")
 or
 
 ```
-Rscript backup.firefox.desktop.R  --data_file=default is ./all.the.data.Rdata (the --out from process.models.firefox.desktop.R) --debug=0
+Rscript backup.firefox.desktop.R  --data_file=default is ./all.the.data.Rdata (the --out from process.models.firefox.desktop.R) --backup=0
 ```
 
-`--debug` is zero by default (will run and backup). If you set this to 1, it will just display what _would_ happen
+`--backup` is 0 by default (will *not* backup). If you set this to 1, it will   backup to hardcoded GCP paths
 
 ### Create a Dashboard (and backup)
 
@@ -151,13 +151,13 @@ source("create.dashboards.static.R")
 or like above
 
 ```
-Rscript create.dashboards.static.R --data_file=default is ./all.the.data.Rdata (the --out from process.models.firefox.desktop.R) --backup=false
+Rscript create.dashboards.static.R --data_file=default is ./all.the.data.Rdata (the --out from process.models.firefox.desktop.R) --backup=0
 ```
 
-The default for `backup` is `true` which will backup to hardcoded paths.
+The default for `backup` is 0, when set to 1, it    will backup to hardcoded paths.
 
 
-And you're done. All of this ought to take roughtly 50 minutes. The models take about 40 minutes. 
+And you're done. All of this ought to take roughtly 50 minutes. The models take about 40 minutes(longer when really into the dev cycle)
 
 (the above commands are present in the single bash file `complete.runner.sh`) e.g.
 

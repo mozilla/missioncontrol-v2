@@ -22,6 +22,11 @@ export PYTHONNOUSERSITE=True
 ## though might not be needed given the above
 ## eval "$(conda shell.bash hook)"
 conda activate mc2
-Rscript complete.runner.R 
+Rscript etl.R
+Rscript build.models.firefox.desktop.R --debug=0 --out=./all.the.data.intermediate.Rdata
+Rscript process.model.firefox.desktop.R --data_file=./all.the.data.intermediate.Rdata --out=./all.the.data.Rdata --model_out=/home/sguha/missioncontrol-v2/desktop_model_output.fthr
+Rscript backup.firefox.desktop.R --data_file=./all.the.data.Rdata --model_out=/home/sguha/missioncontrol-v2/desktop_model_output.fthr --backup=1 
+Rscript create.dashboards.static.R  --data_file=./all.the.data.Rdata --backup=1
+
 ## run as sh complete.runner.sh  2>&1 | tee logfile
 

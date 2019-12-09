@@ -81,7 +81,7 @@ function create_gnu_index ()
 
 gcloud beta compute instances --project "moz-fx-dev-sguha-rwasm" start  "instance-1"
 sleep 10
-gcloud beta compute  --project "moz-fx-dev-sguha-rwasm" ssh  "instance-1" --ssh-flag="ConnectTimeout=10" --ssh-flag="ConnectionAttempts=2" --command " cd /home/sguha/missioncontrol-v2 ; rm -rf logfile; sh complete.runner.sh  2>&1 | tee logfile"
+gcloud beta compute  --project "moz-fx-dev-sguha-rwasm" ssh  "instance-1"  --command " cd /home/sguha/missioncontrol-v2 ; rm -rf logfile; sh complete.runner.sh  2>&1 | tee logfile"
 rc=$?;
 rc=0
 if [[ $rc -eq 0 ]];  then

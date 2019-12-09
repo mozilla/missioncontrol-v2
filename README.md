@@ -77,30 +77,87 @@ export PYTHONNOUSERSITE=True
 conda acvtivate mc2
 ```
 
-- start R, the following file has a path  to a BigQuery credentials(`BQCREDS` in the above R file) . You need this(a service account json file)
+- start R, the following file has a path to a BigQuery
+  credentials(`BQCREDS` in the above R file) . You need this(a service
+  account json file). This R file is a dumb wrapper around the python
+  code that downloads fresh data and creates the raw data for models
 
 ```
-source("download.data.and.build.model.R")
+source("etl.R")
 ```
 
+
+### Now Build Models
+
+This file can either take command line arguments indicating paths to feather files with model input or it will query BQ itself.
+Also it has a debug mode to run models very fast.
+
+```
+source("build.models.firefox.desktop.R")
+```
+You can also call this like
+
+```
+Rscript build.models.firefox.desktop.R --debug=1[or 0] --release_raw=path-to-release-feather --beta_raw=path-to-beta-feather --nightly_raw=path-to-nightly --out=./all.the.data.intermediate.Rdata
+```
+
+All arguments are optional and the default value for debug is `0`, the feather files will be downloaded and the output written to `all.the.data.intermediate.Rdata`
 
 ### Process Model Output
 
-- then run the following. This command munges model output, and saves
-  all the model information in an Rdata file and uploads to 
-  `gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/`
+Then run the following. This command munges model output, and saves files locally.
+
 
 ```
-source("process.model.and.build.board.R")
+source("process.model.firefox.desktop.R")
 ```
 
+or
+
+```
+Rscript process.models.firefox.desktop.R --data_file=./all.the.data.intermediate.Rdata --out=./all.the.data.Rdata --model_out=./desktop_model_output.fthr
+```
+
+Aagin params are optional and those examples above are default. `model_output` is the output from the model that will be written to BQ.
 
 
-- Once this is done, we generate the dashboards using rmarkdown which
-  will produce static HTML files and uploads them to gs. There are two
-  versions, one for public (sans DAU) and for us(with DAU).
 
-And you're done. All of this ought to take roughtly 50 minutes. The models take about 40 minutes. 
+### Backup
+
+This will save model information, datasets and model output to GCP and BigQuery.See GCP output here: `gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol/archive/`
+
+
+```
+source("backup.firefox.desktop.R")
+```
+
+or
+
+```
+Rscript backup.firefox.desktop.R  --data_file=default is ./all.the.data.Rdata -model_out (the --out and model_out from process.models.firefox.desktop.R) --backup=0
+```
+
+`--backup` is 0 by default (will *not* backup). If you set this to 1, it will   backup to hardcoded GCP paths
+
+### Create a Dashboard (and backup)
+
+
+This creates a dashboard and syncs the data to GCP
+
+```
+source("create.dashboards.static.R")
+```
+
+or like above
+
+```
+Rscript create.dashboards.static.R --data_file=default is ./all.the.data.Rdata (the --out from process.models.firefox.desktop.R) --backup=0
+```
+
+The default for `backup` is 0, when set to 1, it    will backup to hardcoded paths.
+
+
+And you're done. All of this ought to take roughtly 50 minutes. The models take about 40 minutes(longer when really into the dev cycle)
 
 (the above commands are present in the single bash file `complete.runner.sh`) e.g.
 

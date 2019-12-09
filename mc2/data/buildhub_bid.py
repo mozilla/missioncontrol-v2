@@ -1,6 +1,10 @@
-from requests import post
 import datetime as dt
 import itertools as it
+import re
+from typing import Optional
+
+import pandas as pd
+from requests import post
 
 uri = "https://buildhub.moz.tools/api/search"
 
@@ -84,7 +88,7 @@ def extract_triplets(
 
 
 def version2build_ids(
-    docs, major_version=None, keep_rc=False, keep_release=False
+    docs, major_version=None, keep_rc=False, keep_release=False, as_df=False
 ):
     version_build_ids = [
         extract_triplets(
@@ -96,13 +100,30 @@ def version2build_ids(
         for doc in docs
     ]
     version_build_ids = filter(None, version_build_ids)
-    return {
+    dct = {
         version: [
             (_version, build_id, pub_date)
             for _version, build_id, pub_date in triplets
         ]
         for version, triplets in it.groupby(version_build_ids, lambda x: x[0])
     }
+    if as_df:
+        return (
+            pd.DataFrame(
+                [
+                    trip
+                    for trips in version2build_ids(
+                        docs, keep_release=True, keep_rc=False
+                    ).values()
+                    for trip in trips
+                ],
+                columns=["dvers", "build_id", "pub_date"],
+            )
+            .assign(pub_date=lambda x: pd.to_datetime(x.pub_date, unit="ms"))
+            .sort_values(["pub_date"], ascending=False)
+            .reset_index(drop=1)
+        )
+    return dct
 
 
 def version2build_id_str(
@@ -124,6 +145,44 @@ def version2build_id_str(
         )
         for dvers, trips in triplet_dct.items()
     }
+
+
+def rc_major_version(disp_vers: str) -> Optional[int]:
+    rc_re = re.compile(r"(?P<major>\d\d+)(\.\d)+$")
+    m = rc_re.match(disp_vers)
+    return int(m.group("major")) if m else None
+
+
+def pull_beta_rc_builds(beta_major_versions, min_build_day="20180701"):
+    """
+    """
+
+    def combine_bid_rc(rc_major, build_id):
+        if rc_major == rc_major:
+            return f"{int(rc_major)}rc{build_id}"
+        return rc_major
+
+    docs = pull_build_id_docs(
+        min_build_day=min_build_day, channel="beta", raw_json=False
+    )
+    bhdf = (
+        version2build_ids(docs, keep_release=True, keep_rc=False, as_df=True)
+        .assign(rc_major=lambda x: x.dvers.map(rc_major_version))
+        .assign(is_rc=lambda x: x.rc_major.notnull())
+        .assign(
+            dvers2=lambda x: [
+                combine_bid_rc(rc, bid)
+                for rc, bid in zip(x.rc_major, x.build_id)
+            ]
+        )
+        .assign(
+            dvers=lambda x: x[["dvers", "dvers2"]]
+            .fillna(axis=1, method="ffill")
+            .dvers2
+        )
+    )
+
+    return bhdf
 
 
 def version_filter(x, keep_rc=False, keep_release=False):

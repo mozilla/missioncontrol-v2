@@ -1,5 +1,6 @@
 import subprocess
 import tempfile
+import time
 
 import numpy as np
 import pandas as pd
@@ -11,7 +12,8 @@ def dates_to_sql_str(dates):
     Format dates for SQL templates
 
     >>> from pandas import Timestamp
-    >>> dates_to_sql_str([Timestamp('2019-10-01 00:00:00'), Timestamp('2019-10-02 00:00:00')])
+    >>> dates_to_sql_str([Timestamp('2019-10-01 00:00:00'),
+        Timestamp('2019-10-02 00:00:00')])
     => "'2019-10-01', '2019-10-02'"
     """
     dates = [d.strftime("%Y-%m-%d") for d in dates]
@@ -69,8 +71,8 @@ def delete_model_versions(
 def delete_versions(df, query_func, table_name="wbeard_crash_rate_raw"):
     """
     @df: DataFrame[['channel', 'c_version', 'date']]
-    Drop all unique ('channel', 'c_version', 'date') values in `table_name`. To be used
-    before upload of new data.
+    Drop all unique ('channel', 'c_version', 'date') values in `table_name`.
+    To be used before upload of new data.
     """
     if not check_table_exists(query_func, table_name):
         print("Table does not yet exist. Not dropping rows")
@@ -96,6 +98,7 @@ def delete_versions(df, query_func, table_name="wbeard_crash_rate_raw"):
         )
         print("Executing `{}`...".format(q), end="")
         query_func(q)
+        time.sleep(2)
         print(" Done.")
 
 
@@ -230,7 +233,7 @@ def drop_table(table_name="wbeard_crash_rate_raw"):
         "rm",
         "-f",
         "-t",
-        "moz-fx-data-derived-datasets.analysis.{}".format(table_name),
+        "moz-fx-data-derived-datasets:analysis.{}".format(table_name),
     ]
     print("running command", cmd)
     run_command(cmd, "Success! Table {} dropped.".format(table_name))

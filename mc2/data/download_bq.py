@@ -1,19 +1,14 @@
-# TODO: modify release for linux build_ids
 import datetime as dt
 import os
 import re
 import sys
 import tempfile
 from contextlib import contextmanager
-from functools import partial
 
 import buildhub_bid as bh_bid
 import pandas as pd
 from pandas import DataFrame
 from pandas.testing import assert_frame_equal
-
-# import src.buildhub_bid as bh_bid
-
 
 SQL_FNAME = "data/download_template.sql"
 dbg = lambda: None
@@ -113,22 +108,27 @@ def prod_det_process_release(df_all):
     """
     Process and categorize data from
     https://product-details.mozilla.org/1.0/firefox.json
+    * filter major/release versions
+    * parse versions
+    * find most recent major (e.g., 71), designate it as the current version
+        * subset to the 3 most recent major versions (71, 70, 69)
+
+    Useful return dataframe is `df_release_data`, but others are returned as
+    well to fit the pattern for `prod_det_process_beta`, where the intermediate
+    DataFrame is needed for the nightly pull.
     """
     # Release
     max_days_future = 365
     today = dt.datetime.today().strftime("%Y-%m-%d")  # noqa
 
     df = df_all.query(
-        'category in ["major", "stability"] & date >= "2019-01-01" & date < @today'
+        'category in ["major", "stability"]'
+        '& date >= "2019-01-01" & date < @today'
     ).copy()
 
     df = add_version_elements(
         df, rls_version_parse, colname="version", to=int
-    ).sort_values(
-        # df = add_major_minor_dot(df, version_col="version").sort_values(
-        ["major", "minor", "dot"],
-        ascending=True,
-    )
+    ).sort_values(["major", "minor", "dot"], ascending=True)
 
     # Subset for building model
     cur_major = df.major.iloc[-1]
@@ -156,14 +156,12 @@ def prod_det_process_release(df_all):
 def prod_det_process_beta(df_all, vers2bids_beta):
     """
     For most recent beta release, pull 7 days into the future.
-
+    Use product-details data to
+    - filter data relevant for beta releases (category = "dev")
+    - parse versions to be able to correctly sort
     """
     days_future = 7
-    app_version_field = "app_display_version"
-    crash_build_version_field = "environment.build.build_id"
     category = "dev"  # noqa
-    channel = "beta"
-    ndays = 14
     build_id_mapping = vers2bids_beta
 
     df = df_all.query('category == @category & date >= "2019-01-01"').copy()
@@ -179,17 +177,12 @@ def prod_det_process_beta(df_all, vers2bids_beta):
     # Still need for data pull
     df_download_data = (
         df.query("major == @cur_major")[["version", "date"]]
-        .assign(
-            till=lambda x: next_release_date(x["date"], days_future),
-            channel=channel,
-            ndays=ndays,
-            app_version_field=app_version_field,
-            crash_build_version_field=crash_build_version_field,
-        )
+        .assign(till=lambda x: next_release_date(x["date"], days_future))
         # better string repr
         .assign(date=lambda x: x.date.dt.date, till=lambda x: x.till.dt.date)
         .reset_index(drop=1)
     )
+
     if build_id_mapping:
         df_download_data = df_download_data.assign(
             buildid=lambda x: x.version.map(build_id_mapping)
@@ -214,43 +207,27 @@ def prod_det_process_nightly(pd_beta):
         )
         .reset_index(drop=1)
     )
+
     beta_last_row = df.iloc[-1]
 
     df_nightly_data = DataFrame(
         dict(
             date_pd=pd.date_range(beta_last_row.date, beta_last_row.till),
             version=beta_last_row.version,
-            channel="nightly",
-            app_version_field="substr(app_build_id,1,8)",
-            crash_build_version_field="substr(environment.build.build_id, 1, 8)",
-            ndays=7,
         )
     ).assign(
         buildid=lambda x: x.date_pd.dt.strftime("%Y%m%d"),
         date=lambda x: x.date_pd.dt.strftime("%Y-%m-%d"),
         till=lambda x: (x.date_pd + pd.Timedelta(days=7)).dt.date,
     )
-    recent_majs = [beta_last_row.major, beta_last_row.major + 1]
-
-    df = df[["version", "date", "till"]].assign(
-        date=lambda x: x.date.dt.date, till=lambda x: x.till.dt.date
-    )
-    return df, recent_majs, df_nightly_data
+    return df_nightly_data
 
 
 #################
 # Build Queries #
 #################
 def sql_arg_dict(row):
-    return dict(
-        current_version=row.version,
-        # current_version_crash="'{}'".format(row.version),
-        current_version_release=row.date,
-        norm_channel=row.channel,
-        app_version_field=row.app_version_field,
-        crash_build_version_field=row.crash_build_version_field,
-        nday=row.ndays,
-    )
+    return dict(current_version=row.version, cur_vers_release_date=row.date)
 
 
 def to_sql_str_list(xs):
@@ -265,21 +242,40 @@ def query_from_row_release(row, sql_template):
     dates and details for a particular release.
     """
     kwargs = sql_arg_dict(row)
-    kwargs_release = dict(current_version_crash="'{}'".format(row.version))
-    return sql_template.format(**kwargs, **kwargs_release)
+    kwargs_channel = dict(
+        current_version_crash=f"'{row.version}'",
+        app_version_field="app_version",
+        crash_build_version_field="environment.build.version",
+        norm_channel="release",
+        nday=72,
+    )
+    return sql_template.format(**kwargs, **kwargs_channel)
 
 
 def query_from_row_beta(row, sql_template):
     kwargs = sql_arg_dict(row)
-    kwargs_release = dict(current_version_crash="{}".format(row.buildid))
-    return sql_template.format(**kwargs, **kwargs_release)
+    kwargs_channel = dict(
+        current_version_crash=f"{row.buildid}",
+        app_version_field="app_display_version",
+        crash_build_version_field="environment.build.build_id",
+        norm_channel="beta",
+        nday=14,
+    )
+    return sql_template.format(**kwargs, **kwargs_channel)
 
 
 def query_from_row_nightly(row, sql_template):
     kwargs = sql_arg_dict(row)
     kwargs["current_version"] = row.buildid
-    kwargs_release = dict(current_version_crash="'{}'".format(row.buildid))
-    return sql_template.format(**kwargs, **kwargs_release)
+    kwargs_channel = dict(
+        current_version_crash=f"'{row.buildid}'",
+        app_version_field="substr(app_build_id,1,8)",
+        crash_build_version_field=("substr(environment.build.build_id, 1, 8)"),
+        norm_channel="nightly",
+        nday=7,
+    )
+
+    return sql_template.format(**kwargs, **kwargs_channel)
 
 
 ########################
@@ -441,9 +437,7 @@ def write(fname, txt):
 
 def pull_all_model_data(bq_read, sql_fname=SQL_FNAME):
     pd_all = read_product_details()
-    pd_release, pd_release_model, pd_release_download = prod_det_process_release(
-        pd_all
-    )
+    _, _, pd_release_download = prod_det_process_release(pd_all)
 
     sql_template = read(sql_fname)
     dbg.meta = pd_release_download
@@ -455,18 +449,14 @@ def pull_all_model_data(bq_read, sql_fname=SQL_FNAME):
             pd_release_download, sql_template, bq_read
         )
 
-    # docs_rls = bh_bid.pull_build_id_docs(channel="release")
-    # vers2bids_rls = bh_bid.version2build_ids(docs_rls, keep_release=True)
-
     docs_beta = bh_bid.pull_build_id_docs()
     vers2bids_beta = bh_bid.version2build_id_str(docs_beta)
     pd_beta, _pd_beta_model, pd_beta_download = prod_det_process_beta(
         pd_all, vers2bids_beta
     )
 
-    # TODO: debug
+    # For debugging purposes
     dbg.pd_beta_download = pd_beta_download
-    # raise ValueError
 
     with pull_done("\nPulling beta data"):
         df_beta = pull_data_beta(
@@ -477,9 +467,7 @@ def pull_all_model_data(bq_read, sql_fname=SQL_FNAME):
             process=True,
         )
 
-    pd_nightly, pd_nightly_model, pd_nightly_download = prod_det_process_nightly(
-        pd_beta
-    )
+    pd_nightly_download = prod_det_process_nightly(pd_beta)
 
     with pull_done("\nPulling nightly data"):
         df_nightly = pull_data_nightly(
@@ -555,7 +543,8 @@ def download_raw_data(
     First do this by querying the MC v2 table for what those major versions
     are.
 
-    This will write the file to a temporary feather file and return the filename.
+    This will write the file to a temporary feather file and return the
+    filename.
     """
     df = pull_model_data_(bq_read_fn, channel, n_majors, analysis_table)
     if outname is None:

@@ -15,7 +15,6 @@ from google.cloud import bigquery  # noqa
 from google.oauth2 import service_account  # noqa
 from upload_bq import delete_versions, drop_table, run_model_upload, upload
 
-
 # from src.download_bq import pull_all_model_data
 # from src.upload_bq import delete_versions, drop_table, upload
 
@@ -179,10 +178,13 @@ def main(
     drop_first: bool = False,
     return_df: bool = False,
     force: bool = False,
+    skip_delete: bool = False,
+    add_fake_columns: bool = True,
     sql_dataset_name="`moz-fx-data-derived-datasets`.analysis",
 ):
     """
-    Process and upload raw data. For debugging (including dropping the test table):
+    Process and upload raw data. For debugging (including dropping the test
+    table):
     python data/crud.py main \
         --table_name="missioncontrol_v2_raw_data_test" --cache=True \
         --drop_first=True --add_schema=True \
@@ -192,6 +194,9 @@ def main(
     When called from the command line, it won't return anything by default,
     but if calling as a python function, passing `return_df` will have it
     return the resulting dataframe.
+
+    `add_fake_columns`: add plugin columns. Interrim solution to keep the schema
+    consistent until it's finalized.
     """
     add_schema, cache, drop_first, return_df, force = map(
         strong_bool, [add_schema, cache, drop_first, return_df, force]
@@ -219,7 +224,21 @@ def main(
     print("Starting data pull")
     df_all = pull_all_model_data(bq_read)
 
-    delete_versions(df_all, query_func=query_func, table_name=table_name)
+    if add_fake_columns:
+        # First, give dummy values for plugin columns that are no longer
+        # needed; they need to be correctly ordered or bq chokes on the new
+        # schema
+        new_cols = [
+            ("dau_cp_crasher_cversion", 8, 0),
+            ("usage_cp_crasher_cversion", 12, 0),
+            ("cplugin", 16, 0),
+        ]
+
+        for col, loc, val in new_cols:
+            df_all.insert(loc, col, val)
+
+    if not skip_delete:
+        delete_versions(df_all, query_func=query_func, table_name=table_name)
     upload(df_all, table_name=table_name, add_schema=add_schema)
 
     # Double check: print how many rows

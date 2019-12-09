@@ -9,6 +9,7 @@ from requests import post
 uri = "https://buildhub.moz.tools/api/search"
 keeprc = False
 
+
 def pull_build_id_docs(
     min_build_day="20180701", channel="beta", raw_json=False
 ):
@@ -88,7 +89,7 @@ def extract_triplets(
 
 
 def version2build_ids(
-    docs, major_version=None, keep_rc=keeprc, keep_release=False
+    docs, major_version=None, keep_rc=keeprc, keep_release=False, as_df=False
 ):
     version_build_ids = [
         extract_triplets(

@@ -162,19 +162,24 @@ def upload_model_data(
     print_rows(full_sql_table_name=full_sql_table_name, creds_loc=creds_loc)
 
 
-# TODO: bq_loc
+# TODO: replace occurrences with print_rows_loc
 def print_rows(full_sql_table_name, creds_loc=None):
     bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
     n_rows = bq_read_no_cache(
         "select count(*) from {}".format(full_sql_table_name)
     ).iloc[0, 0]
     print("=> {} now has {} rows".format(full_sql_table_name, n_rows))
-    # `moz-fx-data-derived-datasets`.analysis.
 
 
 def print_rows_loc(bq_loc: BqLocation, creds_loc=None):
     bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
-    n_rows = bq_read_no_cache(f"select count(*) from {bq_loc.sql}").iloc[0, 0]
+
+    summary = bq_read_no_cache(
+        "select count(*) as n_rows, avg(dau_cversion) / 1e6"
+        f" as dau_cversion_mm from {bq_loc.sql}"
+    )
+    n_rows = summary.iloc[0, 0]
+    print(summary)
     print(f"=> {bq_loc.sql} now has {n_rows} rows")
 
 

@@ -1,10 +1,10 @@
+import re
 import subprocess
 import tempfile
-import time
 
 import numpy as np
 import pandas as pd
-from data.bq_utils import BqLocation, check_table_exists
+from bq_utils import BqLocation, check_table_exists
 from pandas import Series
 
 
@@ -70,20 +70,28 @@ def delete_model_versions(
     print(" Done.")
 
 
+def check_date_format(dates: Series):
+    "Ensure `dates` are strings with date formate `YYYY-dd-mm`"
+    date_fmt_re = re.compile(r"\d{4}-\d{2}-\d{2}")
+    assert dates.map(type).pipe(set) == {str}, "Dates passed aren't strings"
+    assert dates.map(date_fmt_re.match).astype(bool).all()
+
+
 def delete_versions(df, query_func, bq_loc: BqLocation):
     """
     @df: DataFrame[['channel', 'c_version', 'date']]
     Drop all unique ('channel', 'c_version', 'date') values in `table_name`.
     To be used before upload of new data.
-    - date column needs to have strings with 'YYYY-dd-mm' format
+    - date column needs to have either strings with 'YYYY-dd-mm' format,
+    or python date objects.
     """
     if not check_table_exists(query_func, bq_loc):
         print("Table does not yet exist. Not dropping rows")
         return
-    df = df[["channel", "c_version", "date"]]
-    assert df["date"].map(type).pipe(set) == {
-        str
-    }, "Dates passed aren't strings"
+    df = df[["channel", "c_version", "date"]].assign(
+        date=lambda x: x.date.map(str)
+    )
+    check_date_format(df["date"])
 
     filter_string_values = [
         (channel, c_version, ", ".join(map("'{}'".format, gb_df.date)))

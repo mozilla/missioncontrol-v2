@@ -10,6 +10,7 @@ from os.path import abspath, exists, expanduser
 
 import fire
 import pandas as pd
+from bq_utils import BqLocation
 from download_bq import download_raw_data, pull_all_model_data
 from google.cloud import bigquery  # noqa
 from google.oauth2 import service_account  # noqa
@@ -161,6 +162,7 @@ def upload_model_data(
     print_rows(full_sql_table_name=full_sql_table_name, creds_loc=creds_loc)
 
 
+# TODO: bq_loc
 def print_rows(full_sql_table_name, creds_loc=None):
     bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
     n_rows = bq_read_no_cache(
@@ -168,6 +170,12 @@ def print_rows(full_sql_table_name, creds_loc=None):
     ).iloc[0, 0]
     print("=> {} now has {} rows".format(full_sql_table_name, n_rows))
     # `moz-fx-data-derived-datasets`.analysis.
+
+
+def print_rows_loc(bq_loc: BqLocation, creds_loc=None):
+    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
+    n_rows = bq_read_no_cache(f"select count(*) from {bq_loc.sql}").iloc[0, 0]
+    print(f"=> {bq_loc.sql} now has {n_rows} rows")
 
 
 def main(
@@ -180,7 +188,8 @@ def main(
     force: bool = False,
     skip_delete: bool = False,
     add_fake_columns: bool = True,
-    sql_dataset_name="`moz-fx-data-derived-datasets`.analysis",
+    dataset="analysis",
+    project_id="moz-fx-data-derived-datasets",
 ):
     """
     Process and upload raw data. For debugging (including dropping the test
@@ -201,6 +210,7 @@ def main(
     add_schema, cache, drop_first, return_df, force = map(
         strong_bool, [add_schema, cache, drop_first, return_df, force]
     )
+    bq_loc = BqLocation(table_name, dataset=dataset, project_id=project_id)
     if table_name == "missioncontrol_v2_raw_data":
         if cache:
             print(
@@ -208,9 +218,7 @@ def main(
             )
         if drop_first and not force:
             raise ValueError(
-                "If you really want to drop {}, pass force == True".format(
-                    table_name
-                )
+                f"If you really want to drop {table_name}, pass force == True"
             )
     if cache:
         print("Cache turned on.")
@@ -230,7 +238,7 @@ def main(
         # schema
         new_cols = [
             ("dau_cp_crasher_cversion", 8, 0),
-            ("usage_cp_crasher_cversion", 12, 0),
+            ("usage_cp_crasher_cversion", 12, 0.0),
             ("cplugin", 16, 0),
         ]
 
@@ -238,13 +246,11 @@ def main(
             df_all.insert(loc, col, val)
 
     if not skip_delete:
-        delete_versions(df_all, query_func=query_func, table_name=table_name)
+        delete_versions(df_all, query_func=query_func, bq_loc=bq_loc)
     upload(df_all, table_name=table_name, add_schema=add_schema)
 
     # Double check: print how many rows
-    print_rows(
-        "{}.{}".format(sql_dataset_name, table_name), creds_loc=creds_loc
-    )
+    print_rows_loc(bq_loc=bq_loc, creds_loc=creds_loc)
 
     if return_df:
         return df_all

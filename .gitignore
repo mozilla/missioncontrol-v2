@@ -1,2 +1,8 @@
 cache/joblib/
 cache/
+
+mc2/data/debug.py
+mc2/data/ipy_imps.py
+mc2/test_run.sh
+mc2/test_run_master.sh
+notebooks/boot_utes.py

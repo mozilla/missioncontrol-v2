@@ -1,5 +1,5 @@
+from data.download_bq import beta_version_parse, rls_version_parse
 from pytest import raises
-from src.download_bq import rls_version_parse, beta_version_parse
 
 
 def test_rls_version_parse():

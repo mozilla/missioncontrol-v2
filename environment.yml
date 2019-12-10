@@ -20,4 +20,5 @@ dependencies:
   - toolz
   - fire
   - pandas-gbq
+  - jupytext
   # - google-cloud-bigquery

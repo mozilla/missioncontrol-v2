@@ -1,9 +1,10 @@
+import re
 import subprocess
 import tempfile
-import time
 
 import numpy as np
 import pandas as pd
+from bq_utils import BqLocation, check_table_exists
 from pandas import Series
 
 
@@ -34,6 +35,7 @@ def check_job_done(job):
 def delete_model_versions(
     df,
     query_func,
+    bq_loc: BqLocation,
     table_name,
     project_id="moz-fx-data-shared-prod",
     dataset="analysis",
@@ -45,7 +47,7 @@ def delete_model_versions(
     sql_dataset_name = "`{}`.{}".format(project_id, dataset)
     del dataset
     if not check_table_exists(
-        query_func, table_name, sql_dataset_name=sql_dataset_name
+        query_func, bq_loc, sql_dataset_name=sql_dataset_name
     ):
         print("Table does not yet exist. Not dropping rows")
         return
@@ -68,38 +70,53 @@ def delete_model_versions(
     print(" Done.")
 
 
-def delete_versions(df, query_func, table_name="wbeard_crash_rate_raw"):
+def check_date_format(dates: Series):
+    "Ensure `dates` are strings with date formate `YYYY-dd-mm`"
+    date_fmt_re = re.compile(r"\d{4}-\d{2}-\d{2}")
+    assert dates.map(type).pipe(set) == {str}, "Dates passed aren't strings"
+    assert dates.map(date_fmt_re.match).astype(bool).all()
+
+
+def delete_versions(df, query_func, bq_loc: BqLocation):
     """
     @df: DataFrame[['channel', 'c_version', 'date']]
     Drop all unique ('channel', 'c_version', 'date') values in `table_name`.
     To be used before upload of new data.
+    - date column needs to have either strings with 'YYYY-dd-mm' format,
+    or python date objects.
     """
-    if not check_table_exists(query_func, table_name):
+    if not check_table_exists(query_func, bq_loc):
         print("Table does not yet exist. Not dropping rows")
         return
-    df = df[["channel", "c_version", "date"]]
-    q_temp = (
-        "delete from `moz-fx-data-derived-datasets`.analysis.{table_name} "
-        "where c_version='{c_version}' "
-        "and channel='{channel}' and date in ({dates})"
+    df = df[["channel", "c_version", "date"]].assign(
+        date=lambda x: x.date.map(str)
     )
-    for (channel, c_version), gdf in (
-        df[["channel", "c_version", "date"]]
-        .drop_duplicates()
-        .groupby(["channel", "c_version"])
-    ):
-        dates_str = dates_to_sql_str(gdf.date)
+    check_date_format(df["date"])
 
-        q = q_temp.format(
-            table_name=table_name,
-            channel=channel,
-            c_version=c_version,
-            dates=dates_str,
-        )
-        print("Executing `{}`...".format(q), end="")
-        query_func(q)
-        time.sleep(2)
-        print(" Done.")
+    filter_string_values = [
+        (channel, c_version, ", ".join(map("'{}'".format, gb_df.date)))
+        for (channel, c_version), gb_df in df.groupby(["channel", "c_version"])
+    ]
+
+    or_sep_conditions = "\n\t OR ".join(
+        [
+            (
+                f"(channel='{channel}'"
+                f" and c_version='{c_version}'"
+                f" and date in ({date_str}))"
+            )
+            for channel, c_version, date_str in filter_string_values
+        ]
+    )
+
+    delete_query = f"""
+    delete from {bq_loc.sql}
+    where {or_sep_conditions}
+    """
+
+    print("Executing `{}`...".format(delete_query), end="")
+    query_func(delete_query)
+    print(" Done.")
 
 
 def make_model_upload_cmd(
@@ -182,22 +199,6 @@ def run_model_upload(
     print("Uploading to {}".format(table_name_noticks))
     res = run_command(load_cmd)
     return res
-
-
-def check_table_exists(
-    query_func,
-    table_name,
-    sql_dataset_name="`moz-fx-data-derived-datasets`.analysis",
-):
-    q = """
-    SELECT count(*) as exist FROM {dataset_name}.__TABLES__
-    WHERE table_id='{table_name}'
-    """.format(
-        dataset_name=sql_dataset_name, table_name=table_name
-    )
-    [row] = query_func(q)
-    [exists] = row.values()
-    return bool(exists)
 
 
 def get_schema(df, as_str=False, **override):

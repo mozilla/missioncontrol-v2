@@ -21,11 +21,11 @@ writeLines(runner,con="./runner.sh")
 if(backup.mode == 1){
     res  <- system2("sh", "./runner.sh",stderr=TRUE,stdout=TRUE)
     loginfo(paste(res, collapse="\n"))
-    if(any(grepl("(E|e)xception",res))|| any(grepl("(f|F)ailed",res))){
+    if(any(grepl("(Traceback|(E|e)xception|Error)",res))|| any(grepl("(f|F)ailed",res))){
         logerror("Problem with Uploading Model Results")
         stop("Problem Uploading Model Results")
     }else{
-        loginfo("Successfully uploaded model results to missioncontrol_v2_model_output_test")
+        loginfo("Successfully uploaded model results to missioncontrol_v2_model_output")
     }
 }else{
     loginfo("Not running, just showing what would be run")

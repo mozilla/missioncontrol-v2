@@ -15,7 +15,7 @@ python data/crud.py main --creds_loc '{BQCREDS}'  --table_name missioncontrol_v2
 writeLines(runner,con="./runner.sh")
 res  <- system2("sh", "./runner.sh",stderr=TRUE,stdout=TRUE)
 loginfo(paste(res, collapse="\n"))
-if(any(grepl("(E|e)xception",res))|| any(grepl("(f|F)ailed",res))){
+if(any(grepl("(Traceback|(E|e)xception)",res))|| any(grepl("(f|F)ailed",res))){
     logerror("Problem with Creating Raw Data")
 
     stop("Problem with Creating Raw Data")

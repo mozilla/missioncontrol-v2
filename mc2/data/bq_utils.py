@@ -27,16 +27,11 @@ class BqLocation:
         return f"`{self.project_id}`.{self.dataset}"
 
 
-def check_table_exists(
-    query_func,
-    bq_loc: BqLocation,
-):
-    q = """
-    SELECT count(*) as exist FROM {dataset_name}.__TABLES__
-    WHERE table_id='{table}'
-    """.format(
-        dataset_name=bq_loc.sql_dataset, table=bq_loc.table
-    )
+def check_table_exists(query_func, bq_loc: BqLocation):
+    q = f"""
+    SELECT count(*) as exist FROM {bq_loc.sql_dataset}.__TABLES__
+    WHERE table_id='{bq_loc.table}'
+    """
     [row] = query_func(q)
     [exists] = row.values()
     return bool(exists)

@@ -7,3 +7,4 @@ mc2/test_run.sh
 mc2/test_run_master.sh
 mc2/copy_table.sh
 notebooks/boot_utes.py
+*.fthr

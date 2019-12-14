@@ -12,7 +12,7 @@ SELECT
     active_hours_sum,
     client_id,
     -- version will be determined by value filled into
-    -- teplate variable `app_version_field`.
+    -- template variable `app_version_field`.
     -- One of app_build_id, displ
     app_version,         -- release
     app_display_version, -- beta

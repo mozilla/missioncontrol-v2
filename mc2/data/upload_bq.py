@@ -32,27 +32,16 @@ def check_job_done(job):
     return job
 
 
-def delete_model_versions(
-    df,
-    query_func,
-    bq_loc: BqLocation,
-    table_name,
-    project_id="moz-fx-data-shared-prod",
-    dataset="analysis",
-):
+def delete_model_versions(df, query_func, bq_loc: BqLocation):
     """
     Drop rows from model table with same model_date
     before upload of new data.
     """
-    sql_dataset_name = "`{}`.{}".format(project_id, dataset)
-    del dataset
-    if not check_table_exists(
-        query_func, bq_loc, sql_dataset_name=sql_dataset_name
-    ):
+    if not check_table_exists(query_func, bq_loc):
         print("Table does not yet exist. Not dropping rows")
         return
     q_temp = """
-    delete from {sql_dataset_name}.{table_name}
+    delete from {full_table_name}
     where model_date in ({model_dates})
     """
     mdates_str = (
@@ -60,11 +49,7 @@ def delete_model_versions(
         .drop_duplicates()
         .pipe(dates_to_sql_str)
     )
-    q = q_temp.format(
-        sql_dataset_name=sql_dataset_name,
-        table_name=table_name,
-        model_dates=mdates_str,
-    )
+    q = q_temp.format(full_table_name=bq_loc.sql, model_dates=mdates_str)
     print("Executing {}".format(q), end="\n...")
     query_func(q)
     print(" Done.")
@@ -155,22 +140,12 @@ def process_model_df(df):
 
 
 def run_model_upload(
-    query_func,
-    feather_fname,
-    json_fname=None,
-    table_name="missioncontrol_v2_model_output_test",
-    project_id="moz-fx-data-shared-prod",
-    dataset="analysis",
-    overwrite=False,
+    query_func, feather_fname, bq_loc, json_fname=None, overwrite=False
 ):
     """
     Upload dataframe saved as feather file to `feather_fname`
     up to BQ. Delete any rows if they have the same model date.
     """
-    table_name_noticks = "{proj}:{dataset}.{table}".format(
-        proj=project_id, dataset=dataset, table=table_name
-    )
-
     # Read, save df as json
     df = pd.read_feather(feather_fname).pipe(process_model_df)
     if json_fname is None:
@@ -182,21 +157,15 @@ def run_model_upload(
     schema = get_schema(df, as_str=True, model_date="DATE")
     load_cmd = make_model_upload_cmd(
         json_fname=json_fname,
-        full_table_name_noticks=table_name_noticks,
+        full_table_name_noticks=bq_loc.cli,
         schema=schema,
         overwrite=overwrite,
     )
 
     # Delete potentially redundant rows
-    delete_model_versions(
-        df,
-        query_func,
-        table_name=table_name,
-        project_id=project_id,
-        dataset=dataset,
-    )
+    delete_model_versions(df, query_func, bq_loc=bq_loc)
 
-    print("Uploading to {}".format(table_name_noticks))
+    print(f"Uploading to {bq_loc.cli}")
     res = run_command(load_cmd)
     return res
 

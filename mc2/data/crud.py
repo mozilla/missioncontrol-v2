@@ -43,7 +43,7 @@ def strong_bool(b):
 
 def get_creds(creds_loc=None):
     if not creds_loc:
-        creds_loc = os.environ.get("BQCREDS")
+        creds_loc = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
         if not creds_loc:
             raise RuntimeError(
                 "Bigquery credentials not passed, or found in environment."

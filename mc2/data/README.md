@@ -13,7 +13,7 @@ crud.main(
 )
 ```
 
-It requires the filepath of the bigquery credentials to be passed as `creds_loc`. If no argument is passed, the program will try to use the `BQCREDS` environment variable.
+It requires the filepath of the bigquery credentials to be passed as `creds_loc`. If no argument is passed, the program will try to use the `GOOGLE_APPLICATION_CREDENTIALS` environment variable.
 
 
 While debugging, it could be useful to pass
@@ -36,7 +36,7 @@ python data/crud.py main \
 
 For the production table, the call would be
 ```bash
-export BQCREDS="<path to bigquery creds>"
+export GOOGLE_APPLICATION_CREDENTIALS="<path to bigquery creds>"
 conda activate mc2
 cd mc2
 python data/crud.py main --table_name="missioncontrol_v2_raw_data"

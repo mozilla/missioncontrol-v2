@@ -18,7 +18,7 @@ library(rmarkdown)
 options(future.globals.maxSize= 850*1024^2 )
 Lapply <- lapply #future_lapply
 
-BQCREDS <- "~/gcloud.json"
+BQCREDS <- Sys.getenv("GOOGLE_APPLICATION_CREDENTIALS", "~/gcloud.json")
 
 if(!exists("missioncontrol.lib.R")){
     ## executed only once

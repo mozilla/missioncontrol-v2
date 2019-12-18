@@ -1,14 +1,3 @@
--- current_version -> current_versions
--- replace all {{app_version_field}} = 'current_version'
-
--- AND {{crash_build_version_field}} IN ({{current_version_crash}}) =>
-    -- AND {{crash_current_versions_dates}}
-
--- do we need u2.channel_app_version in `usage`?
--- get rid of `nday`
--- - min_sub_date
--- - max_sub_date
-
 CREATE TEMP FUNCTION os_chan_buckets(os string, chan string) as (
   case (os, chan) when ('Windows_NT', 'release') then 3
     else 1 end

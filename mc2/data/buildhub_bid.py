@@ -3,7 +3,7 @@ import itertools as it
 import re
 from typing import Optional
 
-import pandas as pd
+import pandas as pd  # type: ignore
 from requests import post
 
 uri = "https://buildhub.moz.tools/api/search"

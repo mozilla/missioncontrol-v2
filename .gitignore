@@ -8,3 +8,5 @@ mc2/test_run_master.sh
 mc2/copy_table.sh
 notebooks/boot_utes.py
 *.fthr
+mc2/data/samp/
+mc2/bin/

@@ -4,29 +4,27 @@ import re
 import sys
 import tempfile
 from contextlib import contextmanager
+from typing import Optional
 
 import buildhub_bid as bh_bid
-import pandas as pd
+import pandas as pd  # type: ignore
+import release_versions as rv
 from pandas import DataFrame
-from pandas.testing import assert_frame_equal
+from pandas.testing import assert_frame_equal  # type: ignore
 
 SQL_FNAME = "data/download_template.sql"
 dbg = lambda: None
+dash_date_fmt = str  # "%Y-%m-%d"
+SUB_DATE_FMT = "%Y-%m-%d"
+
+
+def to_sub_date_fmt(d):
+    return d.strftime(SUB_DATE_FMT)
+
 
 os_dtype = pd.CategoricalDtype(
     categories=["Linux", "Darwin", "Windows_NT"], ordered=True
 )
-
-
-def read_product_details():
-    pd_url = "https://product-details.mozilla.org/1.0/firefox.json"
-    js = pd.read_json(pd_url)
-    df = (
-        pd.DataFrame(js.releases.tolist())
-        .assign(release_label=js.index.tolist())
-        .assign(date=lambda x: pd.to_datetime(x.date))
-    )
-    return df
 
 
 def next_release_date(
@@ -59,7 +57,7 @@ def rls_version_parse(disp_vers: str):
     pat = re.compile(r"(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<dot>\d+))?$")
     m = pat.match(disp_vers)
     if not m:
-        raise ValueError("unable to parse version string: {}".format(disp_vers))
+        raise ValueError(f"unable to parse version string: {disp_vers}")
     res = m.groupdict()
     if not res["dot"]:
         res["dot"] = "0"
@@ -67,10 +65,10 @@ def rls_version_parse(disp_vers: str):
 
 
 def beta_version_parse(disp_vers: str):
-    pat = re.compile(r"(?P<major>\d+)\.0b(?P<minor>\d+)$")
+    pat = re.compile(r"(?P<major>\d+)(?:\.\d+)+b?(?P<minor>\d+)?")
     m = pat.match(disp_vers)
     if not m:
-        raise ValueError("unable to parse version string: {}".format(disp_vers))
+        raise ValueError(f"unable to parse version string: {disp_vers}")
     return m.groupdict()
 
 
@@ -104,7 +102,7 @@ def get_peak_date(vers_df, vers_col="dvers", date_col="date"):
 # Product Detail Pulls #
 ########################
 # TODO: choose better min day than "2019-01-01"
-def prod_det_process_release(df_all):
+def prod_det_process_release(df_all, sub_date: Optional[dash_date_fmt] = None):
     """
     Process and categorize data from
     https://product-details.mozilla.org/1.0/firefox.json
@@ -116,14 +114,19 @@ def prod_det_process_release(df_all):
     Useful return dataframe is `df_release_data`, but others are returned as
     well to fit the pattern for `prod_det_process_beta`, where the intermediate
     DataFrame is needed for the nightly pull.
+    `till` column is added so that `add_fields` (called in pull_data_base)
+    can use it as an endpoint to calculate whether a version is still 'active'
+    or 'current'.
     """
     # Release
     max_days_future = 365
-    today = dt.datetime.today().strftime("%Y-%m-%d")  # noqa
+
+    # TODO: get rid of `today` calls
+    sub_date = sub_date or dt.datetime.today().strftime("%Y-%m-%d")
 
     df = df_all.query(
         'category in ["major", "stability"]'
-        '& date >= "2019-01-01" & date < @today'
+        '& date >= "2019-01-01" & date < @sub_date'
     ).copy()
 
     df = add_version_elements(
@@ -131,9 +134,7 @@ def prod_det_process_release(df_all):
     ).sort_values(["major", "minor", "dot"], ascending=True)
 
     # Subset for building model
-    cur_major = df.major.iloc[-1]
-    recent_majs = [cur_major, cur_major - 1, cur_major - 2]  # noqa
-    df_model_release = df.query("major in @recent_majs")
+    cur_major = df.major.iloc[-1]  # noqa
 
     # Still need for data pull
     df_release_data = (
@@ -141,16 +142,12 @@ def prod_det_process_release(df_all):
         .assign(
             till=lambda x: next_release_date(
                 x["date"], max_days_future=max_days_future
-            ),
-            channel="release",
-            ndays=72,
-            app_version_field="app_version",
-            crash_build_version_field="environment.build.version",
+            )
         )
         .assign(date=lambda x: x.date.dt.date, till=lambda x: x.till.dt.date)
     )  # better string repr
 
-    return df, df_model_release, df_release_data
+    return df_release_data
 
 
 def prod_det_process_beta(df_all, vers2bids_beta):
@@ -255,9 +252,9 @@ def query_from_row_release(row, sql_template):
 def query_from_row_beta(row, sql_template):
     kwargs = sql_arg_dict(row)
     kwargs_channel = dict(
-        current_version_crash=f"{row.buildid}",
+        current_version_crash=f"'{row.version}'",
         app_version_field="app_display_version",
-        crash_build_version_field="environment.build.build_id",
+        crash_build_version_field="environment.build.display_version",
         norm_channel="beta",
         nday=14,
     )
@@ -282,6 +279,9 @@ def query_from_row_nightly(row, sql_template):
 # Actual Data Download #
 ########################
 def add_fields(df, current_version, date0, till):
+    """
+    Applied df by df to chunks as they are downloaded
+    """
     date0, till = map(pd.to_datetime, [date0, till])
     round_down = lambda x: 0 if x < 60 / 3600 else x
 
@@ -311,6 +311,37 @@ def add_fields(df, current_version, date0, till):
     return df
 
 
+def add_fields_single(df):
+    """
+    Similar to add_fields, but for sql pull where all versions
+    are pulled in single query.
+    Currently works for beta, but should be applied to other channels
+    as well.
+    """
+    round_down = lambda x: 0 if x < 60 / 3600 else x
+
+    df = df.assign(
+        isLatest=lambda x: x.date <= x.till,
+        t=lambda x: (x.date - x.release_date)
+        .astype("timedelta64[D]")
+        .astype(int),
+    ).assign(
+        cmi=lambda x: (1 + x.dau_cm_crasher_cversion) / x.dau_cversion,
+        cmr=lambda x: (1 + x.cmain)
+        / x.usage_cm_crasher_cversion.map(round_down),
+        cci=lambda x: (1 + x.dau_cc_crasher_cversion) / x.dau_cversion,
+        ccr=lambda x: (1 + x.ccontent)
+        / x.usage_cc_crasher_cversion.map(round_down),
+        nvc=lambda x: x.usage_cversion / x.usage_all,
+        os=lambda x: x.os.astype(os_dtype),
+    )
+
+    date_cols = "date release_date".split()
+    for date_col in date_cols:
+        df[date_col] = df[date_col].dt.date
+    return df
+
+
 #############
 # Data pull #
 #############
@@ -330,6 +361,7 @@ def pull_data_base(
 ):
     dfs = []
     for _ix, row in download_meta_data.iterrows():
+        print(f"pulling {version_col}={row[version_col]}")
         query = row2query(row, sql_template)
         dbg.query = query
         df = bq_read(query)
@@ -376,6 +408,91 @@ def pull_data_beta(download_meta_data, sql_template, bq_read, process=True):
             .drop(["peak_date"], axis=1)
             .reset_index(drop=1)
         )
+    return data
+
+
+def pull_data_beta2(download_meta_data, sql_template, bq_read):
+    download_meta_data = download_meta_data[
+        ["version", "release_date", "till"]
+    ].assign(
+        release_date=lambda x: x.release_date.map(to_sub_date_fmt),
+        till=lambda x: x.till.map(to_sub_date_fmt),
+    )
+    app_version_field = "app_display_version"
+    crash_build_version_field = "environment.build.display_version"
+
+    def build_beta_version_filter(meta, date_field, version_field):
+        version_filters = []
+        for row in meta.itertuples(index=False):
+            filter_str = (
+                f"({version_field} = '{row.version}' and "
+                f"{date_field} between '{row.release_date}' and '{row.till}')"
+            )
+            version_filters.append(filter_str)
+
+        return "(" + "\n\tOR ".join(version_filters) + ")"
+
+    version_filter = build_beta_version_filter(
+        download_meta_data,
+        date_field="date",
+        version_field="channel_app_version",
+    )
+    crash_version_filter = build_beta_version_filter(
+        download_meta_data,
+        date_field="date",
+        version_field="channel_app_version_crash",
+    )
+
+    kwargs = dict(
+        norm_channel="beta",
+        app_version_field=app_version_field,
+        crash_build_version_field=crash_build_version_field,
+        min_sub_date=download_meta_data.release_date.min(),
+        max_sub_date=download_meta_data.till.max(),
+        current_usage_versions_dates=version_filter,
+        crash_current_versions_dates=crash_version_filter,
+    )
+
+    beta_query = sql_template.format(**kwargs)
+    data = bq_read(beta_query)
+
+    # date, till, c_version_rel need to be datetime
+    # This gets us the `release_date` and `till` columns,
+    # latter based on future release dates
+    data = (
+        data.merge(
+            download_meta_data,
+            left_on=["channel_app_version"],
+            right_on=["version"],
+        )
+        .drop("version", axis=1)
+        .assign(
+            **{
+                date_col: lambda x, c=date_col: pd.to_datetime(x[c])
+                for date_col in ["release_date", "date", "till"]
+            }
+        )
+    )
+
+    # `add_fields_single` needs `till` to calculate whether a version
+    # is still active (`isLatest`). We don't need it anymore after that though.
+    data = (
+        add_fields_single(data)
+        .rename(
+            columns={
+                "release_date": "c_version_rel",
+                "channel_app_version": "c_version",
+            }
+        )
+        .drop(["till"], axis=1)
+    )
+    data = add_version_elements(data, beta_version_parse, "c_version", to=int)
+    data = (
+        get_peak_date(data, "c_version")
+        .pipe(verbose_query("date <= peak_date"))
+        .drop(["peak_date"], axis=1)
+        .reset_index(drop=1)
+    )
     return data
 
 
@@ -435,9 +552,9 @@ def write(fname, txt):
         fp.write(txt)
 
 
-def pull_all_model_data(bq_read, sql_fname=SQL_FNAME):
-    pd_all = read_product_details()
-    _, _, pd_release_download = prod_det_process_release(pd_all)
+def pull_all_model_data(bq_read, sql_fname=SQL_FNAME, sub_date=None):
+    pd_all = rv.read_product_details()
+    pd_release_download = prod_det_process_release(pd_all, sub_date=sub_date)
 
     sql_template = read(sql_fname)
     dbg.meta = pd_release_download
@@ -455,16 +572,12 @@ def pull_all_model_data(bq_read, sql_fname=SQL_FNAME):
         pd_all, vers2bids_beta
     )
 
-    # For debugging purposes
-    dbg.pd_beta_download = pd_beta_download
-
+    sql_template_single = read("data/download_template_single.sql")
     with pull_done("\nPulling beta data"):
-        df_beta = pull_data_beta(
-            # todo: debug process=False
-            pd_beta_download,
-            sql_template,
+        df_beta = pull_data_beta2(
+            pd_beta_download.rename(columns={"date": "release_date"}),
+            sql_template_single,
             bq_read,
-            process=True,
         )
 
     pd_nightly_download = prod_det_process_nightly(pd_beta)

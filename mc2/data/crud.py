@@ -63,6 +63,7 @@ def mk_bq_reader(
     returns a pandas dataframe
     """
     creds = get_creds(creds_loc=creds_loc)
+    project_id = project_id or creds.project_id
 
     bq_read = partial(
         pd.read_gbq,
@@ -203,14 +204,14 @@ def main(
     add_schema: bool = False,
     creds_loc=None,
     cache: bool = False,
+    project_id="moz-fx-data-derived-datasets",
+    dataset="analysis",
     table_name="wbeard_crash_rate_raw",
     drop_first: bool = False,
     return_df: bool = False,
     force: bool = False,
     skip_delete: bool = False,
     add_fake_columns: bool = True,
-    dataset="analysis",
-    project_id="moz-fx-data-derived-datasets",
     sub_date=None,
 ):
     """
@@ -252,7 +253,7 @@ def main(
         print("Not using cached queries")
     if drop_first:
         drop_table(table_name=table_name)
-    bq_read = mk_bq_reader(creds_loc=creds_loc, cache=cache)
+    bq_read = mk_bq_reader(creds_loc=creds_loc, project_id=project_id, cache=cache)
     query_func = mk_query_func(creds_loc=creds_loc)
 
     print("Starting data pull")
@@ -273,7 +274,7 @@ def main(
 
     if not skip_delete:
         delete_versions(df_all, query_func=query_func, bq_loc=bq_loc)
-    upload(df_all, table_name=table_name, add_schema=add_schema)
+    upload(df_all, project_id=project_id, table_name=table_name, add_schema=add_schema)
 
     # Double check: print how many rows
     print_rows_dau(bq_loc=bq_loc, creds_loc=creds_loc)

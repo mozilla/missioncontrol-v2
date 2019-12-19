@@ -20,7 +20,7 @@ getModelDataForChannel <- function(ch, v, input_file = NULL,asfeather=FALSE){
 ## also bigquery utils(bqutils) needs to be initialized/logged in  else the uploads will fail
 ## /home/sguha/anaconda3/bin/conda  activate mc2
 cd mc2
-python data/crud.py dl_raw --creds_loc {BQCREDS}  --channel {ch} --n_majors {v} --cache False --outname '{rtemp}'
+python data/crud.py dl_raw --project_id {GCP_PROJECT_ID} --creds_loc {BQCREDS}  --channel {ch} --n_majors {v} --cache False --outname '{rtemp}'
 ")
         writeLines(runner,con="./runner.sh")
         loginfo(glue("Starting Gettting Model Data for channel {ch} and nversions {v}"))

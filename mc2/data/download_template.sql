@@ -18,7 +18,7 @@ SELECT
     app_display_version, -- beta
     app_build_id         -- nightly
   FROM
-    telemetry.clients_daily_v6 
+    `moz-fx-data-shared-prod`.telemetry.clients_daily_v6
   WHERE
     submission_date_s3 >= '{cur_vers_release_date}'
     AND submission_date_s3 <= DATE_ADD(
@@ -43,7 +43,7 @@ crashes_base as (
     environment.system.os.name as os,
     payload
   FROM
-    telemetry.crash
+    `moz-fx-data-shared-prod`.telemetry.crash
   WHERE
     date(submission_timestamp) >= '{cur_vers_release_date}'
     AND date(submission_timestamp) <= DATE_ADD(

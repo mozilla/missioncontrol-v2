@@ -18,7 +18,7 @@ SELECT
     -- app_display_version, -- beta
     -- app_build_id         -- nightly
   FROM
-    telemetry.clients_daily_v6 
+    `moz-fx-data-shared-prod`.telemetry.clients_daily_v6
   WHERE
     app_name = 'Firefox'
     and submission_date_s3 between '{min_sub_date}' and '{max_sub_date}'
@@ -54,7 +54,7 @@ crashes_base_ as (
     {crash_build_version_field} as channel_app_version_crash,
     payload
   FROM
-    telemetry.crash
+    `moz-fx-data-shared-prod`.telemetry.crash
   WHERE
     application.name = 'Firefox'
     AND environment.system.os.name IN ('Linux', 'Windows_NT', 'Darwin')

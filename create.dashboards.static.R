@@ -26,7 +26,7 @@ genf <- function(D,ch=c("release beta nightly faq")){
         if(grepl("faq",ch)) render("mc2/faq.Rmd",quiet = renderQuiet,params=list(dest=D))
         system("rsync  --exclude '*py' --exclude '*cache' --exclude 'data' --exclude 'tests'  -az mc2/ ~/html/public/")
         if(backup.mode==1){
-            system(glue("gsutil -q -m rsync -d -r  ~/html/public/  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/public/"))
+            system(glue("gsutil -q -m rsync -d -r  ~/html/public/ {GCS_OUTPUT_PREFIX}/html/public/"))
         }
     }else if(D=="moco"){
         if(grepl("release",ch)) render("mc2/release.Rmd",quiet = renderQuiet,params=list(dest=D));
@@ -37,8 +37,8 @@ genf <- function(D,ch=c("release beta nightly faq")){
         system(glue("mkdir ~/html//archive/{loc}; rsync -az ~/html/private/  ~/html/archive/{loc}/",
                     loc=dall.rel2[,max(date)]))
         if(backup.mode==1){
-            system(glue("gsutil -q -m rsync -d -r  ~/html/private/  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/private/"))
-            system(glue("gsutil -q -m rsync -d  -r ~/html/archive/{loc}/  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/archive/{loc}/"
+            system(glue("gsutil -q -m rsync -d -r  ~/html/private/ {GCS_OUTPUT_PREFIX}/html/private/"))
+            system(glue("gsutil -q -m rsync -d  -r ~/html/archive/{loc}/ {GCS_OUTPUT_PREFIX}/html/archive/{loc}/"
                       , loc=dall.rel2[,max(date)]))
         }
     }
@@ -49,10 +49,10 @@ if(processDownloadsWorked){
     loginfo("Creating Dashboards")
     genf("public")
     genf("moco")
-    loginfo("Public: gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/public/")
-    loginfo("Private: gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/private/")
-    loginfo("Archive: gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/archive/")
-    system("gsutil ls gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/archive/")
+    loginfo(glue("Public: {GCS_OUTPUT_PREFIX}/html/public/"))
+    loginfo(glue("Private: {GCS_OUTPUT_PREFIX}/html/private/"))
+    loginfo(glue("Archive: {GCS_OUTPUT_PREFIX}/html/archive/"))
+    system(glue("gsutil ls {GCS_OUTPUT_PREFIX}/html/archive/"))
 }else{
     logerror("Something went wrong processing downloads, stopping")
     stop("Something went wrong processing downloads, stopping")

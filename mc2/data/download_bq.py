@@ -14,8 +14,8 @@ from pandas.testing import assert_frame_equal  # type: ignore
 
 SQL_FNAME = "data/download_template.sql"
 dbg = lambda: None
-dash_date_fmt = str  # "%Y-%m-%d"
 SUB_DATE_FMT = "%Y-%m-%d"
+dash_date_fmt = str  # "%Y-%m-%d"
 
 
 def to_sub_date_fmt(d):
@@ -102,7 +102,7 @@ def get_peak_date(vers_df, vers_col="dvers", date_col="date"):
 # Product Detail Pulls #
 ########################
 # TODO: choose better min day than "2019-01-01"
-def prod_det_process_release(df_all, sub_date: Optional[dash_date_fmt] = None):
+def prod_det_process_release(df_all, sub_date: dash_date_fmt):
     """
     Process and categorize data from
     https://product-details.mozilla.org/1.0/firefox.json
@@ -120,9 +120,6 @@ def prod_det_process_release(df_all, sub_date: Optional[dash_date_fmt] = None):
     """
     # Release
     max_days_future = 365
-
-    # TODO: get rid of `today` calls
-    sub_date = sub_date or dt.datetime.today().strftime("%Y-%m-%d")
 
     df = df_all.query(
         'category in ["major", "stability"]'
@@ -188,38 +185,6 @@ def prod_det_process_beta(df_all, vers2bids_beta):
     return df, df_model, df_download_data
 
 
-def prod_det_process_nightly(pd_beta):
-    """
-    Ok, this is some weird logic.
-    beta=70.0b3 is base release of beta cycle. This will correspond
-    to vers. 71 on nightly channel. The display version is designated
-    as 71.0a1
-
-    """
-    df = (
-        pd_beta.query("minor == 3")[["major", "date"]]
-        .assign(
-            till=lambda x: next_release_date(x.date, 0, use_today_as_max=True),
-            version=lambda x: x.major.add(1).map("{:.1f}a1".format),
-        )
-        .reset_index(drop=1)
-    )
-
-    beta_last_row = df.iloc[-1]
-
-    df_nightly_data = DataFrame(
-        dict(
-            date_pd=pd.date_range(beta_last_row.date, beta_last_row.till),
-            version=beta_last_row.version,
-        )
-    ).assign(
-        buildid=lambda x: x.date_pd.dt.strftime("%Y%m%d"),
-        date=lambda x: x.date_pd.dt.strftime("%Y-%m-%d"),
-        till=lambda x: (x.date_pd + pd.Timedelta(days=7)).dt.date,
-    )
-    return df_nightly_data
-
-
 #################
 # Build Queries #
 #################
@@ -263,9 +228,9 @@ def query_from_row_beta(row, sql_template):
 
 def query_from_row_nightly(row, sql_template):
     kwargs = sql_arg_dict(row)
-    kwargs["current_version"] = row.buildid
+    kwargs["current_version"] = row.build_id
     kwargs_channel = dict(
-        current_version_crash=f"'{row.buildid}'",
+        current_version_crash=f"'{row.build_id}'",
         app_version_field="substr(app_build_id,1,8)",
         crash_build_version_field=("substr(environment.build.build_id, 1, 8)"),
         norm_channel="nightly",
@@ -395,20 +360,31 @@ def pull_data_release(download_meta_data, sql_template, bq_read, process=True):
     return data
 
 
-def pull_data_beta(download_meta_data, sql_template, bq_read, process=True):
-    data = pull_data_base(
-        sql_template, download_meta_data, query_from_row_beta, bq_read=bq_read
-    )
-    data = add_version_elements(data, beta_version_parse, "c_version", to=int)
-    # TODO: have this optional for debugging for now
-    if process:
-        data = (
-            get_peak_date(data, "c_version")
-            .pipe(verbose_query("date <= peak_date"))
-            .drop(["peak_date"], axis=1)
-            .reset_index(drop=1)
+def build_version_date_filter(meta, date_field, version_field):
+    """
+    meta: DataFrame['version', 'release_date', 'till']
+    date_field: SQL field name for dates
+    version_field: SQL field name for version
+
+    Given dataframe with version metadata, munge together a SQL filter
+    of the form
+    ```
+    (channel_app_version = '70.0b1'
+      and date between '2019-12-01' and '2019-12-02')
+    OR (channel_app_version = '70.0b2'
+      and date between '2019-12-03' and '2019-12-04')
+    OR ...
+    ```
+    """
+    version_filters = []
+    for row in meta.itertuples(index=False):
+        filter_str = (
+            f"({version_field} = '{row.version}' and "
+            f"{date_field} between '{row.release_date}' and '{row.till}')"
         )
-    return data
+        version_filters.append(filter_str)
+
+    return "(" + "\n\tOR ".join(version_filters) + ")"
 
 
 def pull_data_beta2(download_meta_data, sql_template, bq_read):
@@ -421,23 +397,12 @@ def pull_data_beta2(download_meta_data, sql_template, bq_read):
     app_version_field = "app_display_version"
     crash_build_version_field = "environment.build.display_version"
 
-    def build_beta_version_filter(meta, date_field, version_field):
-        version_filters = []
-        for row in meta.itertuples(index=False):
-            filter_str = (
-                f"({version_field} = '{row.version}' and "
-                f"{date_field} between '{row.release_date}' and '{row.till}')"
-            )
-            version_filters.append(filter_str)
-
-        return "(" + "\n\tOR ".join(version_filters) + ")"
-
-    version_filter = build_beta_version_filter(
+    version_filter = build_version_date_filter(
         download_meta_data,
         date_field="date",
         version_field="channel_app_version",
     )
-    crash_version_filter = build_beta_version_filter(
+    crash_version_filter = build_version_date_filter(
         download_meta_data,
         date_field="date",
         version_field="channel_app_version_crash",
@@ -497,12 +462,16 @@ def pull_data_beta2(download_meta_data, sql_template, bq_read):
 
 
 def pull_data_nightly(download_meta_data, sql_template, bq_read, process=True):
+    # TODO: convert to single pull
+    download_meta_data = download_meta_data.rename(
+        columns={"nightly_display_version": "version", "release_date": "date"}
+    )
     data = pull_data_base(
         sql_template,
         download_meta_data,
         query_from_row_nightly,
         bq_read=bq_read,
-        version_col="buildid",
+        version_col="build_id",
     )
     # Unless we convert the nightly query to use buildhub
     assert (
@@ -552,14 +521,17 @@ def write(fname, txt):
         fp.write(txt)
 
 
-def pull_all_model_data(bq_read, sql_fname=SQL_FNAME, sub_date=None):
+def pull_all_model_data(
+    bq_read, sql_fname=SQL_FNAME, sub_date_str: Optional[str] = None
+):
+    sub_date_str = sub_date_str or dt.datetime.today().strftime("%Y-%m-%d")
+
     pd_all = rv.read_product_details()
-    pd_release_download = prod_det_process_release(pd_all, sub_date=sub_date)
+    pd_release_download = prod_det_process_release(
+        pd_all, sub_date=sub_date_str
+    )
 
     sql_template = read(sql_fname)
-    dbg.meta = pd_release_download
-    dbg.sql = sql_template
-    dbg.bq_read = bq_read
 
     with pull_done("\nPulling release data"):
         df_release = pull_data_release(
@@ -580,7 +552,7 @@ def pull_all_model_data(bq_read, sql_fname=SQL_FNAME, sub_date=None):
             bq_read,
         )
 
-    pd_nightly_download = prod_det_process_nightly(pd_beta)
+    pd_nightly_download = rv.prod_det_process_nightly(max_sub_date=sub_date_str)
 
     with pull_done("\nPulling nightly data"):
         df_nightly = pull_data_nightly(

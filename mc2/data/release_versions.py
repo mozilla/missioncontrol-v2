@@ -1,5 +1,30 @@
+import datetime as dt
+import re
+from collections import OrderedDict
+from typing import Optional
+
 import buildhub_bid as bh
+import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
+
+SUB_DATE_FMT = "%Y-%m-%d"
+BUILD_DAY_FMT = "%Y%m%d"
+dash_date_fmt = str
+
+
+def to_sub_date_fmt(d):
+    return d.strftime(SUB_DATE_FMT)
+
+
+def to_build_day_fmt(d):
+    return d.strftime(BUILD_DAY_FMT)
+
+
+def validate_sub_date_str(d):
+    m = re.match(r"^\d\d\d\d-\d\d-\d\d$", d)
+    assert m, "Date doesn't match format YYYY-MM-dd"
+    assert pd.to_datetime(d)
+    return True
 
 
 def read_product_details():
@@ -24,11 +49,9 @@ def pull_bh_data_beta(min_build_date):
         keep_release=False,
         as_df=True,
     ).assign(chan="beta")
-    return bh.version2df(
-        beta_docs,
-        keep_rc=False,
-        keep_release=True,
-    ).assign(chan="beta")
+    return bh.version2df(beta_docs, keep_rc=False, keep_release=True).assign(
+        chan="beta"
+    )
 
 
 def get_beta_release_dates(min_build_date="2019", min_pd_date="2019-01-01"):
@@ -91,3 +114,90 @@ def latest_n_release_beta(beta_release_dates, sub_date, n_releases: int = 1):
     )
 
     return latest
+
+
+def prod_det_process_nightly_builds(
+    max_sub_date=None, n_total_builds=4, n_days_later=4
+):
+    """
+    `max_sub_date`: "today," or a day that was today at some point
+    `n_total_builds`: if 2, then pull the builds from today and the day before
+    `n_days_later`: if 1, then for each build, pull for activity of
+    that day and the day after.
+    """
+    max_sub_date_ts = pd.to_datetime(max_sub_date or dt.datetime.today())
+    max_sub_date: dt.date = max_sub_date_ts.date()
+
+    build_dates = pd.date_range(end=max_sub_date, periods=n_total_builds)
+    meta = (
+        pd.DataFrame(
+            OrderedDict(
+                [
+                    ("build_id", build_dates.strftime(BUILD_DAY_FMT)),
+                    ("release_date", build_dates),
+                    ("till", build_dates + pd.Timedelta(days=n_days_later)),
+                ]
+            )
+        )
+        .assign(till=lambda x: np.minimum(x.till.dt.date, max_sub_date))
+        .assign(
+            release_date=lambda x: x.release_date.map(to_sub_date_fmt),
+            till=lambda x: x.till.map(to_sub_date_fmt),
+        )
+    )
+    return meta, max_sub_date
+
+
+def lookup_latest_release(dates, release_dates):
+    """
+    release_dates: DataFrame["date", "version"]
+    """
+    # Get a subset of the most recent release dates, starting
+    # with the one just before the minimum `dates` to query,
+    # and ending with the most recent.
+    rls_srtd = release_dates[["date", "version"]].sort_values(
+        ["date"], ascending=True
+    )
+    min_lookup_date = dates.min()  # noqa
+    min_release_date = rls_srtd.query(  # noqa
+        "date <= @min_lookup_date"
+    ).date.iloc[-1]
+    rls_recent = rls_srtd.query("date >= @min_release_date")
+
+    dates_dct = {}
+    for date in dates:
+        dates_dct[date] = rls_recent.query("date <= @date").version.iloc[-1]
+
+    return dates_dct
+
+
+def beta2nightly_version(disp):
+    betav, *_ = disp.split(".")
+    return f"{int(betav) + 1}.0a1"
+
+
+def prod_det_process_nightly(
+    max_sub_date: Optional[dash_date_fmt] = None,
+    n_total_builds=4,
+    n_days_later=4,
+):
+    meta, max_sub_date = prod_det_process_nightly_builds(
+        max_sub_date=max_sub_date,
+        n_total_builds=n_total_builds,
+        n_days_later=n_days_later,
+    )
+    max_sub_date = to_sub_date_fmt(pd.to_datetime(max_sub_date))
+
+    pd_beta = read_product_details().query(
+        "category == 'dev' & date >= '2019-01'"
+    )[["date", "version"]]
+
+    date2disp_version = lookup_latest_release(meta.release_date, pd_beta)
+    meta = meta.assign(
+        current_beta=lambda x: x.release_date.map(date2disp_version)
+    ).assign(
+        nightly_display_version=lambda x: x.current_beta.map(
+            beta2nightly_version
+        )
+    )
+    return meta

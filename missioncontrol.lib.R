@@ -105,11 +105,13 @@ fittedTableForBQ <- function(thedata,models,last=FALSE){
 ## fitFromModel(c("2019-10-30","2019-10-31","2019-11-01"), ch='nightly', newdata=dnew,bindData=dnew[,list(os,c_version,date,nvc,cmr,ccr,cmi,cci)])
         
 
-ffunc <- function(M,D,list0=NULL,iter=4000,thin=1)  brm(M,data=D, chains = 4,
+ffunc <- function(M,D,list0=NULL,iter=4000,thin=1,chains=4,cores=4)  {
+ brm(M,data=D, chains = chains,
                                        control = if(is.null(list0))
                                                      list(adapt_delta = 0.999, max_treedepth=13)
                                                  else list0
-                                     , cores = 4,iter=iter,thin=thin)
+                                     , cores = cores,iter=iter,thin=thin)
+}
 make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NULL,iter=4000,thin=1,priorSim=FALSE){
   ## See wbeards work on nightly: https://metrics.mozilla.com/protected/wbeard/mc/nightly_model.html
   alter <- TRUE
@@ -195,7 +197,7 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
         if(!is.null(bff)) M0 <- bff
     }
     if(priorSim){ return(M0) }
-    else  ffunc(M0,data,list0=list0,thin=thin,iter=iter)
+    else  ffunc(M0,data,list0=list0,thin=thin,iter=iter, chains=if(debug==1) 1 else 4, cores=if(debug==1) 1 else 4)
 }
 
 Predict <- function(M,D,ascale='response',...){

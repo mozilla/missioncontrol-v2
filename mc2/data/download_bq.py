@@ -147,7 +147,7 @@ def prod_det_process_release(df_all, sub_date: dash_date_fmt):
     return df_release_data
 
 
-def prod_det_process_beta(df_all, vers2bids_beta):
+def prod_det_process_beta(df_all):
     """
     For most recent beta release, pull 7 days into the future.
     Use product-details data to
@@ -156,33 +156,22 @@ def prod_det_process_beta(df_all, vers2bids_beta):
     """
     days_future = 7
     category = "dev"  # noqa
-    build_id_mapping = vers2bids_beta
 
     df = df_all.query('category == @category & date >= "2019-01-01"').copy()
     df = add_version_elements(df, beta_version_parse, "version").sort_values(
         ["major", "minor"], ascending=True
     )
 
-    # Subset for building model
     cur_major = df.major.iloc[-1]
-    recent_majs = [cur_major, cur_major - 1, cur_major - 2]  # noqa
-    df_model = df.query("major in @recent_majs").reset_index(drop=1)
-
     # Still need for data pull
     df_download_data = (
-        df.query("major == @cur_major")[["version", "date"]]
+        df.query(f"major == {cur_major}")[["version", "date"]]
         .assign(till=lambda x: next_release_date(x["date"], days_future))
         # better string repr
         .assign(date=lambda x: x.date.dt.date, till=lambda x: x.till.dt.date)
         .reset_index(drop=1)
     )
-
-    if build_id_mapping:
-        df_download_data = df_download_data.assign(
-            buildid=lambda x: x.version.map(build_id_mapping)
-        )
-
-    return df, df_model, df_download_data
+    return df_download_data
 
 
 #################
@@ -538,11 +527,7 @@ def pull_all_model_data(
             pd_release_download, sql_template, bq_read
         )
 
-    docs_beta = bh_bid.pull_build_id_docs()
-    vers2bids_beta = bh_bid.version2build_id_str(docs_beta)
-    pd_beta, _pd_beta_model, pd_beta_download = prod_det_process_beta(
-        pd_all, vers2bids_beta
-    )
+    pd_beta_download = prod_det_process_beta(pd_all)
 
     sql_template_single = read("data/download_template_single.sql")
     with pull_done("\nPulling beta data"):

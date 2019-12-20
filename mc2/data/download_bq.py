@@ -6,7 +6,6 @@ import tempfile
 from contextlib import contextmanager
 from typing import Optional
 
-import buildhub_bid as bh_bid
 import pandas as pd  # type: ignore
 import release_versions as rv
 from pandas import DataFrame
@@ -65,11 +64,21 @@ def rls_version_parse(disp_vers: str):
 
 
 def beta_version_parse(disp_vers: str):
+    """
+    This has a little twist for rc builds. If it detects an rc build,
+    it sets the minor number to 0 and increments the major number.
+    So `69.0b3 => (69, 3)`, but `70.0 => 71, 0`. This will allow for
+    proper sorting by (major, minor).
+    """
     pat = re.compile(r"(?P<major>\d+)(?:\.\d+)+b?(?P<minor>\d+)?")
     m = pat.match(disp_vers)
     if not m:
         raise ValueError(f"unable to parse version string: {disp_vers}")
-    return m.groupdict()
+    d = m.groupdict()
+    if d.get("minor") is None:
+        d["minor"] = "0"
+        d["major"] = str(int(d["major"]) + 1)
+    return d
 
 
 def get_peak_date(vers_df, vers_col="dvers", date_col="date"):
@@ -376,7 +385,7 @@ def build_version_date_filter(meta, date_field, version_field):
     return "(" + "\n\tOR ".join(version_filters) + ")"
 
 
-def pull_data_beta2(download_meta_data, sql_template, bq_read):
+def pull_data_beta(download_meta_data, sql_template, bq_read):
     download_meta_data = download_meta_data[
         ["version", "release_date", "till"]
     ].assign(
@@ -457,10 +466,7 @@ def pull_data_nightly(download_meta_data, sql_template, bq_read):
             lambda v: int(v.split(".")[0])
         )
     ).rename(
-        columns={
-            "nightly_display_version": "version",
-            "release_date": "date",
-        }
+        columns={"nightly_display_version": "version", "release_date": "date"}
     )
 
     data = pull_data_base(
@@ -533,17 +539,24 @@ def pull_all_model_data(
             pd_release_download, sql_template, bq_read
         )
 
-    pd_beta_download = prod_det_process_beta(pd_all)
+    pd_beta_download = rv.prod_det_process_beta(
+        sub_date_str, n_total_builds=4, n_days_later=4
+    )
+
+    print("Beta metadata:")
+    print(pd_beta_download)
 
     sql_template_single = read("data/download_template_single.sql")
     with pull_done("\nPulling beta data"):
-        df_beta = pull_data_beta2(
+        df_beta = pull_data_beta(
             pd_beta_download.rename(columns={"date": "release_date"}),
             sql_template_single,
             bq_read,
         )
 
-    pd_nightly_download = rv.prod_det_process_nightly(max_sub_date=sub_date_str)
+    pd_nightly_download = rv.prod_det_process_nightly(
+        product_details=pd_all, max_sub_date=sub_date_str
+    )
     print("Nightly metadata:")
     print(pd_nightly_download)
 

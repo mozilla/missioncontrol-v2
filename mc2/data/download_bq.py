@@ -450,36 +450,42 @@ def pull_data_beta2(download_meta_data, sql_template, bq_read):
     return data
 
 
-def pull_data_nightly(download_meta_data, sql_template, bq_read, process=True):
+def pull_data_nightly(download_meta_data, sql_template, bq_read):
     # TODO: convert to single pull
-    download_meta_data = download_meta_data.rename(
-        columns={"nightly_display_version": "version", "release_date": "date"}
+    meta = download_meta_data.assign(
+        major=lambda x: x.nightly_display_version.map(
+            lambda v: int(v.split(".")[0])
+        )
+    ).rename(
+        columns={
+            "nightly_display_version": "version",
+            "release_date": "date",
+        }
     )
+
     data = pull_data_base(
         sql_template,
-        download_meta_data,
+        meta,
         query_from_row_nightly,
         bq_read=bq_read,
         version_col="build_id",
     )
-    # Unless we convert the nightly query to use buildhub
-    assert (
-        download_meta_data["version"].nunique() == 1
-    ), "assuming single version for nightly metadata"
-    display_version = download_meta_data["version"].iloc[0]
-    # TODO: have this optional for debugging for now
-    if process:
-        data = (
-            get_peak_date(data, "c_version")
-            .pipe(verbose_query("date <= peak_date"))
-            .drop(["peak_date"], axis=1)
-            .assign(
-                major=lambda _: int(display_version.split(".0a")[0]),
-                minor=lambda x: x.c_version,
-            )
-            .reset_index(drop=1)
-        )
-    return data
+    data = (
+        get_peak_date(data, "c_version")
+        .pipe(verbose_query("date <= peak_date"))
+        .drop(["peak_date"], axis=1)
+        .assign(minor=lambda x: x.c_version)
+        .reset_index(drop=1)
+    )
+
+    # Get major version based on release dates of beta releases
+    data2 = data.merge(
+        meta.rename(columns={"build_id": "c_version"})[["c_version", "major"]],
+        on="c_version",
+    )
+    # Making sure we don't get duplicate rows or anything from the join
+    assert_frame_equal(data, data2.drop(["major"], axis=1))
+    return data2
 
 
 ###########
@@ -538,10 +544,12 @@ def pull_all_model_data(
         )
 
     pd_nightly_download = rv.prod_det_process_nightly(max_sub_date=sub_date_str)
+    print("Nightly metadata:")
+    print(pd_nightly_download)
 
     with pull_done("\nPulling nightly data"):
         df_nightly = pull_data_nightly(
-            pd_nightly_download, sql_template, bq_read, process=True
+            pd_nightly_download, sql_template, bq_read
         )
 
     df_all = pd.concat(

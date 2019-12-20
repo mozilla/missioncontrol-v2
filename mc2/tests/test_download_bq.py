@@ -18,8 +18,8 @@ def test_rls_version_parse():
 
 
 def test_beta_version_parse():
-    assert beta_version_parse("70.0") == {"major": "70", "minor": None}
+    assert beta_version_parse("70.0") == {"major": "71", "minor": '0'}
     assert beta_version_parse("70.0b1") == {"major": "70", "minor": "1"}
     assert beta_version_parse("70.0b200") == {"major": "70", "minor": "200"}
-    assert beta_version_parse("69.0.1") == {"major": "69", "minor": None}
+    assert beta_version_parse("69.0.1") == {"major": "70", "minor": '0'}
     assert beta_version_parse("70.0.1b4") == {"major": "70", "minor": "4"}

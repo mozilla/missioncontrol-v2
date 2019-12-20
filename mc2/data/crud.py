@@ -10,6 +10,7 @@ from os.path import abspath, exists, expanduser
 
 import fire
 import pandas as pd
+import release_versions as rv
 from bq_utils import BqLocation
 from download_bq import download_raw_data, pull_all_model_data
 from google.cloud import bigquery  # noqa
@@ -78,7 +79,7 @@ def mk_bq_reader(creds_loc=None, cache=False):
 
 
 def cache_reader(bq_read):
-    from joblib import Memory  # noqa
+    from joblib import Memory  # type: ignore
 
     if not exists("cache"):
         os.mkdir("cache")
@@ -182,9 +183,7 @@ def print_rows_dau(bq_loc: BqLocation, creds_loc=None):
 
 def print_rows_loc(bq_loc: BqLocation, creds_loc=None):
     bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
-    summary = bq_read_no_cache(
-        f"select count(*) as n_rows from {bq_loc.sql}"
-    )
+    summary = bq_read_no_cache(f"select count(*) as n_rows from {bq_loc.sql}")
     n_rows = summary.iloc[0, 0]
     print(f"=> {bq_loc.sql} now has {n_rows} rows")
 
@@ -201,6 +200,7 @@ def main(
     add_fake_columns: bool = True,
     dataset="analysis",
     project_id="moz-fx-data-derived-datasets",
+    sub_date=None,
 ):
     """
     Process and upload raw data. For debugging (including dropping the test
@@ -217,7 +217,11 @@ def main(
 
     `add_fake_columns`: add plugin columns. Interrim solution to keep the schema
     consistent until it's finalized.
+    `sub_date` pulls for nightly and release as if it were today. Format should
+        be the standard bigquery format 'YYYY-mm-dd'
     """
+    if sub_date:
+        rv.validate_sub_date_str(sub_date)
     add_schema, cache, drop_first, return_df, force = map(
         strong_bool, [add_schema, cache, drop_first, return_df, force]
     )
@@ -241,7 +245,7 @@ def main(
     query_func = mk_query_func(creds_loc=creds_loc)
 
     print("Starting data pull")
-    df_all = pull_all_model_data(bq_read)
+    df_all = pull_all_model_data(bq_read, sub_date_str=sub_date)
 
     if add_fake_columns:
         # First, give dummy values for plugin columns that are no longer

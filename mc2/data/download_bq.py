@@ -8,6 +8,7 @@ from typing import Optional
 
 import pandas as pd  # type: ignore
 import release_versions as rv
+from bq_utils import BqLocation
 from pandas import DataFrame
 from pandas.testing import assert_frame_equal  # type: ignore
 
@@ -584,16 +585,18 @@ def pull_all_model_data(
 # Pull model data after it's been uploaded #
 ############################################
 def pull_model_data_pre_query(
-    bq_read_fn, channel, n_majors, analysis_table="wbeard_crash_rate_raw"
+    bq_read_fn,
+    channel,
+    n_majors,
+    bq_loc: BqLocation,
 ):
-    pre_query = """
-    select distinct major from `moz-fx-data-derived-datasets`.analysis.{table}
+    pre_query = f"""
+    select distinct major from {bq_loc.sql}
     where channel = '{channel}'
     ORDER BY major desc
-    LIMIT {n}
-    """.format(
-        table=analysis_table, n=n_majors, channel=channel
-    )
+    LIMIT {n_majors}
+    """
+    print(pre_query)
     pre_data = bq_read_fn(pre_query)
     prev_majors = pre_data.major.astype(int).tolist()
     prev_major_strs = ", ".join(map(str, prev_majors))
@@ -606,25 +609,29 @@ def pull_model_data_pre_query(
     return prev_major_strs
 
 
-def pull_model_data_(bq_read_fn, channel, n_majors, analysis_table):
+def pull_model_data_(bq_read_fn, channel, n_majors, bq_loc):
     prev_major_strs = pull_model_data_pre_query(
-        bq_read_fn, channel, n_majors, analysis_table
+        bq_read_fn, channel, n_majors, bq_loc
     )
 
-    pull_all_recent_query = """
-    select * from `moz-fx-data-derived-datasets`.analysis.{table}
+    pull_all_recent_query = f"""
+    select * from {bq_loc.sql}
     where channel = '{channel}'
-          and major in ({major_strs})
-    """.format(
-        table=analysis_table, channel=channel, major_strs=prev_major_strs
-    )
+          and major in ({prev_major_strs})
+    """
     print("Running query:\n", pull_all_recent_query)
     df = bq_read_fn(pull_all_recent_query)
     return df
 
 
 def download_raw_data(
-    bq_read_fn, channel, n_majors: int, analysis_table, outname=None
+    bq_read_fn,
+    channel,
+    n_majors: int,
+    table,
+    dataset="analysis",
+    project_id="moz-fx-data-derived-datasets",
+    outname=None,
 ):
     """
     Given a channel and a number of recent major version, return all of the
@@ -637,7 +644,8 @@ def download_raw_data(
     This will write the file to a temporary feather file and return the
     filename.
     """
-    df = pull_model_data_(bq_read_fn, channel, n_majors, analysis_table)
+    bq_loc = BqLocation(table, dataset=dataset, project_id=project_id)
+    df = pull_model_data_(bq_read_fn, channel, n_majors, bq_loc)
     if outname is None:
         outname = tempfile.NamedTemporaryFile(delete=False, mode="w+").name
     df.to_feather(outname)

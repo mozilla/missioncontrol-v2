@@ -55,7 +55,9 @@ def get_creds(creds_loc=None):
     return creds
 
 
-def mk_bq_reader(creds_loc=None, cache=False):
+def mk_bq_reader(
+    creds_loc=None, cache=False, base_project_id="moz-fx-data-derived-datasets"
+):
     """
     Returns function that takes a BQ sql query and
     returns a pandas dataframe
@@ -64,7 +66,7 @@ def mk_bq_reader(creds_loc=None, cache=False):
 
     bq_read = partial(
         pd.read_gbq,
-        project_id="moz-fx-data-derived-datasets",
+        project_id=base_project_id,
         # TODO: delete following
         # creds.project_id,
         credentials=creds,
@@ -120,21 +122,30 @@ def dl_raw(
     channel,
     n_majors: int,
     creds_loc=None,
-    analysis_table="missioncontrol_v2_raw_data",
+    table="missioncontrol_v2_raw_data",
+    dataset="analysis",
+    project_id="moz-fx-data-derived-datasets",
     outname=None,
     cache=False,
+    base_project_id="moz-fx-data-derived-datasets",
 ):
     """
     Wrapper for download_bq.download_raw_data(). After running `main`,
     this will download rows corresponding to the specified `channel`
     and save them to a feather format file.
+
+    The `base_project_id` param is used to generate the query client.
     """
-    bq_read_fn = mk_bq_reader(creds_loc=creds_loc, cache=cache)
+    bq_read_fn = mk_bq_reader(
+        creds_loc=creds_loc, cache=cache, base_project_id=base_project_id
+    )
     fname = download_raw_data(
         bq_read_fn,
         channel,
         n_majors,
-        analysis_table=analysis_table,
+        table=table,
+        dataset=dataset,
+        project_id=project_id,
         outname=outname,
     )
     return fname

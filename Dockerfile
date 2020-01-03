@@ -1,5 +1,4 @@
 FROM ubuntu:18.04
-ENV PYTHONDONTWRITEBYTECODE 1
 ENV DEBIAN_FRONTEND noninteractive
 ENV RENV_VERSION 0.9.2
 ENV RENV_PATHS_CACHE /renv/cache
@@ -35,9 +34,8 @@ RUN add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu bionic-
 RUN apt-get update && apt-get install -y r-base
 
 # Install pip + requirements
-COPY requirements.txt /tmp
-RUN apt-get update && apt-get install -y curl
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && python get-pip.py
+COPY requirements.txt /tmp
 RUN pip install -r /tmp/requirements.txt
 
 # Install R packages

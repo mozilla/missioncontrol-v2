@@ -12,7 +12,8 @@ from bq_utils import BqLocation
 from pandas import DataFrame
 from pandas.testing import assert_frame_equal  # type: ignore
 
-SQL_FNAME = "data/download_template.sql"
+SQL_FNAME = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                         "download_template.sql")
 dbg = lambda: None
 SUB_DATE_FMT = "%Y-%m-%d"
 dash_date_fmt = str  # "%Y-%m-%d"

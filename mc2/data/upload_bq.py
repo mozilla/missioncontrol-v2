@@ -209,7 +209,8 @@ def drop_table(table_name="wbeard_crash_rate_raw"):
     run_command(cmd, "Success! Table {} dropped.".format(table_name))
 
 
-def upload(df, table_name="wbeard_crash_rate_raw", add_schema=False):
+def upload(df, project_id="moz-fx-data-derived-datasets",
+           table_name="wbeard_crash_rate_raw", add_schema=False):
     with tempfile.NamedTemporaryFile(delete=False, mode="w+") as fp:
         df.to_csv(fp, index=False, na_rep="NA")
     print("CSV saved to {}".format(fp.name))
@@ -220,7 +221,7 @@ def upload(df, table_name="wbeard_crash_rate_raw", add_schema=False):
         "load",
         "--noreplace",
         "--project_id",
-        "moz-fx-data-derived-datasets",
+        project_id,
         "--source_format",
         "CSV",
         "--skip_leading_rows",

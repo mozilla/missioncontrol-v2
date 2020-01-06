@@ -16,7 +16,7 @@ runner <- glue('#!/bin/sh
 ## also bigquery utils(bqutils) needs to be initialized/logged in  else the uploads will fail
 # /home/sguha/anaconda3/bin/conda  activate mc2
 cd mc2
-python data/crud.py upload_model_data {command.line$model_out}  --creds_loc "{BQCREDS}" --table_name=missioncontrol_v2_model_output')
+python data/crud.py upload_model_data {command.line$model_out} --project_id "{GCP_PROJECT_ID}" --creds_loc "{BQCREDS}" --table_name=missioncontrol_v2_model_output')
 writeLines(runner,con="./runner.sh")
 if(backup.mode == 1){
     res  <- system2("sh", "./runner.sh",stderr=TRUE,stdout=TRUE)
@@ -38,12 +38,12 @@ system(glue("cp {command.line$data_file} {data.file}"))
 loginfo(glue("Saving Data to temp file: {data.file}"))
 
 if(backup.mode == 1){
-    system(glue("gsutil cp {data.file}  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/archive/"))
-    system(glue("gsutil cp {command.line$data_file}  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/archive/"))
-    loginfo(glue("Data file saved at   gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/archive/{data.file}. Download using gsutil cp"))
+    system(glue("gsutil cp {data.file} {GCS_OUTPUT_PREFIX}/archive/"))
+    system(glue("gsutil cp {command.line$data_file} {GCS_OUTPUT_PREFIX}/archive/"))
+    loginfo(glue("Data file saved at {GCS_OUTPUT_PREFIX}/archive/{data.file}. Download using gsutil cp"))
 }else{
     loginfo("Not running, just showing what would be run")
-    loginfo(glue("gsutil cp {data.file}  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/archive/"))
-    loginfo(glue("gsutil cp {command.line$data_file}  gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/archive/"))
-    loginfo(glue("Data file saved at   gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/archive/{data.file}. Download using gsutil cp"))
+    loginfo(glue("gsutil cp {data.file} {GCS_OUTPUT_PREFIX}/archive/"))
+    loginfo(glue("gsutil cp {command.line$data_file} {GCS_OUTPUT_PREFIX}/archive/"))
+    loginfo(glue("Data file saved at {GCS_OUTPUT_PREFIX}/archive/{data.file}. Download using gsutil cp"))
 }

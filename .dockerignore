@@ -1,0 +1,6 @@
+.git
+cache
+gcloud.json
+**/*~
+**/*.pyc
+**/__pycache__/

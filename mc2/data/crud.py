@@ -67,8 +67,6 @@ def mk_bq_reader(
     bq_read = partial(
         pd.read_gbq,
         project_id=base_project_id,
-        # TODO: delete following
-        # creds.project_id,
         credentials=creds,
         dialect="standard",
     )
@@ -172,17 +170,8 @@ def upload_model_data(
     print_rows_loc(bq_loc=bq_loc, creds_loc=creds_loc)
 
 
-# TODO: replace occurrences with print_rows_loc
-def print_rows(full_sql_table_name, creds_loc=None):
-    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
-    n_rows = bq_read_no_cache(
-        "select count(*) from {}".format(full_sql_table_name)
-    ).iloc[0, 0]
-    print("=> {} now has {} rows".format(full_sql_table_name, n_rows))
-
-
 def print_rows_dau(bq_loc: BqLocation, creds_loc=None):
-    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
+    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, base_project_id=bq_loc.project_id, cache=False)
     summary = bq_read_no_cache(
         "select count(*) as n_rows, avg(dau_cversion) / 1e6"
         f" as dau_cversion_mm from {bq_loc.sql}"
@@ -193,7 +182,7 @@ def print_rows_dau(bq_loc: BqLocation, creds_loc=None):
 
 
 def print_rows_loc(bq_loc: BqLocation, creds_loc=None):
-    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
+    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, base_project_id=bq_loc.project_id, cache=False)
     summary = bq_read_no_cache(f"select count(*) as n_rows from {bq_loc.sql}")
     n_rows = summary.iloc[0, 0]
     print(f"=> {bq_loc.sql} now has {n_rows} rows")
@@ -203,14 +192,14 @@ def main(
     add_schema: bool = False,
     creds_loc=None,
     cache: bool = False,
+    project_id="moz-fx-data-derived-datasets",
+    dataset="analysis",
     table_name="wbeard_crash_rate_raw",
     drop_first: bool = False,
     return_df: bool = False,
     force: bool = False,
     skip_delete: bool = False,
     add_fake_columns: bool = True,
-    dataset="analysis",
-    project_id="moz-fx-data-derived-datasets",
     sub_date=None,
 ):
     """
@@ -252,7 +241,7 @@ def main(
         print("Not using cached queries")
     if drop_first:
         drop_table(table_name=table_name)
-    bq_read = mk_bq_reader(creds_loc=creds_loc, cache=cache)
+    bq_read = mk_bq_reader(creds_loc=creds_loc, base_project_id=project_id, cache=cache)
     query_func = mk_query_func(creds_loc=creds_loc)
 
     print("Starting data pull")
@@ -273,7 +262,7 @@ def main(
 
     if not skip_delete:
         delete_versions(df_all, query_func=query_func, bq_loc=bq_loc)
-    upload(df_all, table_name=table_name, add_schema=add_schema)
+    upload(df_all, project_id=project_id, table_name=table_name, add_schema=add_schema)
 
     # Double check: print how many rows
     print_rows_dau(bq_loc=bq_loc, creds_loc=creds_loc)

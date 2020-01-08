@@ -1,4 +1,3 @@
-setwd("~/missioncontrol-v2/")
 source("missioncontrol.lib.R")
 
 ##@param ch: channel

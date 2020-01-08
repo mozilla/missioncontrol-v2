@@ -1,4 +1,3 @@
-setwd("~/missioncontrol-v2/")
 source("missioncontrol.lib.R")
 
 ## Call as Rscript backup.firefox.desktop.R  --data_file=default is ./all.the.data.Rdata --backup=0

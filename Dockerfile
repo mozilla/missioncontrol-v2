@@ -29,9 +29,6 @@ WORKDIR /mc-etl
 # can't count on that for production deployments
 COPY . /mc-etl
 
-# for backwards-compatibility purposes only
-RUN ln -s /mc-etl /root/missioncontrol-v2
-
 # So we don't get a bunch of annoying first run prompts
 RUN touch ~/.bigqueryrc
 

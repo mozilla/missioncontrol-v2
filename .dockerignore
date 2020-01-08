@@ -1,6 +1,7 @@
 .git
 cache
 gcloud.json
+*.Rdata
 **/*~
 **/*.pyc
 **/__pycache__/

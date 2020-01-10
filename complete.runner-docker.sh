@@ -3,16 +3,30 @@
 set -euo pipefail
 set -x
 
+# change directory to path of script
+cd `dirname "$0"`
+
 # verify expected environment variables are present
 export GCP_PROJECT_ID=${GCP_PROJECT_ID?}
 export GCS_OUTPUT_PREFIX=${GCS_OUTPUT_PREFIX?}
-export GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS?}
 
 # debug mode defaults to zero if unset
 : "${DEBUG:=0}"
 
+# assign to a default if variables are unset.
+: "${GOOGLE_APPLICATION_CREDENTIALS:=}"
+
 # authenticate
-gcloud auth activate-service-account --key-file "${GOOGLE_APPLICATION_CREDENTIALS}"
+if [[ -f "${GOOGLE_APPLICATION_CREDENTIALS}" ]]; then
+    gcloud auth activate-service-account --key-file "${GOOGLE_APPLICATION_CREDENTIALS}"
+else
+    # https://cloud.google.com/kubernetes-engine/docs/tutorials/authenticating-to-cloud-platform
+    echo "No JSON credentials provided, using default scopes."
+fi
+
+# validate that we are authenticated before proceeding
+echo "Checking credentials..."
+gsutil ls "${GCS_OUTPUT_PREFIX}"
 
 echo "Running etl.R"
 Rscript etl.R

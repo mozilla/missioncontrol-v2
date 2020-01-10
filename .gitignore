@@ -1,6 +1,6 @@
 cache/joblib/
 cache/
-
+gcloud.json
 mc2/data/debug.py
 mc2/data/ipy_imps.py
 mc2/test_run.sh

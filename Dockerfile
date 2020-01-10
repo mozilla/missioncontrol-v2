@@ -1,6 +1,5 @@
 FROM continuumio/miniconda3
 ENV DEBIAN_FRONTEND noninteractive
-ENV GOOGLE_APPLICATION_CREDENTIALS /mc-etl/gcloud.json
 
 # install necessary base dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

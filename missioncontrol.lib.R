@@ -18,7 +18,6 @@ library(rmarkdown)
 options(future.globals.maxSize= 850*1024^2 )
 Lapply <- lapply #future_lapply
 
-BQCREDS <- Sys.getenv("GOOGLE_APPLICATION_CREDENTIALS", "~/gcloud.json")
 GCP_PROJECT_ID <- Sys.getenv("GCP_PROJECT_ID", "moz-fx-data-derived-datasets")
 GCS_OUTPUT_PREFIX <- Sys.getenv("GCS_OUTPUT_PREFIX", "gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2")
 

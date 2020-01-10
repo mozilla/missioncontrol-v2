@@ -46,9 +46,7 @@ def get_creds(creds_loc=None):
     if not creds_loc:
         creds_loc = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
         if not creds_loc:
-            raise RuntimeError(
-                "Bigquery credentials not passed, or found in environment."
-            )
+            return None
 
     creds_loc = abspath(expanduser(creds_loc))
     creds = service_account.Credentials.from_service_account_file(creds_loc)
@@ -92,13 +90,13 @@ def cache_reader(bq_read):
     return bq_read_cache
 
 
-def mk_query_func(creds_loc=None):
+def mk_query_func(project_id=None, creds_loc=None):
     """
     This function will block until the job is done...and
     take a while if a lot of queries are repeatedly made.
     """
     creds = get_creds(creds_loc=creds_loc)
-    client = bigquery.Client(project=creds.project_id, credentials=creds)
+    client = bigquery.Client(project=project_id, credentials=creds)
 
     def blocking_query(*a, **k):
         job = client.query(*a, **k)
@@ -158,7 +156,7 @@ def upload_model_data(
     dataset="analysis",
     overwrite=False,
 ):
-    query_func = mk_query_func(creds_loc=creds_loc)
+    query_func = mk_query_func(project_id=project_id, creds_loc=creds_loc)
     bq_loc = BqLocation(table_name, dataset=dataset, project_id=project_id)
     run_model_upload(
         query_func,
@@ -242,7 +240,7 @@ def main(
     if drop_first:
         drop_table(table_name=table_name)
     bq_read = mk_bq_reader(creds_loc=creds_loc, base_project_id=project_id, cache=cache)
-    query_func = mk_query_func(creds_loc=creds_loc)
+    query_func = mk_query_func(project_id=project_id, creds_loc=creds_loc)
 
     print("Starting data pull")
     df_all = pull_all_model_data(bq_read, sub_date_str=sub_date)

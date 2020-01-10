@@ -14,10 +14,6 @@ getModelDataForChannel <- function(ch, v, input_file = NULL,asfeather=FALSE){
         loginfo(glue("Downloading raw data for channel {ch}"))
         rtemp <- tempfile()
         runner <- glue("#!/bin/sh
-## you need to have conda installed somewhere and a path to conda
-## and hence remvoe the sguha in the following path
-## also bigquery utils(bqutils) needs to be initialized/logged in  else the uploads will fail
-## /home/sguha/anaconda3/bin/conda  activate mc2
 cd mc2
 python data/crud.py dl_raw --base_project_id {GCP_PROJECT_ID} --project_id {GCP_PROJECT_ID} --channel {ch} --n_majors {v} --cache False --outname '{rtemp}'
 ")

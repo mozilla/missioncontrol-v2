@@ -11,10 +11,6 @@ backup.mode <- command.line$backup
 
 
 runner <- glue('#!/bin/sh
-## you need to have conda installed somewhere and a path to conda
-## and hence remvoe the sguha in the following path
-## also bigquery utils(bqutils) needs to be initialized/logged in  else the uploads will fail
-# /home/sguha/anaconda3/bin/conda  activate mc2
 cd mc2
 python data/crud.py upload_model_data {command.line$model_out} --project_id "{GCP_PROJECT_ID}" --table_name=missioncontrol_v2_model_output')
 writeLines(runner,con="./runner.sh")

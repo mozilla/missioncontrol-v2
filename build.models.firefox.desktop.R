@@ -64,6 +64,12 @@ dall.rel2 <- data.table(getModelDataForChannel("release",v=3,input_file=command.
 dall.beta2 <- data.table(getModelDataForChannel("beta",v=3,input_file=command.line$beta_raw))[nvc>0,]
 dall.nightly2 <- data.table(getModelDataForChannel("nightly",v=3,input_file=command.line$nightly_raw))[nvc>0,]
 
+invisible({
+    dall.rel2[, nvc.logit:=boot::logit(nvc)]
+    dall.beta2[, nvc.logit:=boot::logit(nvc)]
+    dall.nightly2[, nvc.logit:=boot::logit(nvc)]
+})
+
 loginfo("Using following dates")
 print(dall.rel2[, list(channel='release',UsingDateTill=max(date)),by=os][order(os),])
 print(dall.beta2[, list(channel='beta',UsingDateTill=max(date)),by=os][order(os),])

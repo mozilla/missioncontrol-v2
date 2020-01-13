@@ -122,7 +122,7 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
         }
         if(channel %in% c('beta')){
             M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + os*log(nvc) ,
-                     shape ~ log(nvc)*os)+negbinomial()
+                     shape ~ os)+negbinomial()
             if(debug==1){
                 M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60))  + os + log(nvc))+negbinomial()
             }
@@ -183,7 +183,7 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
             M0 <- bf( log(1+dau_cc_crasher_cversion)   ~   os*log(nvc)+ offset(log( dau_cversion)) )
         }
         if(channel %in% c('beta')){
-            M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os*nvc)
+            M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os+log(nvc))
             if(debug==1){
                 M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os*log(nvc) + offset(log(dau_cversion)) )
             }

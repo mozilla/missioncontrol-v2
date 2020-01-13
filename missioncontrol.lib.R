@@ -114,20 +114,22 @@ ffunc <- function(M,D,list0=NULL,iter=4000,thin=1,chains=4,cores=4)  {
 }
 make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NULL,iter=4000,thin=1,priorSim=FALSE){
   ## See wbeards work on nightly: https://metrics.mozilla.com/protected/wbeard/mc/nightly_model.html
- alter <- TRUE
+  alter <- TRUE
     if(wh=="cmr"){
-        M0 <- bf( cmain+1   ~ offset(log( usage_cm_crasher_cversion+1/60))  + os*nvc.logit+(1+os|c_version))+negbinomial()
+        M0 <- bf( cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os)+(1+os|c_version), shape ~ os*log(nvc))+negbinomial()
         if(debug==1){
             M0 <- bf( cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  +log( nvc)*os)+negbinomial()
         }
         if(channel %in% c('beta')){
-            M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + os*nvc.logit)+negbinomial()
+            M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + os*log(nvc) ,
+                     shape ~ log(nvc)*os)+negbinomial()
             if(debug==1){
                 M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60))  + os + log(nvc))+negbinomial()
             }
         }
         if(channel %in% c("nightly")){
-            M0 <- bf( cmain + 1  ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) +  os*nvc.logit)+negbinomial()
+            M0 <- bf( cmain + 1  ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) +  log(nvc)*os,
+                     shape ~ os)+negbinomial()
             if(debug==1){
              M0 <- bf( cmain + 1  ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os *log(nvc))+negbinomial()
             }
@@ -135,24 +137,21 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='ccr'){
-        ##M0 <- bf( ccontent+1  ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version),
-        ##        shape ~  os*log(nvc)) +negbinomial() # os+s(nvc,1)
-        ## A bit more variance but so fast!
-        M0 <- bf( ccontent+1  ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + os*nvc.logit + (1+os|c_version),shape~os)+
-            negbinomial() # os+s(nvc,1)
+        M0 <- bf( ccontent+1  ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version),
+                 shape ~  os*log(nvc)) +negbinomial() # os+s(nvc,1)
         if(debug==1){
             M0 <- bf( ccontent+1  ~  offset(log( usage_cc_crasher_cversion+1/60))  +os*log(nvc)) + negbinomial()
         }
         if(channel %in% c('beta')){
-            ## M0 <- bf( ccontent + 1 ~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version), shape ~ os*nvc) + negbinomial()  #log(dau_cversion + 1))
-            M0 <- bf( ccontent + 1 ~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  os*nvc.logit  + (1 + os | c_version), shape ~ os) + negbinomial()
+            M0 <- bf( ccontent + 1 ~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
+                     shape ~ os*nvc) + negbinomial()  #log(dau_cversion + 1))
             if(debug==1){
                 M0 <- bf( ccontent + 1 ~ offset(log(usage_cc_crasher_cversion + 1/60)) +  log(nvc)*os)+negbinomial()
             }
         }
         if(channel %in% c("nightly")){
-            ##M0 <- bf( ccontent + 1 ~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version), shape ~ os)+negbinomial()
-            M0 <- bf( ccontent + 1 ~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  os*nvc.logit + (1 + os | c_version),shape ~ os)+negbinomial()
+            M0 <- bf( ccontent + 1 ~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
+                     shape ~ os)+negbinomial()
             if(debug==1){
                 M0 <- bf( ccontent + 1 ~  offset(log(usage_cc_crasher_cversion + 1/60)) + os*log(nvc))+negbinomial()
             }
@@ -160,21 +159,18 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='cmi'){
-        ##M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os*nvc) #+s(nvc,m=1))
-        M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + nvc.logit*os + (1+os|c_version), sigma ~ os) #+s(nvc,m=1))
+        M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os*nvc) #+s(nvc,m=1))
         if(debug==1){
             M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + log(nvc)*os)
         }
         if(channel %in% c('beta')){
-            ##M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version) ,sigma ~ os*nvc)
-            M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + os*nvc.logit + (1 + os | c_version) ,sigma ~ os)
+            M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version) ,sigma ~ os*nvc)
             if(debug==1){
                 M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os * log(nvc) + offset(log(dau_cversion)))
             }
         }
         if(channel %in% c('nightly')){
-            ## M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + os*log(1+nvc) + (1 + os | c_version) ,sigma ~ os)
-            M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + os*nvc.logit + (1 + os | c_version) ,sigma ~ os)
+            M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + os*log(1+nvc) + (1 + os | c_version) ,sigma ~ os)
             if(debug==1){
                 M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os*log(nvc) + offset(log(dau_cversion)))
             }
@@ -182,24 +178,18 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='cci'){
-        ## M0<- bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os*nvc) #+s(nvc,m=1))
-        ## Removing splines makes things faster and no loss in bias!
-        M0<- bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion))  + os*nvc.logit + (1+os|c_version), sigma~os)
+        M0<- bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os*nvc) #+s(nvc,m=1))
         if(debug==1){
             M0 <- bf( log(1+dau_cc_crasher_cversion)   ~   os*log(nvc)+ offset(log( dau_cversion)) )
         }
         if(channel %in% c('beta')){
-            ##  M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os*nvc)
-            ## The next version is as good and much faster to run
-            M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os + offset(log(dau_cversion)) + os*nvc.logit + (1 + os | c_version))
+            M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os*nvc)
             if(debug==1){
                 M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os*log(nvc) + offset(log(dau_cversion)) )
             }
         }
         if(channel %in% c("nightly")){
-            ##M0 <- bf( log(1 + dau_cc_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os)
-            ## Next one is much faster but slightly wider variance ...
-            M0 <- bf( log(1 + dau_cc_crasher_cversion) ~ os + offset(log(dau_cversion)) + os*nvc.logit  + (1 + os | c_version),sigma~os)
+            M0 <- bf( log(1 + dau_cc_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os)
             if(debug==1){
                 M0 <- bf( log(1 + dau_cc_crasher_cversion) ~ os *log(nvc) + offset(log(dau_cversion)))
             }

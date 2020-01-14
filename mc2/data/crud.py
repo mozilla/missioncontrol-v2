@@ -54,7 +54,7 @@ def get_creds(creds_loc=None):
 
 
 def mk_bq_reader(
-    creds_loc=None, cache=False, base_project_id="moz-fx-data-derived-datasets"
+    creds_loc=None, cache=False
 ):
     """
     Returns function that takes a BQ sql query and
@@ -64,7 +64,6 @@ def mk_bq_reader(
 
     bq_read = partial(
         pd.read_gbq,
-        project_id=base_project_id,
         credentials=creds,
         dialect="standard",
     )
@@ -123,17 +122,14 @@ def dl_raw(
     project_id="moz-fx-data-derived-datasets",
     outname=None,
     cache=False,
-    base_project_id="moz-fx-data-derived-datasets",
 ):
     """
     Wrapper for download_bq.download_raw_data(). After running `main`,
     this will download rows corresponding to the specified `channel`
     and save them to a feather format file.
-
-    The `base_project_id` param is used to generate the query client.
     """
     bq_read_fn = mk_bq_reader(
-        creds_loc=creds_loc, cache=cache, base_project_id=base_project_id
+        creds_loc=creds_loc, cache=cache
     )
     fname = download_raw_data(
         bq_read_fn,
@@ -169,7 +165,7 @@ def upload_model_data(
 
 
 def print_rows_dau(bq_loc: BqLocation, creds_loc=None):
-    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, base_project_id=bq_loc.project_id, cache=False)
+    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
     summary = bq_read_no_cache(
         "select count(*) as n_rows, avg(dau_cversion) / 1e6"
         f" as dau_cversion_mm from {bq_loc.sql}"
@@ -180,7 +176,7 @@ def print_rows_dau(bq_loc: BqLocation, creds_loc=None):
 
 
 def print_rows_loc(bq_loc: BqLocation, creds_loc=None):
-    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, base_project_id=bq_loc.project_id, cache=False)
+    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
     summary = bq_read_no_cache(f"select count(*) as n_rows from {bq_loc.sql}")
     n_rows = summary.iloc[0, 0]
     print(f"=> {bq_loc.sql} now has {n_rows} rows")
@@ -239,7 +235,7 @@ def main(
         print("Not using cached queries")
     if drop_first:
         drop_table(table_name=table_name)
-    bq_read = mk_bq_reader(creds_loc=creds_loc, base_project_id=project_id, cache=cache)
+    bq_read = mk_bq_reader(creds_loc=creds_loc, cache=cache)
     query_func = mk_query_func(project_id=project_id, creds_loc=creds_loc)
 
     print("Starting data pull")

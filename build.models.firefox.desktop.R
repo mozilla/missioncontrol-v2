@@ -15,7 +15,7 @@ getModelDataForChannel <- function(ch, v, input_file = NULL,asfeather=FALSE){
         rtemp <- tempfile()
         runner <- glue("#!/bin/sh
 cd mc2
-python data/crud.py dl_raw --base_project_id {GCP_PROJECT_ID} --project_id {GCP_PROJECT_ID} --channel {ch} --n_majors {v} --cache False --outname '{rtemp}'
+python data/crud.py dl_raw --project_id {GCP_PROJECT_ID} --channel {ch} --n_majors {v} --cache False --outname '{rtemp}'
 ")
         writeLines(runner,con="./runner.sh")
         loginfo(glue("Starting Gettting Model Data for channel {ch} and nversions {v}"))
@@ -37,20 +37,20 @@ python data/crud.py dl_raw --base_project_id {GCP_PROJECT_ID} --project_id {GCP_
 }
 
 ## You can call this like
-## this will run debug models, use the release feather as model input and download for other channels
-## Rscript build.models.firefox.desktop.R --debug=1 --release_raw=path-to-release-feather
+## this will run simple models, use the release feather as model input and download for other channels
+## Rscript build.models.firefox.desktop.R --simple=1 --release_raw=path-to-release-feather
 ## You can also name the output file (default is ./all.the.data.intermediate.Rdata)
-## Rscript build.models.firefox.desktop.R --debug=1 --out=./all.the.data.intermediate.Rdata
+## Rscript build.models.firefox.desktop.R --simple=1 --out=./all.the.data.intermediate.Rdata
 
-command.line <- commandArgs(asValues=TRUE,defaults=list(debug="0",out="./all.the.data.intermediate.Rdata"),unique=TRUE)
+command.line <- commandArgs(asValues=TRUE,defaults=list(simple="0",out="./all.the.data.intermediate.Rdata"),unique=TRUE)
 
-if(command.line$debug == "0"){
-    debug.mode <- 0
+if(command.line$simple == "0"){
+    simple.mode <- 0
     loginfo("Using production models")
-}else if(command.line$debug == "1"){
-    debug.mode <- 1
-    loginfo("Using debug models, much faster to run, less accurate. Please dont sync data to BQ")
-}else stop(glue("Incorrect debug number passed: {command.line$debug}"))
+}else if(command.line$simple == "1"){
+    simple.mode <- 1
+    loginfo("Using simple models, much faster to run, less accurate. Please dont sync data to BQ")
+}else stop(glue("Incorrect simple number passed: {command.line$simple}"))
 
 
 
@@ -71,13 +71,13 @@ print(dall.beta2[, list(channel='beta',UsingDateTill=max(date)),by=os][order(os)
 print(dall.nightly2[, list(channel='nightly',UsingDateTill=max(date)),by=os][order(os),])
 
 ## BUILD MODELS
-loginfo(glue("Started Release Models, debug.mode = {debug.mode}"))
+loginfo(glue("Started Release Models, simple.mode = {simple.mode}"))
 ## Release model
 d.rel <- dall.rel2
-cr.cm.rel.f <- future({ make.a.model(d.rel,'cmr',debug=debug.mode) })
-cr.cc.rel.f <- future({ make.a.model(d.rel,'ccr',debug=debug.mode) })
-ci.cm.rel.f <- future({ make.a.model(d.rel,'cmi',debug=debug.mode) })
-ci.cc.rel.f <- future({ make.a.model(d.rel,'cci',debug=debug.mode) })
+cr.cm.rel.f <- future({ make.a.model(d.rel,'cmr',simple=simple.mode) })
+cr.cc.rel.f <- future({ make.a.model(d.rel,'ccr',simple=simple.mode) })
+ci.cm.rel.f <- future({ make.a.model(d.rel,'cmi',simple=simple.mode) })
+ci.cc.rel.f <- future({ make.a.model(d.rel,'cci',simple=simple.mode) })
 
 cr.cm.rel <- label(value(cr.cm.rel.f),'cmr');loginfo("Finished Release cr.cm"); 
 cr.cc.rel <- label(value(cr.cc.rel.f),'ccr');loginfo("Finished Release cr.cc"); 
@@ -87,12 +87,12 @@ ci.cc.rel <- label(value(ci.cc.rel.f),'cci');loginfo("Finished Release ci.cc");
 loginfo("Finished Release Models")
 ## Beta Model
 
-loginfo(glue("Started Beta Models, debug.mode = {debug.mode}"))
+loginfo(glue("Started Beta Models, simple.mode = {simple.mode}"))
 d.beta <- dall.beta2
-cr.cm.beta.f <- future({ make.a.model(d.beta,'cmr',channel='beta',debug=debug.mode) })
-cr.cc.beta.f <- future({ make.a.model(d.beta,'ccr',channel='beta',debug=debug.mode) })
-ci.cm.beta.f <- future({ make.a.model(d.beta,'cmi',channel='beta',debug=debug.mode) })
-ci.cc.beta.f <- future({ make.a.model(d.beta,'cci',channel='beta',debug=debug.mode) })
+cr.cm.beta.f <- future({ make.a.model(d.beta,'cmr',channel='beta',simple=simple.mode) })
+cr.cc.beta.f <- future({ make.a.model(d.beta,'ccr',channel='beta',simple=simple.mode) })
+ci.cm.beta.f <- future({ make.a.model(d.beta,'cmi',channel='beta',simple=simple.mode) })
+ci.cc.beta.f <- future({ make.a.model(d.beta,'cci',channel='beta',simple=simple.mode) })
 cr.cm.beta <- label(value(cr.cm.beta.f),'cmr');loginfo("Finished Beta cr.cm");
 cr.cc.beta <- label(value(cr.cc.beta.f),'ccr');loginfo("Finished Beta cr.cc");
 ci.cm.beta <- label( value(ci.cm.beta.f),'cmi');loginfo("Finished Beta ci.cm");
@@ -101,12 +101,12 @@ loginfo("Finished Beta Models")
 
 ## Nightly Model
 
-loginfo(glue("Started Nightly Models,  debug.mode = {debug.mode}"))
+loginfo(glue("Started Nightly Models,  simple.mode = {simple.mode}"))
 d.nightly <- dall.nightly2
-cr.cm.nightly.f <- future({ make.a.model(d.nightly,'cmr',channel='nightly',debug=debug.mode,iter=4000) })
-cr.cc.nightly.f <- future({ make.a.model(d.nightly,'ccr',channel='nightly',debug=debug.mode,iter=4000) })
-ci.cm.nightly.f <- future({ make.a.model(d.nightly,'cmi',channel='nightly',debug=debug.mode,iter=4000,list0=list(adapt_delta = 0.99, max_treedepth=13)) })
-ci.cc.nightly.f <- future({ make.a.model(d.nightly,'cci',channel='nightly',debug=debug.mode,iter=4000) })
+cr.cm.nightly.f <- future({ make.a.model(d.nightly,'cmr',channel='nightly',simple=simple.mode,iter=4000) })
+cr.cc.nightly.f <- future({ make.a.model(d.nightly,'ccr',channel='nightly',simple=simple.mode,iter=4000) })
+ci.cm.nightly.f <- future({ make.a.model(d.nightly,'cmi',channel='nightly',simple=simple.mode,iter=4000,list0=list(adapt_delta = 0.99, max_treedepth=13)) })
+ci.cc.nightly.f <- future({ make.a.model(d.nightly,'cci',channel='nightly',simple=simple.mode,iter=4000) })
 cr.cm.nightly <- label(value(cr.cm.nightly.f),'cmr');loginfo("Finished Nightly cr.cm");
 cr.cc.nightly <- label(value(cr.cc.nightly.f),'ccr');loginfo("Finished Nightly cr.cc");
 ci.cm.nightly <- label(value(ci.cm.nightly.f),'cmi');loginfo("Finished Nightly ci.cm");

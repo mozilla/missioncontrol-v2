@@ -9,9 +9,11 @@ cd `dirname "$0"`
 # verify expected environment variables are present
 export GCP_PROJECT_ID=${GCP_PROJECT_ID?}
 export GCS_OUTPUT_PREFIX=${GCS_OUTPUT_PREFIX?}
+export RAW_OUTPUT_TABLE=${RAW_OUTPUT_TABLE?}
+export MODEL_OUTPUT_TABLE=${MODEL_OUTPUT_TABLE?}
 
-# debug mode defaults to zero if unset
-: "${DEBUG:=0}"
+# simple mode defaults to zero if unset
+: "${SIMPLE:=0}"
 
 # assign to a default if variables are unset.
 : "${GOOGLE_APPLICATION_CREDENTIALS:=}"
@@ -31,7 +33,7 @@ gsutil ls "${GCS_OUTPUT_PREFIX}"
 echo "Running etl.R"
 Rscript etl.R
 echo "Running build.models.firefox.desktop.R"
-Rscript build.models.firefox.desktop.R --debug=$DEBUG --out=./all.the.data.intermediate.Rdata
+Rscript build.models.firefox.desktop.R --simple=$SIMPLE --out=./all.the.data.intermediate.Rdata
 echo "Running process.model.firefox.desktop.R"
 Rscript process.model.firefox.desktop.R
 echo "Running create.dashboards.static.R"

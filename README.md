@@ -7,14 +7,13 @@ An alternate view of crash and stability
 This code is designed to be 'easy' to install and repeatable. That is if the underlying data doesn't change the output should not either.
 
 This code should either work inside GCP or on a local computer. In either case, we recommend
-a powerful one with at least 4 cores and a decent amount (8Gb+) memory. If using Docker, you will 
+a powerful one with at least 4 cores and a decent amount (8Gb+) of memory. If using Docker, you will 
 want to increase the amount of resources available to containers if you haven't already: the 
 defaults are likely to be insufficient.
 
 You will also want a [GCP service account](https://docs.telemetry.mozilla.org/cookbooks/bigquery.html#gcp-bigquery-api-access) with permission to read from the datasets in
 `fx-data-shared-prod` and write access to a cloud storage bucket. Typically one would
-do this using a sandbox project. Talk to data operations to  set this up if you don't have 
-one already.
+do this using a sandbox project.
 
 After getting a service setup, download the credentials into a file called `gcloud.json` in
 the root of your checkout.
@@ -71,9 +70,14 @@ set some environment variables corresponding to your GCP settings:
 
 ```bash
 export GOOGLE_APPLICATION_CREDENTIALS=$PWD/gcloud.json
+export RAW_OUTPUT_TABLE=missioncontrol_v2_test_raw
+export MODEL_OUTPUT_TABLE=missioncontrol_v2_test_model
 export GCP_PROJECT_ID=my-gcp-project-id
 export GCS_OUTPUT_PREFIX=gs://my-cloud-storage-bucket
 ```
+
+The `RAW_OUTPUT_TABLE` and `MODEL_OUTPUT_TABLE` settings specify the GCP table names for temporary
+data written during the run.
 
 Then run the model:
 
@@ -82,10 +86,11 @@ Then run the model:
 ```
 
 If running on an underpowered machine, or you just want to get results more quickly, you can also 
-enable debug mode, which simplifies the model generation significantly:
+enable "simple" mode, which (as the name implifies) speeds up the model generation significantly by
+using a simplified statistical model:
 
 ```bash
-DEBUG=1 ./complete.runner.sh
+SIMPLE=1 ./complete.runner.sh
 ```
 
 ### Gotchas

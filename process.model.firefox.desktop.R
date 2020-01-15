@@ -15,7 +15,7 @@ loginfo("Starting posteriors")
 ## The %<% is a future, see https://cran.r-project.org/web/packages/future/future.pdf
 ## search for 'future' function.
 
-release.current.vs.previous %<-% Lapply(operating.systems,function(os){
+release.current.vs.previous <- Lapply(operating.systems,function(os){
     compare.two.versions.2(versiona = getCurrentVersion(dall.rel2,os,'release'),
                          versionb = getPreviousVersion(dall.rel2,os,'release'),
                          oschoice = os,
@@ -24,7 +24,7 @@ release.current.vs.previous %<-% Lapply(operating.systems,function(os){
                          doLatest = FALSE)
 })
 
-release.current.vs.previous.realNVC %<-% Lapply(operating.systems,function(os){
+release.current.vs.previous.realNVC <- Lapply(operating.systems,function(os){
     compare.two.versions.2(versiona = getCurrentVersion(dall.rel2,os,'release'),
                          versionb = getPreviousVersion(dall.rel2,os,'release'),
                          oschoice = os,
@@ -35,7 +35,7 @@ release.current.vs.previous.realNVC %<-% Lapply(operating.systems,function(os){
 })
 
 
-beta.current.vs.previous  %<-% Lapply(operating.systems,function(os){
+beta.current.vs.previous  <- Lapply(operating.systems,function(os){
     compare.two.versions.2(versiona = getCurrentVersion(dall.beta2,os,'beta'),
                          versionb = getPreviousVersion(dall.beta2,os,'beta'),
                          oschoice = os,
@@ -48,10 +48,10 @@ beta.current.vs.previous  %<-% Lapply(operating.systems,function(os){
 ## It doesn't make sense to set the previous version something that is yesterdays
 ## There is so little data. Might as well set it to some version with at least 
 
-nightly.current.vs.previous  %<-% Lapply(operating.systems,function(os){
+nightly.current.vs.previous  <- Lapply(operating.systems,function(os){
     compare.two.versions.2(versiona = getPreviousVersion(dall.nightly2,os,'nightly'),
                          versionb = getMaxVersionBeforeX(dall.nightly2, os,'nightly',
-                                                         c(getCurrentVersion(dall.nightly2,os,'beta'),getPreviousVersion(dall.nightly2,os,'nightly'))),
+                                                         c(getCurrentVersion(dall.nightly2,os,'nightly'),getPreviousVersion(dall.nightly2,os,'nightly'))),
                          oschoice = os,
                          dataset  = dall.nightly2,
                          model    = list( mr=cr.cm.nightly,cr=cr.cc.nightly,mi=ci.cm.nightly,ci=ci.cc.nightly),

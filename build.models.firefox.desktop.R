@@ -20,13 +20,13 @@ getModelDataForChannel <- function(ch, v, input_file = NULL,asfeather=FALSE){
 ## also bigquery utils(bqutils) needs to be initialized/logged in  else the uploads will fail
 ## /home/sguha/anaconda3/bin/conda  activate mc2
 cd mc2
-python data/crud.py dl_raw --creds_loc {BQCREDS}  --channel {ch} --n_majors {v} --cache False --outname '{rtemp}'
+python data/crud.py dl_raw  --creds_loc {BQCREDS}  --channel {ch} --n_majors {v} --cache False --outname '{rtemp}'
 ")
         writeLines(runner,con="./runner.sh")
         loginfo(glue("Starting Gettting Model Data for channel {ch} and nversions {v}"))
         res  <- system2("sh", "./runner.sh",stderr=TRUE,stdout=TRUE)
         loginfo(paste(res, collapse="\n"))
-        if(any(grepl("(E|e)xception",res))|| any(grepl("(f|F)ailed",res))){
+        if(any(grepl("(Error|(E|e)xception)",res))|| any(grepl("(f|F)ailed",res))){
             logerror(glue("Problem with Downloading Model Data for channel {ch}"))
             stop(glue("Problem with Downloading Model Data for channel {ch}"))
         }
@@ -63,6 +63,13 @@ if(command.line$debug == "0"){
 dall.rel2 <- data.table(getModelDataForChannel("release",v=3,input_file=command.line$release_raw))[nvc>0,]
 dall.beta2 <- data.table(getModelDataForChannel("beta",v=3,input_file=command.line$beta_raw))[nvc>0,]
 dall.nightly2 <- data.table(getModelDataForChannel("nightly",v=3,input_file=command.line$nightly_raw))[nvc>0,]
+
+invisible({
+    dall.rel2[, nvc.logit:=boot::logit(nvc)]
+    dall.beta2[, nvc.logit:=boot::logit(nvc)]
+    dall.nightly2[, nvc.logit:=boot::logit(nvc)]
+})
+
 
 loginfo("Using following dates")
 print(dall.rel2[, list(channel='release',UsingDateTill=max(date)),by=os][order(os),])

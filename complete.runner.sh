@@ -22,6 +22,8 @@ export PYTHONNOUSERSITE=True
 ## though might not be needed given the above
 ## eval "$(conda shell.bash hook)"
 conda activate mc2
+rm all.the.data.intermediate.Rdata
+rm all.the.data.Rdata
 result1=`Rscript etl.R`
 echo "r1 ${result1}"
 result2=`Rscript build.models.firefox.desktop.R --debug=0 --out=./all.the.data.intermediate.Rdata`

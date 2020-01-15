@@ -33,10 +33,27 @@ if(!exists("missioncontrol.lib.R")){
 ## e.g.  dall.rel2[, list(a=.SD[,max(nvc)]),by=list(c_version,os)][, quantile(a,0.5),by=os]
 adoptionsCompare <- function(os,ch,DF=FALSE){
     f <- data.table(channel =rep(c("release","beta","nightly"),each=3),
-               os  = rep(c("Linux","Windows_NT","Darwin"),3),
-               adopt =  c(0.4468343,0.7819889,0.5782132,
-                          0.2690685,0.5137107,0.3553570,
-                          0.2593343, 0.3811480,0.2736847))
+                    os  = rep(c("Linux","Windows_NT","Darwin"),3),
+                    ## used predict(mgcv( log(usage_cc) ~ os+s(nvc,by=os)), f)
+                    ## e.g. dall.beta2[, os:=factor(os)][, exp(predict(gam( log(dau_cversion)~ os+s(nvc, by=os)),newdata=g)) ]
+                    dau = c(
+                        912182.2, 17281273.0  ,2997185.1,
+                        1040.123, 489639.889 ,  4818.843,
+                        821.7477 ,12506.7056,  1218.0142),
+                    ## dall.beta2[, os:=factor(os)][, exp(predict(gam( log(dau_cversion)~ os+s(nvc, by=os)),newdata=g)) ]
+                    usage_cm = c(
+                        22172.91, 156151.10  ,11969.40,
+                        10.68346, 7808.63684,   40.62532,
+                        29.27896, 262.19025,  25.99481
+                       ),
+                    usage_cc = c(
+                        18377.15 ,219896.37 , 16004.87,
+                        11.88207, 13508.18048 ,   30.10713,
+                         31.74024, 634.10478 , 22.34219),
+                    ## i got these numbers based on medians of adoptions 
+                    adopt =  c(0.4468343,0.7819889,0.5782132,
+                               0.2464732,0.4819733,0.293562,
+                               0.2593343, 0.3811480,0.2736847))
     if(!DF) f[channel==ch & os==os, adopt] else f
 }
 
@@ -44,11 +61,19 @@ getArchiveLoc <- function(){
     return("gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/archive")
 }
 
-loadArchiveData<- function(date
-           ,loc=getArchiveLoc()){
-    system(glue("gsutil cp {loc}/models-{date}.Rdata /tmp/"))
-    e <- new.env()
-    load(glue("/tmp/models-{date}.Rdata"),envir=e)
+loadArchiveData<- function(date=NULL,path=NULL
+                          ,loc=getArchiveLoc()){
+    if(!is.null(path)){
+        system(glue("gsutil cp {path}  /tmp/foo.Rdata"))
+        e <- new.env()
+        load(glue("/tmp/foo.Rdata"),envir=e)
+    }
+    if(!is.null(date)){
+        system(glue("gsutil cp {loc}/models-{date}.Rdata /tmp/"))
+        e <- new.env()
+        load(glue("/tmp/models-{date}.Rdata"),envir=e)
+    }
+    if(is.null(path) & is.null(date)) stop("Error: need to specify at least one of date or path")
     e
 }
 
@@ -102,12 +127,14 @@ fittedTableForBQ <- function(thedata,models,last=FALSE){
 ## Example:
 ## fitFromModel(c("2019-10-30","2019-10-31","2019-11-01"), ch='nightly', newdata=dnew,bindData=dnew[,list(os,c_version,date,nvc,cmr,ccr,cmi,cci)])
         
-
-ffunc <- function(M,D,list0=NULL,iter=4000,thin=1)  brm(M,data=D, chains = 4,
+ffunc <- function(M,D,list0=NULL,iter=4000,thin=1,chains=4,cores=4)  {
+ brm(M,data=D, chains = chains,
                                        control = if(is.null(list0))
                                                      list(adapt_delta = 0.999, max_treedepth=13)
                                                  else list0
-                                     , cores = 4,iter=iter,thin=thin)
+   , cores = cores,iter=iter,thin=thin)
+ }
+
 make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NULL,iter=4000,thin=1,priorSim=FALSE){
   ## See wbeards work on nightly: https://metrics.mozilla.com/protected/wbeard/mc/nightly_model.html
   alter <- TRUE
@@ -117,8 +144,7 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
             M0 <- bf( cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  +log( nvc)*os)+negbinomial()
         }
         if(channel %in% c('beta')){
-            M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + os*log(nvc) ,
-                     shape ~ log(nvc)*os)+negbinomial()
+            M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + os*log(nvc) , shape ~ os)+negbinomial()
             if(debug==1){
                 M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60))  + os + log(nvc))+negbinomial()
             }
@@ -179,7 +205,8 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
             M0 <- bf( log(1+dau_cc_crasher_cversion)   ~   os*log(nvc)+ offset(log( dau_cversion)) )
         }
         if(channel %in% c('beta')){
-            M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os*nvc)
+            M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os+log(nvc))
+        ##    M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os+log(nvc))
             if(debug==1){
                 M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os*log(nvc) + offset(log(dau_cversion)) )
             }
@@ -193,8 +220,9 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
         if(!is.null(bff)) M0 <- bff
     }
     if(priorSim){ return(M0) }
-    else  ffunc(M0,data,list0=list0,thin=thin,iter=iter)
+    else  ffunc(M0,data,list0=list0,thin=thin,iter=iter, chains=if(debug==1) 1 else 4, cores=if(debug==1) 1 else 4)
 }
+
 
 Predict <- function(M,D,ascale='response',...){
     fa <- family(M)$fam
@@ -221,7 +249,7 @@ getPredictions <- function(M,D, wh=NULL,givenx=NULL,summary=FALSE,ascale='respon
         r <- exp( t(x) - D[, log( usage_cm_crasher_cversion+1/60)])
     }
     if(wh=='ccr'){
-        r <- exp(t(x) -  D[, log( usage_cc_crasher_cversion+1/60)])
+         r <- exp(t(x) -  D[, log( usage_cc_crasher_cversion+1/60)])
     }
     if(wh=='cmi'){
         if(fa=='binomial'){
@@ -312,6 +340,7 @@ compare.two.versions.2 <- function(versiona,versionb,oschoice,
                              dataset,model, doLatest=TRUE,normalizeNVC=TRUE){
     ## oschoice is one of Windows_NT,Linux, Darwin
     ## 'overall' is handled differently
+    #browser()
     smz_fits <- function(m,D,oschoice,predsOnly=FALSE){
         Mean <- function(s) exp(mean(log(s+1/100)))-1/100
         predictions <- makePredictions(m,D)
@@ -347,7 +376,7 @@ compare.two.versions.2 <- function(versiona,versionb,oschoice,
              dau_cm_crasher_cversion,dau_cc_crasher_cversion,
             usage_cm_crasher_cversion,usage_cc_crasher_cversion,usage_all,usage_cversion,
             dau_cversion, nvcOriginal=nvc,
-            os, c_version)]
+            os, c_version,nvc.logit)]
         
         if(normalizeNVC) {
             versiona.fit.data <- merge(versiona.fit.data,adoptionsCompare(DF=TRUE)[,list(channel,os,nvc=adopt)],by=c("channel","os"))

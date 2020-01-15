@@ -152,9 +152,9 @@ CREATE TEMP FUNCTION stringify(c float64, r float64,incidence BOOL,color string)
    select case when incidence = false then format('%.2f (%.2f%%)',c,r*100)
             else format('%.2f%% (%.2f%%)',c*100,r*100) end as X
   )
-  select case when color = 'red' then format('%s ⤊ ', X)
-              when color = 'darkorange' then format('%s ↑', X)
-              when color = 'limegreen' then format('%s ⤋ ',X)
+  select case when color = 'red' then format('%s ▲', X)
+              when color = 'darkorange' then format('%s △', X)
+              when color = 'limegreen' then format('%s ▼',X)
               else  format('%s', X) end
   from a
 ));

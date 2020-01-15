@@ -136,7 +136,7 @@ select os as OS, format('%.2f%%',nvc*100) as Adoption, format(\"%'d\",call) as `
 
 
 rate.incidence.summary.sql  <- g$q(glue("
-CREATE  TEMP FUNCTION  whatColor(r float64, i float64) AS (
+CREATE  TEMP FUNCTION  whatColor(i float64, r float64) AS (
 (select
  case  when r>i and r>0.75 then 'red'
        when r>i and r>=0.6  then 'darkorange'

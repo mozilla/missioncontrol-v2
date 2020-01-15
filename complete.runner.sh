@@ -34,5 +34,6 @@ result4=`Rscript backup.firefox.desktop.R --data_file=./all.the.data.Rdata --mod
 echo "r4 ${result4}"
 result5=`Rscript create.dashboards.static.R  --data_file=./all.the.data.Rdata --backup=1`
 echo "r5 ${result5}"
+Rscript process_and_save_posteriors.R --data_file=default=./all.the.data.intermediate.Rdata
 ## run as sh complete.runner.sh  2>&1 | tee logfile
 

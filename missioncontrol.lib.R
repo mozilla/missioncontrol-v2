@@ -550,13 +550,92 @@ getPreviousVersion <- function(D,s, channel){
 
 
 
-####################################################################################################
-## Save the comparisons for 'current' version vs 'previous' version so that the default page loads
-## fast. Note the user can easily change the current and previous but this will obviosuly result
-## in some running time. We assume the user comes to see 'current' vs 'previous'
-####################################################################################################
 
-## A Sample Dashboard Output For Beta Looks like
+
+Nposterior <- 1000
+
+make_posterior_newdata <- function(mydata,model_date,CHAN){
+    mydata <- mydata[, list(channel=CHAN,date,os,c_version,major,minor,nvc, dau_cversion,  dau_cc_crasher_cversion, dau_cm_crasher_cversion,
+                            ccontent, cmain, usage_cc_crasher_cversion,usage_cm_crasher_cversion,cmr,ccr,cmi,cci)]
+    mydata <- mydata[order(c_version,os,date),]
+    mydata.posteriors.at <- merge(mydata,  adoptionsCompare(NULL,NULL,TRUE), by=c("channel","os"),all.x=TRUE)
+    mydata.posteriors.at <- mydata.posteriors.at[,list(channel,model_date = model_date,date,os,c_version, major,minor,
+                                                       nvc=adopt, dau_cversion = dau,
+                                                       usage_cc_crasher_cversion =  usage_cc,
+                                                       usage_cm_crasher_cversion =  usage_cm)]
+    mydata.posteriors.at  <- mydata.posteriors.at [order(major,minor, os, date),]                                                   
+}
+
+getModelDate <- function(path){
+    substring(tail(strsplit(path,"/")[[1]],1),8,8+9)
+}
+
+make_posteriors <- function(mydata, CHAN,model.date,model.list,last.model.date){
+    mydata.posteriors.at <- make_posterior_newdata(mydata,model_date= model.date, CHAN=CHAN)
+    mydata.posteriors.at <- mydata.posteriors.at[date>last.model.date,]
+    if(nrow(mydata.posteriors.at) == 0) return(NULL)
+    ## Only keep latest dates since all prior dates will have same crash rate
+    mydata.posteriors.at <-
+        mydata.posteriors.at[, .SD[date==max(date),],by=list(channel, os, c_version,major,minor)]
+
+    ## Posteriors for CR(M,C) and CI(M,C)
+    ## For Operating Systems
+    posterior.os.individual.metrics <- rbindlist(Map(function(m, w){
+        mydata.posteriors <- getPredictions(M=m,D=mydata.posteriors.at,nsamples=Nposterior)
+        mydata.posteriors <- rbindlist(lapply(1:nrow(mydata.posteriors.at),function(i){
+            cbind( mydata.posteriors.at[i,],data.table(modelname = w,rep=1:Nposterior, posterior=mydata.posteriors[i,]))
+        }))
+    }, m=model.list,w=names(model.list)))
+
+    ## Posteriors for CR-Score and CI-Score
+    ## For operating systems
+    mydata.posteriors.cr.cm <- getPredictions(M=model.list$cmr,,D=mydata.posteriors.at,nsamples=Nposterior)
+    mydata.posteriors.cr.cc <- getPredictions(M=model.list$ccr,,D=mydata.posteriors.at,nsamples=Nposterior)
+    mydata.posteriors.cr <- mydata.posteriors.cr.cm + mydata.posteriors.cr.cc
+
+    mydata.posteriors.ci.cm <- getPredictions(M=model.list$cmi,,D=mydata.posteriors.at,nsamples=Nposterior)
+    mydata.posteriors.ci.cc <- getPredictions(M=model.list$cci,D=mydata.posteriors.at,nsamples=Nposterior)
+    mydata.posteriors.ci <- mydata.posteriors.ci.cm + mydata.posteriors.ci.cc
+    
+    posterior.os.individual.scores <- rbind(
+        rbindlist(lapply(1:nrow(mydata.posteriors.at),function(i){
+            cbind( mydata.posteriors.at[i,],data.table(modelname = 'cr',rep=1:Nposterior, posterior=mydata.posteriors.cr[i,]))
+        })),
+        rbindlist(lapply(1:nrow(mydata.posteriors.at),function(i){
+            cbind( mydata.posteriors.at[i,],data.table(modelname = 'ci',rep=1:Nposterior, posterior=mydata.posteriors.ci[i,]))
+        }))
+    )
+
+    ttmp <- rbind(posterior.os.individual.scores,posterior.os.individual.metrics)
+    ttmp2 <- ttmp[,{
+        osdarwin  <- .SD[os=='Darwin',][order(rep),]
+        oswindows <- .SD[os=='Windows_NT',][order(rep),]
+        oslinux   <- .SD[os=='Linux',][order(rep),]
+        ns <- c(nrow(osdarwin),nrow(oswindows),nrow(oslinux))
+        if(!(sum(ns==0)>=2) ){
+            osall <- apply(cbind(osdarwin[,posterior], oswindows[,posterior], oslinux[,posterior]),1,mean)
+            if(length(osall) >0){
+                .SD[, list(os='overall', nvc=0, dau_cversion=0, usage_cc_crasher_cversion =0,usage_cm_crasher_cversion=0, rep=1:length(osall), posterior=osall)]
+            }
+        }
+    },by=list(channel, c_version, major, minor,date,model_date,modelname)]
+    if(nrow(ttmp2)>0){
+        ttmp2 <- ttmp2[, list(channel,os,c_version,major,minor,model_date,date,nvc,dau_cversion,usage_cc_crasher_cversion,usage_cm_crasher_cversion,modelname,rep,posterior)]
+        posterior.os.all <- rbind(ttmp,ttmp2)
+    }else posterior.os.all <- ttmp
+    posterior.os.all
+}
+
+
+
+
+######################################################################
+## Below onwards is for an rmakrdown dashboard
+## Not really needed in future
+######################################################################
+
+
+
 whatColor <- function(r,i){
   if(r > i) type='reg'  else type='imp'
   if(type=='reg'){

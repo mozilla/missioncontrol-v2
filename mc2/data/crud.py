@@ -1,31 +1,35 @@
-# pip
-# google-cloud-bigquery
-# pandas-gbq
-# Optional:
-# pip install joblib
-
 import os
 from functools import partial
 from os.path import abspath, exists, expanduser
 
-import fire
-import pandas as pd
+import fire  # type: ignore
+import pandas as pd  # type: ignore
 import release_versions as rv
 from bq_utils import BqLocation
 from download_bq import download_raw_data, pull_all_model_data
-from google.cloud import bigquery  # noqa
-from google.oauth2 import service_account  # noqa
+from google.cloud import bigquery  # type: ignore
+from google.oauth2 import service_account  # type: ignore
 from upload_bq import delete_versions, drop_table, run_model_upload, upload
+import schema
 
-# from src.download_bq import pull_all_model_data
-# from src.upload_bq import delete_versions, drop_table, upload
-
-
-# pandas-gbq -> google-cloud-bigquery
-#            -> google-auth
 
 # project_id: 'moz-fx-data-derived-datasets'
 # bucket: 'moz-fx-data-derived-datasets-analysis'
+
+
+def assert_eq_collections(s1, s2):
+    s1 = set(s1)
+    s2 = set(s2)
+    errs = []
+    s1_extra = s1 - s2
+    if s1_extra:
+        errs.append(f"First collection has extra elems {s1_extra}")
+    s1_msg = s2 - s1
+    if s1_msg:
+        errs.append(f"First collection has extra elems {s1_msg}")
+    if not errs:
+        return
+    raise AssertionError(". ".join(errs))
 
 
 def strong_bool(b):
@@ -171,7 +175,9 @@ def upload_model_data(
 
 
 def print_rows_dau(bq_loc: BqLocation, creds_loc=None):
-    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, base_project_id=bq_loc.project_id, cache=False)
+    bq_read_no_cache = mk_bq_reader(
+        creds_loc=creds_loc, base_project_id=bq_loc.project_id, cache=False
+    )
     summary = bq_read_no_cache(
         "select count(*) as n_rows, avg(dau_cversion) / 1e6"
         f" as dau_cversion_mm from {bq_loc.sql}"
@@ -182,7 +188,9 @@ def print_rows_dau(bq_loc: BqLocation, creds_loc=None):
 
 
 def print_rows_loc(bq_loc: BqLocation, creds_loc=None):
-    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, base_project_id=bq_loc.project_id, cache=False)
+    bq_read_no_cache = mk_bq_reader(
+        creds_loc=creds_loc, base_project_id=bq_loc.project_id, cache=False
+    )
     summary = bq_read_no_cache(f"select count(*) as n_rows from {bq_loc.sql}")
     n_rows = summary.iloc[0, 0]
     print(f"=> {bq_loc.sql} now has {n_rows} rows")
@@ -201,6 +209,8 @@ def main(
     skip_delete: bool = False,
     add_fake_columns: bool = True,
     sub_date=None,
+    # ESR params
+    esr=False,
 ):
     """
     Process and upload raw data. For debugging (including dropping the test
@@ -241,11 +251,13 @@ def main(
         print("Not using cached queries")
     if drop_first:
         drop_table(table_name=table_name)
-    bq_read = mk_bq_reader(creds_loc=creds_loc, base_project_id=project_id, cache=cache)
+    bq_read = mk_bq_reader(
+        creds_loc=creds_loc, base_project_id=project_id, cache=cache
+    )
     query_func = mk_query_func(creds_loc=creds_loc)
 
     print("Starting data pull")
-    df_all = pull_all_model_data(bq_read, sub_date_str=sub_date)
+    df_all = pull_all_model_data(bq_read, sub_date_str=sub_date, esr=esr)
 
     if add_fake_columns:
         # First, give dummy values for plugin columns that are no longer
@@ -260,9 +272,17 @@ def main(
         for col, loc, val in new_cols:
             df_all.insert(loc, col, val)
 
+    assert_eq_collections(schema.raw_col_order, df_all)
+    df_all = df_all[schema.raw_col_order]
+
     if not skip_delete:
         delete_versions(df_all, query_func=query_func, bq_loc=bq_loc)
-    upload(df_all, project_id=project_id, table_name=table_name, add_schema=add_schema)
+    upload(
+        df_all,
+        project_id=project_id,
+        table_name=table_name,
+        add_schema=add_schema,
+    )
 
     # Double check: print how many rows
     print_rows_dau(bq_loc=bq_loc, creds_loc=creds_loc)

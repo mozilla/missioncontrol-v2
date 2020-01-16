@@ -12,8 +12,9 @@ from bq_utils import BqLocation
 from pandas import DataFrame
 from pandas.testing import assert_frame_equal  # type: ignore
 
-SQL_FNAME = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                         "download_template.sql")
+SQL_FNAME = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), "download_template.sql"
+)
 dbg = lambda: None
 SUB_DATE_FMT = "%Y-%m-%d"
 dash_date_fmt = str  # "%Y-%m-%d"
@@ -363,6 +364,10 @@ def pull_data_release(download_meta_data, sql_template, bq_read, process=True):
 def build_version_date_filter(meta, date_field, version_field):
     """
     meta: DataFrame['version', 'release_date', 'till']
+        - for channels with faster release cycles like
+        beta and nightly, `release_date` makes more sense,
+        but more generally the idea is
+        DataFrame['version', 'submission_start', 'submission_end']
     date_field: SQL field name for dates
     version_field: SQL field name for version
 
@@ -496,6 +501,92 @@ def pull_data_nightly(download_meta_data, sql_template, bq_read):
     return data2
 
 
+def pull_data_esr(download_meta_data, sql_template, bq_read):
+    """
+    @download_meta_data: DataFrame[version, min, max]
+        - version, and corresponding min/max submission dates
+    """
+    download_meta_data = download_meta_data.rename(
+        columns={"min": "release_date", "max": "till"}
+    )[["version", "release_date", "till"]].assign(
+        release_date=lambda x: x.release_date.map(to_sub_date_fmt),
+        till=lambda x: x.till.map(to_sub_date_fmt),
+    )
+
+    # Sometimes `app_display_version` has esr suffix, sometimes not
+    # https://sql.telemetry.mozilla.org/queries/67591/source
+    app_version_field = "app_version"
+    # https://sql.telemetry.mozilla.org/queries/67592/source
+    crash_build_version_field = "environment.build.version"
+
+    version_filter = build_version_date_filter(
+        download_meta_data,
+        date_field="date",
+        version_field="channel_app_version",
+    )
+    crash_version_filter = build_version_date_filter(
+        download_meta_data,
+        date_field="date",
+        version_field="channel_app_version_crash",
+    )
+
+    kwargs = dict(
+        norm_channel="esr",
+        app_version_field=app_version_field,
+        crash_build_version_field=crash_build_version_field,
+        min_sub_date=download_meta_data.release_date.min(),
+        max_sub_date=download_meta_data.till.max(),
+        current_usage_versions_dates=version_filter,
+        crash_current_versions_dates=crash_version_filter,
+    )
+
+    esr_query = sql_template.format(**kwargs)
+
+    with open("/tmp/s.sql", "w") as fp:
+        fp.write(esr_query)
+    # aa
+    data = bq_read(esr_query)
+
+    # date, till, c_version_rel need to be datetime
+    # This gets us the `release_date` and `till` columns,
+    # latter based on future release dates
+    data = (
+        data.merge(
+            download_meta_data,
+            left_on=["channel_app_version"],
+            right_on=["version"],
+        )
+        .drop("version", axis=1)
+        .assign(
+            **{
+                date_col: lambda x, c=date_col: pd.to_datetime(x[c])
+                for date_col in ["release_date", "date", "till"]
+            }
+        )
+    )
+
+    # `add_fields_single` needs `till` to calculate whether a version
+    # is still active (`isLatest`). We don't need it anymore after that though.
+    data = (
+        add_fields_single(data)
+        .rename(
+            columns={
+                "release_date": "c_version_rel",
+                "channel_app_version": "c_version",
+            }
+        )
+        .drop(["till"], axis=1)
+    )
+    data = add_version_elements(data, beta_version_parse, "c_version", to=int)
+    data = (
+        get_peak_date(data, "c_version")
+        .pipe(verbose_query("date <= peak_date"))
+        .drop(["peak_date"], axis=1)
+        .reset_index(drop=1)
+    )
+    return data
+
+
 ###########
 # Combine #
 ###########
@@ -525,16 +616,47 @@ def write(fname, txt):
 
 
 def pull_all_model_data(
-    bq_read, sql_fname=SQL_FNAME, sub_date_str: Optional[str] = None
+    bq_read,
+    sql_fname=SQL_FNAME,
+    sub_date_str: Optional[str] = None,
+    # channel: Optional[str] = None,
+    esr=False,
+    n_days_activity: int = 2,
 ):
+    """
+    @n_days_activity: only implemented for ESR.
+    """
     sub_date_str = sub_date_str or dt.datetime.today().strftime("%Y-%m-%d")
+    sql_template = read(sql_fname)
+    if esr:
+        channels = {"esr"}
+    else:
+        channels = {"release", "beta", "nightly", "esr"}
+    # Implemented for nightly, beta, esr
+    sql_template_single = read("data/download_template_single.sql")
 
     pd_all = rv.read_product_details()
+
+    if "esr" in channels:
+        metadata_esr = rv.prod_det_process_esr(
+            sub_date_str,
+            pd_all=pd_all,
+            n_days_activity=n_days_activity,
+            n_days_later=4,
+        )
+        print("ESR metadata:")
+        print(metadata_esr)
+
+        with pull_done("\nPulling ESR data"):
+            df_esr = pull_data_esr(metadata_esr, sql_template_single, bq_read)
+        df_esr = df_esr.assign(channel="esr")
+
+    if esr:
+        return df_esr
+
     pd_release_download = prod_det_process_release(
         pd_all, sub_date=sub_date_str
     )
-
-    sql_template = read(sql_fname)
 
     with pull_done("\nPulling release data"):
         df_release = pull_data_release(
@@ -547,8 +669,6 @@ def pull_all_model_data(
 
     print("Beta metadata:")
     print(pd_beta_download)
-
-    sql_template_single = read("data/download_template_single.sql")
     with pull_done("\nPulling beta data"):
         df_beta = pull_data_beta(
             pd_beta_download.rename(columns={"date": "release_date"}),
@@ -586,10 +706,7 @@ def pull_all_model_data(
 # Pull model data after it's been uploaded #
 ############################################
 def pull_model_data_pre_query(
-    bq_read_fn,
-    channel,
-    n_majors,
-    bq_loc: BqLocation,
+    bq_read_fn, channel, n_majors, bq_loc: BqLocation
 ):
     pre_query = f"""
     select distinct major from {bq_loc.sql}

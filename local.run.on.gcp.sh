@@ -84,24 +84,26 @@ sleep 10
 gcloud beta compute  --project "moz-fx-dev-sguha-rwasm" ssh  "instance-1"  --command " cd /home/sguha/missioncontrol-v2 ; rm -rf logfile; sh complete.runner.sh  2>&1 | tee logfile"
 rc=$?;
 rc=0
-if [[ $rc -eq 0 ]];  then
-    rm -rf /tmp/private
-    rm -rf /tmp/public
-    mkdir -p /tmp/private /tmp/public
-    gsutil -q -m rsync -d -r gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/private/ /tmp/private/ && rsync -az /tmp/private/ ~/mz/missioncontrol/ex1/mc2/
-    printf -v date '%(%Y-%m-%d)T\n' -1
-    mkdir -p ~/pubsguha/mc2/archive/${date}
-    gsutil -q -m rsync -d -r gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/public/ /tmp/public/ && rsync -az /tmp/public/ ~/pubsguha/mc2/ && rsync -az /tmp/public/ ~/pubsguha/mc2/archive/${date}
+
+##if [[ $rc -eq 0 ]];  then
+##    rm -rf /tmp/private
+##    rm -rf /tmp/public
+##    mkdir -p /tmp/private /tmp/public
+##    gsutil -q -m rsync -d -r gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/private/ /tmp/private/ && rsync -az /tmp/private/ ~/mz/missioncontrol/ex1/mc2/
+##    printf -v date '%(%Y-%m-%d)T\n' -1
+##    mkdir -p ~/pubsguha/mc2/archive/${date}
+##    gsutil -q -m rsync -d -r gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/html/public/ /tmp/public/ && rsync -az /tmp/public/ ~/pubsguha/mc2/ && rsync -az /tmp/public/ ~/pubsguha/mc2/archive/${date}
 
 # start the run ( use function so everything is local and contained )
 #    $1 is absolute document_root with trailing '/'
 #    $2 is subdir like '/subdir/' if thats the web root, '/' if no subdir
 #    $3 is the domain 'subdomain.domain.tld'
-    create_gnu_index "${HOME}/pubsguha/mc2/archive/" "/" "FOO"
-    
-else
-    echo "ERROR ERROR"
-fi
+
+##create_gnu_index "${HOME}/pubsguha/mc2/archive/" "/" "FOO"
+##    
+##else
+##    echo "ERROR ERROR"
+##fi
 
 
 if [[ -z "$gcstop" ]]; then

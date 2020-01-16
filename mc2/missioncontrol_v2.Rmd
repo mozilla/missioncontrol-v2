@@ -40,15 +40,19 @@ source("../missioncontrol.lib.R")
 g <- bq()
 channel.info <- function(channel,g){
     list(
-    version = posterior.current.versions(channel,g),
-    usage   = posterior.usage(channel,g),
-    summary = posterior.rate.incidence.summary(channel,g),
-    evolution = posterior.evolution(channel,g)
+    version = posterior.current.versions(channel,g=g),
+    usage   = posterior.usage(channel,g=g),
+    summary = posterior.rate.incidence.summary(channel,g=g),
+    evolution = posterior.evolution(channel,g=g)
     )
 }
 release.info <- channel.info('release',g)
 beta.info <- channel.info('beta',g)
 nightly.info <- channel.info('nightly',g)
+ccsv <- rbindlist(list(posterior.evolution('release',6,g)[, channel := 'release'],
+                       posterior.evolution('beta',6,g)[, channel := 'beta'],
+                       posterior.evolution('nightly',6,g)[, channel := 'nightly']))
+fwrite(ccsv,file="./mc2_rate_incidence_evolution.csv",row.names=FALSE,quote=TRUE,na=0)
 
 ```
 
@@ -213,6 +217,10 @@ datatable(nightly.info$summary[type=='incidence',list(os,Score,CM,CC)], caption 
 
 ```
 
+### Download
+
+You can download a CSV of crash rates/incidences for different operating systems
+(and overall) ,different channels  and different versions (from last 6 months)  [here](./mc2_rate_incidence_evolution.csv)
 
 
 ### Definitions

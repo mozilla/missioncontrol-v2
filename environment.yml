@@ -6,6 +6,7 @@ dependencies:
 - pandas=0.25.3
 - pyarrow=0.15.1
 - r-base=3.6.1
+- r-boot=1.3_20
 - r-brms=2.10.0
 - r-data.table=1.12.8
 - r-dt=0.11

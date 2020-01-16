@@ -101,5 +101,11 @@ if [[ $rc -eq 0 ]];  then
     
 else
     echo "ERROR ERROR"
-fi   
-gcloud beta compute instances --project "moz-fx-dev-sguha-rwasm" stop  "instance-1"   
+fi
+
+
+if [[ -z "$gcstop" ]]; then
+   gcloud beta compute instances --project "moz-fx-dev-sguha-rwasm" stop  "instance-1"   
+ else
+     echo "Not stopping instance-1"
+fi     

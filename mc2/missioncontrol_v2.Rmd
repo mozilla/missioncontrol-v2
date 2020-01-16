@@ -1,0 +1,246 @@
+---
+title: "MissionControl v2"
+author: "Managed by Data Science, and  `r sprintf('rendered on %s',Sys.time())`"
+output:
+  html_document:
+    toc: false
+    toc_depth: 5
+---
+
+
+<style>
+body {
+    line-height: 1.4em;
+    }
+.break-out {
+    text-align: center;
+    width: 100vw;
+    position: relative;
+    left: calc(-1 * (100vw - 100%)/2);
+}
+.r {
+    background-color: white;
+    border: 0;
+        }
+
+pre code, pre, code {
+  white-space: pre !important;
+  overflow-x: scroll !important;
+  word-break: keep-all !important;
+  word-wrap: initial !important;
+}
+
+</style>
+
+
+```{r echo=FALSE,eval=FALSE}
+knitr::opts_chunk$set(  echo=FALSE,warning=FALSE,message=FALSE, eval=TRUE)
+library(DT)
+source("../missioncontrol.lib.R")
+g <- bq()
+channel.info <- function(channel,g){
+    list(
+    version = posterior.current.versions(channel,g),
+    usage   = posterior.usage(channel,g),
+    summary = posterior.rate.incidence.summary(channel,g),
+    evolution = posterior.evolution(channel,g)
+    )
+}
+release.info <- channel.info('release',g)
+beta.info <- channel.info('beta',g)
+nightly.info <- channel.info('nightly',g)
+
+```
+
+##  {.tabset}
+
+
+
+*Take results from products with less than 10% adoption with adequate  skepticism*
+
+
+### Release 
+
+`asOf` is the date till which the model uses data
+
+
+```{r}
+
+datatable(release.info$version, caption = 'Comparing Current Version To ... ',
+          colnames=c("Current Version","Days Present","Older Version","Days Present", "asOf"),
+          options = list(
+              searching = FALSE,columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = 1,lengthChange = FALSE,dom = 't'),rownames= FALSE
+          )
+
+datatable(release.info$usage,  caption = 'Usage on Current',
+          colnames=c("OS","Adoption","Total Crashes","DAU On Current"),
+          options = list(
+              searching = FALSE,columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = nrow(release.info$usage),lengthChange = FALSE,dom = 't'),rownames= FALSE
+          ) 
+
+
+
+```
+
+
+
+```{r}
+datatable(release.info$summary[type=='rate',list(os,Score,CM,CC)], caption = 'Crash Rate Summary',
+          rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
+          options = list(
+              searching = FALSE,dom='t',lengthChange=FALSE,
+              columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = nrow(release.info$usage)))
+
+datatable(release.info$summary[type=='incidence',list(os,Score,CM,CC)], caption = 'Crash Incidence Summary',
+          rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
+          options = list(
+              searching = FALSE,dom='t',lengthChange=FALSE,
+              columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = nrow(release.info$usage)))
+
+```
+
+
+
+Plot goes here
+
+
+
+
+
+
+### Beta
+
+
+
+`asOf` is the date till which the model uses data
+
+
+
+```{r}
+
+datatable(beta.info$version, caption = 'Comparing Current Version To ... ',
+          colnames=c("Current Version","Days Present","Older Version","Days Present", "asOf"),
+          options = list(
+              searching = FALSE,columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = nrow(beta.info$version),lengthChange = FALSE,dom = 't'),rownames= FALSE
+          )
+
+datatable(beta.info$usage,  caption = 'Usage on Current',
+          colnames=c("OS","Adoption","Total Crashes","DAU On Current"),
+          options = list(
+              searching = FALSE,columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = nrow(beta.info$usage),lengthChange = FALSE,dom = 't'),rownames= FALSE
+          ) 
+
+
+
+```
+
+
+
+
+```{r}
+datatable(beta.info$summary[type=='rate',list(os,Score,CM,CC)], caption = 'Crash Rate Summary',
+          rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
+          options = list(
+              searching = FALSE,dom='t',lengthChange=FALSE,
+              columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = nrow(beta.info$usage)))
+
+datatable(beta.info$summary[type=='incidence',list(os,Score,CM,CC)], caption = 'Crash Incidence Summary',
+          rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
+          options = list(
+              searching = FALSE,dom='t',lengthChange=FALSE,
+              columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = nrow(beta.info$usage)))
+
+```
+
+
+
+
+Plot
+
+
+
+
+
+
+
+### Nightly
+
+`asOf` is the date till which the model uses data
+
+```{r}
+
+datatable(nightly.info$version, caption = 'Comparing Current Version To ... ',
+          colnames=c("Current Version","Days Present","Older Version","Days Present", "asOf"),
+          options = list(
+              searching = FALSE,columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = nrow(nightly.info$version),lengthChange = FALSE,dom = 't'),rownames= FALSE
+          )
+
+datatable(nightly.info$usage,  caption = 'Usage on Current',
+          colnames=c("OS","Adoption","Total Crashes","DAU On Current"),
+          options = list(
+              searching = FALSE,columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = nrow(nightly.info$usage),lengthChange = FALSE,dom = 't'),rownames= FALSE
+          ) 
+
+
+
+```
+
+
+```{r}
+datatable(nightly.info$summary[type=='rate',list(os,Score,CM,CC)], caption = 'Crash Rate Summary',
+          rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
+          options = list(
+              searching = FALSE,dom='t',lengthChange=FALSE,
+              columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = nrow(nightly.info$usage)))
+
+datatable(nightly.info$summary[type=='incidence',list(os,Score,CM,CC)], caption = 'Crash Incidence Summary',
+          rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
+          options = list(
+              searching = FALSE,dom='t',lengthChange=FALSE,
+              columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = nrow(nightly.info$usage)))
+
+```
+
+
+
+### Definitions
+
+- **Crash Incidence** is the proportion of DAU experiencing a crash (content or
+  main as the case may be)
+- **Crash Rate** is the crashes/active hour for the profiles experiencing  a crash  
+- **os** is the operating system(Windows,Darwin,Linux and *overall* which is the average of the first three)
+- **date** is the date on which this estimate was computed
+- **cv** the version
+- **major** and **minor** the major and minor components
+- **adoption** what percent of DAU was from this version on the given `date`
+- **modelname** we have four (+2) different metrics
+  - **cmi** is *Main Crash Incidence*, the proportion of DAU on that version that experience a main crash
+  - **cmr** is *Main Crash Rate*, the number of crashes per active hour for the people experiencing crash
+  - **cci** and **ccr** are similar to the above but for *Content* crashes
+  - **cm** and **cc** are the *sum* of **(cmi,ccr)** and **(cmicci)** respectively
+- **c** is the actual rate/incidence (incidence is a proportion)
+- **lo90** and **hi90** are upper and lower bounds
+
+All estimates are comparable in that they estimated at comparable adoptions and
+other parameters
+
+
+In the 'Summary Tables' , the format `X (Y%)` is the actual rate followed by the percent relative change wrt to the `Older_Version`. Based on the following rules
+
+- if we are more than 75% confident of 20%+ regression you will see a ▲ 
+- if we are between 60-75% confident of a 20%+ regression you will see △
+- if we are more than 75% confident of a 20%+ improvement you will see a ▼ arrow
+- otherwise nothing
+

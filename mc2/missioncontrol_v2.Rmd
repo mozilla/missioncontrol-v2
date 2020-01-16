@@ -36,8 +36,11 @@ pre code, pre, code {
 </style>
 
 
-```{r echo=FALSE,warning=FALSE, message=FALSE,eval=if(exists("_donotrun_")) FALSE else TRUE}
+```{r echo=FALSE}
 knitr::opts_chunk$set(  echo=FALSE,warning=FALSE,message=FALSE, eval=TRUE)
+```
+
+```{r echo=FALSE,warning=FALSE, results='hide',message=FALSE,eval=if(exists("_donotrun_")) FALSE else TRUE}
 library(DT)
 source("../missioncontrol.lib.R")
 g <- bq()
@@ -127,7 +130,7 @@ makePlot <- function(evo,typec,title,xtip,width=990,height=200){
 `asOf` is the date till which the model uses data
 
 
-```{r}
+```{r eval=TRUE, echo=FALSE}
 
 datatable(release.info$version, caption = 'Comparing Current Version To ... ',
           colnames=c("Current Version","Days Present","Older Version","Days Present", "asOf"),
@@ -149,7 +152,7 @@ datatable(release.info$usage[, DAU_on_Current := if(params$isPublic=='yes') NA e
 
 
 
-```{r}
+```{r echo=FALSE}
 datatable(release.info$summary[type=='rate',list(os,Score,CM,CC)], caption = 'Crash Rate Summary',
           rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
           options = list(
@@ -169,7 +172,7 @@ datatable(release.info$summary[type=='incidence',list(os,Score,CM,CC)], caption 
 
 
 
-```{r}
+```{r echo=FALSE}
 makePlot(release.info$evolution, 'cmr',"Main Crash Rate","Rate")
 makePlot(release.info$evolution, 'ccr',"Content Crash Rate","Rate")
 makePlot(release.info$evolution, 'cmi',"Main Crash Incidence(%)","Incidence")

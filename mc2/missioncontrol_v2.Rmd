@@ -5,6 +5,9 @@ output:
   html_document:
     toc: false
     toc_depth: 5
+params:
+    isPublic: no
+    
 ---
 
 
@@ -124,7 +127,7 @@ makePlot <- function(evo,typec,title,xtip,width=990,height=200){
 `asOf` is the date till which the model uses data
 
 
-```{r 
+```{r}
 
 datatable(release.info$version, caption = 'Comparing Current Version To ... ',
           colnames=c("Current Version","Days Present","Older Version","Days Present", "asOf"),
@@ -133,7 +136,7 @@ datatable(release.info$version, caption = 'Comparing Current Version To ... ',
               pageLength = 1,lengthChange = FALSE,dom = 't'),rownames= FALSE
           )
 
-datatable(release.info$usage,  caption = 'Usage on Current',
+datatable(release.info$usage[, DAU_on_Current := if(params$isPublic=='yes') NA else  DAU_on_Current],   caption = 'Usage on Current',
           colnames=c("OS","Adoption","Total Crashes","DAU On Current"),
           options = list(
               searching = FALSE,columnDefs = list(list(className = 'dt-center',targets="_all")),
@@ -194,7 +197,7 @@ datatable(beta.info$version, caption = 'Comparing Current Version To ... ',
               pageLength = nrow(beta.info$version),lengthChange = FALSE,dom = 't'),rownames= FALSE
           )
 
-datatable(beta.info$usage,  caption = 'Usage on Current',
+datatable(beta.info$usage[, DAU_on_Current := if(params$isPublic=='yes') NA else  DAU_on_Current],  caption = 'Usage on Current',
           colnames=c("OS","Adoption","Total Crashes","DAU On Current"),
           options = list(
               searching = FALSE,columnDefs = list(list(className = 'dt-center',targets="_all")),
@@ -259,7 +262,7 @@ datatable(nightly.info$version, caption = 'Comparing Current Version To ... ',
               pageLength = nrow(nightly.info$version),lengthChange = FALSE,dom = 't'),rownames= FALSE
           )
 
-datatable(nightly.info$usage,  caption = 'Usage on Current',
+datatable(nightly.info$usage[, DAU_on_Current := if(params$isPublic=='yes') NA else  DAU_on_Current],  caption = 'Usage on Current',
           colnames=c("OS","Adoption","Total Crashes","DAU On Current"),
           options = list(
               searching = FALSE,columnDefs = list(list(className = 'dt-center',targets="_all")),

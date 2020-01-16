@@ -54,6 +54,62 @@ ccsv <- rbindlist(list(posterior.evolution('release',6,g)[, channel := 'release'
                        posterior.evolution('nightly',6,g)[, channel := 'nightly']))
 fwrite(ccsv,file="./mc2_rate_incidence_evolution.csv",row.names=FALSE,quote=TRUE,na=0)
 
+plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,pointSize=65){
+    u3 <- list(
+        `$schema` = vega_schema(),
+        data = list(values = f),
+        title = list(text=glue(title), anchor='start',fontWeight = 'normal'),
+        width = if(is.null(width)) 1200 else width,
+        height = if(is.null(height)) 300 else height,
+        autosize = list(type='fit',contains='content'),
+        layer = list(
+            list(
+                mark = list(type="point",filled=TRUE),
+                selection = list(
+                    grid = list(type= "interval", bind="scales"),
+                    opsys = list(type='multi',fields=list("os"),bind='legend')
+                ),
+                transform = list(list(calculate="format(datum.c,'.2f')+' ('+format(datum.lo90,'.2f')+','+format(datum.hi90,'.2f')+')'", as=xtip),
+                                 list(calculate='format(datum.adoption*100,".2f")+"%"',as='Adoption')),
+                encoding = list(
+                    size = list(value=pointSize),
+                    x = list(field="cv", type='ordinal', axis=list(title="",labelOverlap='parity'), sort=list(field="ordering",op='count')),
+                    y = list(field="c",type="quantitative",axis=list(title="",titleFontSize=11)),
+                    color = list(field = "os", type = "nominal",scale=list(scheme="set1")),
+                    opacity = list(condition = list(selection="opsys",value = 1),value = 0.1),
+                    tooltip=list(list(field = "date",type="ordinal"),
+                                 list(field='cv', type='ordinal',title='Version'),
+                                 list(field = "Adoption",type="ordinal"),
+                                 list(field = xtip,type="ordinal")
+                                 )
+                )),
+            list(
+                mark = list(type="rule","strokeDash"=list(4, 2)),
+                encoding = list(
+                    size = list(value=1),
+                    strokeDash = list(1,1),
+                    x = list(field="cv", type='ordinal',sort=list(field="ordering",op='count')),
+                    y = list(field="lo90",type="quantitative",  grid=FALSE),
+                    y2 = list(field="hi90",type="quantitative",  grid=FALSE),
+                    opacity = list(condition = list(selection="opsys",value = 0.4),value = 0.1),
+                    color = list(field = "os", type = "nominal",scale=list(scheme="grey")),
+                    tooltip =  NULL
+                ))
+        )
+    )
+    u3
+}
+
+makePlot <- function(evo,typec,title,xtip,width=990,height=200){
+    xx <- evo[os!='overall' & modelname == typec,]
+    xx <-merge(xx, xx[, .SD[order(major,minor),][,list(date, major,minor, ordering = 1:.N)],by=os], by=c("os","date","major","minor"))
+    xx[, xoff := runif(1),by=list(cv)]
+    if(xtip=='Incidence') xx[,':='(c = c*100,lo90=lo90*100,hi90=hi90*100)]
+    xy <- plotEvolution(xx, title=title, xtip=xtip,width=width,height=height)
+    vegawidget(as_vegaspec(xy),embed=vega_embed(actions=FALSE))
+}
+
+
 ```
 
 ##  {.tabset}
@@ -109,9 +165,14 @@ datatable(release.info$summary[type=='incidence',list(os,Score,CM,CC)], caption 
 
 
 
-Plot goes here
 
+```{r}
+makePlot(release.info$evolution, 'cmr',"Main Crash Rate","Rate")
+makePlot(release.info$evolution, 'ccr',"Content Crash Rate","Rate")
+makePlot(release.info$evolution, 'cmi',"Main Crash Incidence(%)","Incidence")
+makePlot(release.info$evolution, 'cci',"Content Crash Incidence(%)","Incidence")
 
+```
 
 
 
@@ -167,7 +228,17 @@ datatable(beta.info$summary[type=='incidence',list(os,Score,CM,CC)], caption = '
 
 
 
-Plot
+
+
+```{r}
+makePlot(beta.info$evolution, 'cmr',"Main Crash Rate","Rate")
+makePlot(beta.info$evolution, 'ccr',"Content Crash Rate","Rate")
+makePlot(beta.info$evolution, 'cmi',"Main Crash Incidence(%)","Incidence")
+makePlot(beta.info$evolution, 'cci',"Content Crash Incidence(%)","Incidence")
+
+```
+
+
 
 
 
@@ -217,7 +288,20 @@ datatable(nightly.info$summary[type=='incidence',list(os,Score,CM,CC)], caption 
 
 ```
 
-### Download
+
+
+
+
+```{r}
+makePlot(nightly.info$evolution, 'cmr',"Main Crash Rate","Rate")
+makePlot(nightly.info$evolution, 'ccr',"Content Crash Rate","Rate")
+makePlot(nightly.info$evolution, 'cmi',"Main Crash Incidence(%)","Incidence")
+makePlot(nightly.info$evolution, 'cci',"Content Crash Incidence(%)","Incidence")
+
+```
+
+
+### Download CSV of Crash Metrics
 
 You can download a CSV of crash rates/incidences for different operating systems
 (and overall) ,different channels  and different versions (from last 6 months)  [here](./mc2_rate_incidence_evolution.csv)

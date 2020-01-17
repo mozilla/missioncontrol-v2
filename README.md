@@ -1,5 +1,8 @@
 # missioncontrol-v2
 
+[![CircleCI](https://img.shields.io/circleci/project/github/mozilla/missioncontrol-v2/master.svg)](https://circleci.com/gh/mozilla/missioncontrol-v2)
+
+
 An alternate view of crash and stability
 
 ## Installation instructions

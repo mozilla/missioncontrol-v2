@@ -760,7 +760,7 @@ select * except(sr) from final
 posterior.evolution <- function(channel, nmonth=3,g){
     nmonth <- as.integer(nmonth)
     chan=channel
-     g$q(glue("
+    x <-  g$q(glue("
 with
 a0 as (
 select os,modelname,c_version as cv,date as date,model_date,
@@ -795,6 +795,8 @@ order by modelname, os,major DESC,date DESC,minor DESC
 )
 select * from e
 "),-1)
+    x[, channel := channel]
+    x
 }
 
 

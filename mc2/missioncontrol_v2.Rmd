@@ -10,6 +10,18 @@ params:
     
 ---
 
+```{js echo=FALSE}
+$("h1,h2,h3,h4,h5").filter(function(i) {
+    // Note: tried selecting "div.section > h1,h2,h3,h4,h5", but 
+    // this was pulling in the initial h4 date heading.
+    return $(this).parent().hasClass("section");
+}).wrap(function() {
+    var sectionref = $(this).parent().attr("id");
+    // Add a custom class for additional styling control.
+    return "<a class='header-link' href='#" + sectionref + "'></a>";
+});
+```
+
 
 <style>
 body {
@@ -36,6 +48,8 @@ pre code, pre, code {
 </style>
 
 
+
+
 ```{r echo=FALSE}
 knitr::opts_chunk$set(  echo=FALSE,warning=FALSE,message=FALSE,eval=TRUE)
 ```
@@ -55,9 +69,9 @@ channel.info <- function(channel,g){
 release.info <- channel.info('release',g)
 beta.info <- channel.info('beta',g)
 nightly.info <- channel.info('nightly',g)
-ccsv <- rbindlist(list(posterior.evolution('release',6,g)[, channel := 'release'],
-                       posterior.evolution('beta',6,g)[, channel := 'beta'],
-                       posterior.evolution('nightly',6,g)[, channel := 'nightly']))
+ccsv <- rbindlist(list(posterior.evolution('release',6,g),
+                       posterior.evolution('beta',6,g),
+                       posterior.evolution('nightly',6,g)))
 fwrite(ccsv,file="./mc2_rate_incidence_evolution.csv",row.names=FALSE,quote=TRUE,na=0)
 
 plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,pointSize=65){
@@ -76,14 +90,19 @@ plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,
                     opsys = list(type='multi',fields=list("os"),bind='legend')
                 ),
                 transform = list(list(calculate="format(datum.c,'.2f')+' ('+format(datum.lo90,'.2f')+','+format(datum.hi90,'.2f')+')'", as=xtip),
-                                 list(calculate='format(datum.adoption*100,".2f")+"%"',as='Adoption')),
+                                 list(calculate='format(datum.adoption*100,".2f")+"%"',as='Adoption')
+                                 ,list(calculate="datum.cv+' (v'+ format(datum.major,'d')+')'",as='cv2')
+                                 )
+                                ,
                 encoding = list(
                     size = list(value=pointSize),
                     x = list(field="cv", type='ordinal', axis=list(title="",labelOverlap='parity'), sort=list(field="ordering",op='count')),
                     y = list(field="c",type="quantitative",axis=list(title="",titleFontSize=11)),
                     color = list(field = "os", type = "nominal",scale=list(scheme="set1")),
+                    shape=list(field='major', type='nominal'),
                     opacity = list(condition = list(selection="opsys",value = 1),value = 0.1),
                     tooltip=list(list(field = "date",type="ordinal"),
+                                 list(field=if('nightly' %in% f$channel) 'cv2' else 'cv', type='ordinal',title='Version'),
                                  list(field='cv', type='ordinal',title='Version'),
                                  list(field = "Adoption",type="ordinal"),
                                  list(field = xtip,type="ordinal")
@@ -93,7 +112,6 @@ plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,
                 mark = list(type="rule","strokeDash"=list(4, 2)),
                 encoding = list(
                     size = list(value=1),
-                    strokeDash = list(1,1),
                     x = list(field="cv", type='ordinal',sort=list(field="ordering",op='count')),
                     y = list(field="lo90",type="quantitative",  grid=FALSE),
                     y2 = list(field="hi90",type="quantitative",  grid=FALSE),
@@ -112,7 +130,7 @@ makePlot <- function(evo,typec,title,xtip,width=990,height=200){
     xx[, xoff := runif(1),by=list(cv)]
     if(xtip=='Incidence') xx[,':='(c = c*100,lo90=lo90*100,hi90=hi90*100)]
     xy <- plotEvolution(xx, title=title, xtip=xtip,width=width,height=height)
-    vegawidget(as_vegaspec(xy),embed=vega_embed(actions=FALSE))
+    vegawidget(as_vegaspec(xy),embed=vega_embed(actions=TRUE))
 }
 
 
@@ -170,6 +188,11 @@ datatable(release.info$summary[type=='incidence',list(os,Score,CM,CC)], caption 
 ```
 
 
+
+
+- Click on an OS in the legend to hide others and click on the chart to bring
+them all back
+- use scroll to zoom in/out figures
 
 
 ```{r echo=FALSE}
@@ -233,6 +256,11 @@ datatable(beta.info$summary[type=='incidence',list(os,Score,CM,CC)], caption = '
 
 
 
+- Click on an OS in the legend to hide others and click on the chart to bring
+them all back
+- use scroll to zoom in/out figures
+
+
 
 
 
@@ -293,6 +321,11 @@ datatable(nightly.info$summary[type=='incidence',list(os,Score,CM,CC)], caption 
               pageLength = nrow(nightly.info$usage)))
 
 ```
+
+
+- Click on an OS in the legend to hide others and click on the chart to bring
+them all back
+- use scroll to zoom in/out figures
 
 
 

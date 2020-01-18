@@ -60,10 +60,10 @@ source("../missioncontrol.lib.R")
 g <- bq()
 channel.info <- function(channel,g){
     list(
-    version = posterior.current.versions(channel,g=g),
-    usage   = posterior.usage(channel,g=g),
-    summary = posterior.rate.incidence.summary(channel,g=g),
-    evolution = posterior.evolution(channel,g=g)
+        version = posterior.current.versions(channel,g=g),
+        usage   = posterior.usage(channel,g=g),
+        summary = posterior.rate.incidence.summary(channel,g=g),
+        evolution = posterior.evolution(channel,g=g)
     )
 }
 release.info <- channel.info('release',g)
@@ -375,3 +375,7 @@ In the 'Summary Tables' , the format `X (Y%)` is the actual rate followed by the
 - if we are more than 75% confident of a 20%+ improvement you will see a ▼ arrow
 - otherwise nothing
 
+```{r echo=FALSE}
+y <- model.summary(g)
+cat(y$allmods)
+```

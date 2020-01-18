@@ -58,6 +58,10 @@
       {
     "name": "asOf",
     "type": "date"
+      },
+      {
+    "name": "smry",
+    "type": "string"
   }
 
     

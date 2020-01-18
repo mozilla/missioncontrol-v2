@@ -644,6 +644,15 @@ where channel="{chan}" and os="Windows_NT"
 '))
 }
 
+model.summary <- function(g){
+    g$q("
+select 
+JSON_EXTRACT_SCALAR(smry,'$.w')  as allmods
+from  analysis.missioncontrol_v2_channel_summaries
+limit 1
+")
+}
+
 posterior.usage <- function(channel,g){
     chan <- channel
  g$q(glue("

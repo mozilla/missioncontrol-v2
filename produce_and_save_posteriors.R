@@ -77,13 +77,39 @@ current.nightly.smry[, channel:='nightly']
 current.nightly.smry[, asOf:=max(date)]
 
 channel.summary <- rbindlist(list(current.nightly.smry,current.beta.smry,current.release.smry))
+
+
+## Now Add Some Model information
+
+all.models <- list("cr.cm.rel"=cr.cm.rel,"cr.cc.rel"=cr.cc.rel,"ci.cm.rel"=ci.cm.rel,"ci.cc.rel"=ci.cc.rel,
+               "cr.cm.beta"=cr.cm.beta,"cr.cc.beta"=cr.cc.beta,"ci.cm.beta"=ci.cm.beta,"ci.cc.beta"=ci.cc.beta,
+               "cr.cm.nightly"=cr.cm.nightly,"cr.cc.nightly"=cr.cc.nightly,"ci.cm.nightly"=ci.cm.nightly,"ci.cc.nightly"=ci.cc.nightly)
+bad.models <- names(all.models)[ unlist(Map(function(i,m){
+    if(any( brms::rhat(m) >=1.1)) TRUE else FALSE
+},names(all.models),all.models))]
+
+
+options(width=200)
+w=invisible(Map(function(s,n){
+    options(warn=0)    
+    x1 <- paste(capture.output(print(s)),collapse="\n")
+    options(warn=1)
+    x2 <- paste(capture.output(print(s), type='message'),collapse='\n')
+    x <- sprintf("%s\n\n%s\n%s\n",n,x1,x2)
+    x
+},all.models,names(all.models)))
+w <- paste(unlist(w),collapse='\n')
+    
+w2 <- toJSON(list(w=w))
+channel.summary[, smry:=w2]
+
 atemp <- tempfile()
 fwrite(channel.summary, file=atemp,row.names=FALSE,quote=TRUE,na=0)
 system(glue("bq load --replace   --project_id moz-fx-data-derived-datasets  --source_format=CSV --skip_leading_rows=1 --null_marker=NA",
                 " analysis.missioncontrol_v2_channel_summaries {atemp} ./channel_summary_schema.json"))
 loginfo("Uploaded Channel Summary")
-options(width=200)
-print(channel.summary)
+
+
 
 
 

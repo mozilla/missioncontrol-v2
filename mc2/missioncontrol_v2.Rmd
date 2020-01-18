@@ -376,6 +376,9 @@ In the 'Summary Tables' , the format `X (Y%)` is the actual rate followed by the
 - if we are more than 75% confident of a 20%+ improvement you will see a ▼ arrow
 - otherwise nothing
 
+
+#### Appendix : Models
+
 ```{r echo=FALSE}
 y <- model.summary(g)
 cat(y$allmods)

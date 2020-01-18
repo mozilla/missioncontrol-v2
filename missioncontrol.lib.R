@@ -18,7 +18,8 @@ library(rmarkdown)
 options(future.globals.maxSize= 850*1024^2 )
 Lapply <- lapply #future_lapply
 
-BQCREDS <- Sys.getenv("GOOGLE_APPLICATION_CREDENTIALS", "~/gcloud.json")
+BQCREDS <- Sys.getenv("GOOGLE_APPLICATION_CREDENTIALS", "~/gcloud.json"
+
 
 if(!exists("missioncontrol.lib.R")){
     ## executed only once
@@ -793,17 +794,28 @@ b as (select
 ),
 c as (select * except(n_) from b where n_ = 1),
 d as (
-select  os, c_version as cv, major,minor,date, nvc as adoption
+select  os, c_version as cv, major,minor,date, nvc as adoption, cmr,ccr,cmi,cci
 from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_raw_data
 where channel = '{chan}'
 ),
 e as (
-select A.os,A.date, A.cv,major,minor,adoption, modelname, c,lo90,hi90
+select A.os,A.date, A.cv,major,minor,adoption, modelname, c,lo90,hi90,cmr,ccr,cmi,cci
 from c A left join d
 on A.os=d.os and A.date=d.date and A.cv=d.cv
 order by modelname, os,major DESC,date DESC,minor DESC
+),
+f as ( 
+select 
+os,date,cv,major,minor,adoption,modelname,
+case when modelname ='cci' then cci
+    when modelname ='cmi' then cmi 
+    when modelname ='ccr' then ccr
+    when modelname ='cmr' then cmr 
+    else -1 end as orig,
+c,lo90,hi90
+from e
 )
-select * from e
+select * from f
 "),-1)
     x[, channel := channel]
     x

@@ -362,6 +362,7 @@ You can download a CSV of crash rates/incidences for different operating systems
   - **cci** and **ccr** are similar to the above but for *Content* crashes
   - **cm** and **cc** are the *sum* of **(cmi,ccr)** and **(cmicci)** respectively
 - **c** is the actual rate/incidence (incidence is a proportion)
+- **orig** the original value (won't exist for `score`,`cc` and `cm`)
 - **lo90** and **hi90** are upper and lower bounds
 
 All estimates are comparable in that they estimated at comparable adoptions and

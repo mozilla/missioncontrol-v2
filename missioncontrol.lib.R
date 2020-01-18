@@ -144,7 +144,7 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
             M0 <- bf( cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  +log( nvc)*os)+negbinomial()
         }
         if(channel %in% c('beta')){
-            M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + os*log(nvc) , shape ~ os)+negbinomial()
+        #    M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + os*log(nvc) , shape ~ os)+negbinomial()
             M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + os*log(nvc))+negbinomial()
             if(debug==1){
                 M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60))  + os + log(nvc))+negbinomial()

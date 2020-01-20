@@ -176,14 +176,14 @@ datatable(release.info$summary[type=='rate',list(os,Score,CM,CC)], caption = 'Cr
           options = list(
               searching = FALSE,dom='t',lengthChange=FALSE,
               columnDefs = list(list(className = 'dt-center',targets="_all")),
-              pageLength = nrow(release.info$usage)))
+              pageLength = nrow(release.info$summary)))
 
 datatable(release.info$summary[type=='incidence',list(os,Score,CM,CC)], caption = 'Crash Incidence Summary',
           rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
           options = list(
               searching = FALSE,dom='t',lengthChange=FALSE,
               columnDefs = list(list(className = 'dt-center',targets="_all")),
-              pageLength = nrow(release.info$usage)))
+              pageLength = nrow(release.info$summary)))
 
 ```
 
@@ -243,14 +243,14 @@ datatable(beta.info$summary[type=='rate',list(os,Score,CM,CC)], caption = 'Crash
           options = list(
               searching = FALSE,dom='t',lengthChange=FALSE,
               columnDefs = list(list(className = 'dt-center',targets="_all")),
-              pageLength = nrow(beta.info$usage)))
+              pageLength = nrow(beta.info$summary)))
 
 datatable(beta.info$summary[type=='incidence',list(os,Score,CM,CC)], caption = 'Crash Incidence Summary',
           rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
           options = list(
               searching = FALSE,dom='t',lengthChange=FALSE,
               columnDefs = list(list(className = 'dt-center',targets="_all")),
-              pageLength = nrow(beta.info$usage)))
+              pageLength = nrow(beta.info$summary)))
 
 ```
 
@@ -311,14 +311,14 @@ datatable(nightly.info$summary[type=='rate',list(os,Score,CM,CC)], caption = 'Cr
           options = list(
               searching = FALSE,dom='t',lengthChange=FALSE,
               columnDefs = list(list(className = 'dt-center',targets="_all")),
-              pageLength = nrow(nightly.info$usage)))
+              pageLength = nrow(nightly.info$summary)))
 
 datatable(nightly.info$summary[type=='incidence',list(os,Score,CM,CC)], caption = 'Crash Incidence Summary',
           rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
           options = list(
               searching = FALSE,dom='t',lengthChange=FALSE,
               columnDefs = list(list(className = 'dt-center',targets="_all")),
-              pageLength = nrow(nightly.info$usage)))
+              pageLength = nrow(nightly.info$summary)))
 
 ```
 

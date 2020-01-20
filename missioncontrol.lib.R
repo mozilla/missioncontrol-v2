@@ -152,7 +152,8 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
             }
         }
         if(channel %in% c("nightly")){
-            M0 <- bf( cmain + 1  ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) +  log(nvc)*osc)+negbinomial()
+            M0 <- bf( cmain + 1  ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) +  log(nvc)*os,
+                     shape ~ os)+negbinomial()
             if(debug==1){
              M0 <- bf( cmain + 1  ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os *log(nvc))+negbinomial()
             }

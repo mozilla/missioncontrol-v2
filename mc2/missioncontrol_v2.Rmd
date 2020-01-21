@@ -376,7 +376,7 @@ In the 'Summary Tables' , the format `X (Y%)` is the actual rate followed by the
 - otherwise nothing
 
 
-## Model Summary
+#### Model Summary
 
 ```{r echo=FALSE}
 y <- model.summary(g)

@@ -84,7 +84,13 @@ m2 <- make.a.model(data=y,wh='cmr', channel='esr',
                       )+negbinomial()
              )
 
+
 m3 <- make.a.model(data=y,wh='cmr', channel='esr',
+             bff = bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)) +  s(nvc,m=1,by=os)  + (1+os|c_version)
+                      )+negbinomial()
+             )
+
+m4 <- make.a.model(data=y,wh='cmr', channel='esr',
              bff = bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)) + mo(nvc.f)*os + (1+os|c_version)
                       ,shape~os )+negbinomial()
              )

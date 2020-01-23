@@ -25,10 +25,7 @@ uesr[rdate=='2040-01-01', rdate:=uesr[ pmin(which((rdate=='2040-01-01'))+1,nrow(
 
 ## Now get some data
 esr.data <-  fread("bq query -n 500000000 --format=csv --nouse_legacy_sql 'select *  from analysis.missioncontrol_v2_raw_data_test_bh_mast'")
-q
-## Restrict data to some cuttoff date (i dont think we need so much data anyways)
-## the cutoff date is a bit arbitrary
-esr.data <- esr.data[date>='2019-07-01',]
+
 esr.data <- merge(esr.data,uesr[, list(c_version, rdate)], by="c_version",keep.x=TRUE)
 esr.data <- esr.data[date<=rdate][, rdate:=NULL]
 
@@ -39,6 +36,10 @@ esr.data <- cbind(esr.data,rbindlist(Map(function(s) {
     f <- strsplit(s,".",fixed=TRUE)[[1]]
     data.table(major = f[1], minor=paste(f[-1],collapse="."))
     },esr.data$c_version)))
+
+## Restrict data to some cuttoff date (i dont think we need so much data anyways)
+## the cutoff date is a bit arbitrary
+esr.data <- esr.data[major>=68,]
 
 ################################################################################
 ##
@@ -68,6 +69,7 @@ dev.off()
 
 
 library(brms)
+y <- esr.data
 y[ ,os:=factor(os)]
 y[, nvc.f:=cut(nvc*100, 100*unique(quantile(nvc, seq(0,1,length=10))), include.lowest=TRUE,ordered=TRUE)]
 
@@ -76,9 +78,15 @@ m1 <- make.a.model(data=y,wh='cmr', channel='esr',
                       , shape ~ mo(nvc.f)*os)+negbinomial()
              )
 
+
 m2 <- make.a.model(data=y,wh='cmr', channel='esr',
              bff = bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)) + mo(nvc.f)*os + (1+os|c_version)
-                      , shape ~ os)+negbinomial()
+                      )+negbinomial()
+             )
+
+m3 <- make.a.model(data=y,wh='cmr', channel='esr',
+             bff = bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)) + mo(nvc.f)*os + (1+os|c_version)
+                      ,shape~os )+negbinomial()
              )
 
     

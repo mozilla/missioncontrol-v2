@@ -33,28 +33,35 @@ if(!exists("missioncontrol.lib.R")){
 ## to estimate final rates
 ## e.g.  dall.rel2[, list(a=.SD[,max(nvc)]),by=list(c_version,os)][, quantile(a,0.5),by=os]
 adoptionsCompare <- function(os,ch,DF=FALSE){
-    f <- data.table(channel =rep(c("release","beta","nightly"),each=3),
-                    os  = rep(c("Linux","Windows_NT","Darwin"),3),
+    f <- data.table(channel =rep(c("release","beta","nightly","esr"),each=3),
+                    os  = rep(c("Linux","Windows_NT","Darwin"),4),
                     ## used predict(mgcv( log(usage_cc) ~ os+s(nvc,by=os)), f)
                     ## e.g. dall.beta2[, os:=factor(os)][, exp(predict(gam( log(dau_cversion)~ os+s(nvc, by=os)),newdata=g)) ]
                     dau = c(
                         912182.2, 17281273.0  ,2997185.1,
                         1040.123, 489639.889 ,  4818.843,
-                        821.7477 ,12506.7056,  1218.0142),
+                        821.7477 ,12506.7056,  1218.0142,
+                        1505.707, 401217.766 , 24594.496
+                        ),
                     ## dall.beta2[, os:=factor(os)][, exp(predict(gam( log(dau_cversion)~ os+s(nvc, by=os)),newdata=g)) ]
                     usage_cm = c(
                         22172.91, 156151.10  ,11969.40,
                         10.68346, 7808.63684,   40.62532,
-                        29.27896, 262.19025,  25.99481
+                        29.27896, 262.19025,  25.99481,
+                        19.41971 ,12061.76251  ,  82.97752
                        ),
                     usage_cc = c(
                         18377.15 ,219896.37 , 16004.87,
                         11.88207, 13508.18048 ,   30.10713,
-                         31.74024, 634.10478 , 22.34219),
+                        31.74024, 634.10478 , 22.34219,
+                         17.38312, 12928.50682  , 110.84559
+                        ),
                     ## i got these numbers based on medians of adoptions 
                     adopt =  c(0.4468343,0.7819889,0.5782132,
                                0.2464732,0.4819733,0.293562,
-                               0.2593343, 0.3811480,0.2736847))
+                               0.2593343, 0.3811480,0.2736847,
+                               0.01426907,0.14256519,0.19504157
+                               ))
     if(!DF) f[channel==ch & os==os, adopt] else f
 }
 
@@ -145,8 +152,8 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
             M0 <- bf( cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  +log( nvc)*os)+negbinomial()
         }
         if(channel %in% c('beta')){
-        #    M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + os*log(nvc) , shape ~ os)+negbinomial()
-            M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + os*log(nvc))+negbinomial()
+            ##   M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + os*log(nvc))+negbinomial()
+            M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + s(nvc,m=1),shape~os)+negbinomial()
             if(debug==1){
                 M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60))  + os + log(nvc))+negbinomial()
             }
@@ -158,17 +165,24 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
              M0 <- bf( cmain + 1  ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os *log(nvc))+negbinomial()
             }
         }
+        if(channel %in% c("esr")){
+            M0 <- bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)) +  s(nvc, m = 1) + (1+os|c_version)
+                    ,shape~os )+negbinomial()
+            if(debug==1){
+                M0 <- bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)))+negbinomial()
+            }
+        }
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='ccr'){
         M0 <- bf( ccontent+1  ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version),
-                 shape ~  os*log(nvc)) +negbinomial() # os+s(nvc,1)
+                 shape ~  os*log(nvc)) +negbinomial() 
         if(debug==1){
             M0 <- bf( ccontent+1  ~  offset(log( usage_cc_crasher_cversion+1/60))  +os*log(nvc)) + negbinomial()
         }
         if(channel %in% c('beta')){
             M0 <- bf( ccontent + 1 ~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
-                     shape ~ os*nvc) + negbinomial()  #log(dau_cversion + 1))
+                     shape ~ os*nvc) + negbinomial()  
             if(debug==1){
                 M0 <- bf( ccontent + 1 ~ offset(log(usage_cc_crasher_cversion + 1/60)) +  log(nvc)*os)+negbinomial()
             }
@@ -180,10 +194,16 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
                 M0 <- bf( ccontent + 1 ~  offset(log(usage_cc_crasher_cversion + 1/60)) + os*log(nvc))+negbinomial()
             }
         }
+        if(channel %in% "esr"){
+            M0 <- bf(  log(ccr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version),sigma~os  )
+            if(debug==1){
+                M0 <- bf(  log(ccr+1)  ~  os +  nvc )
+            }
+        }
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='cmi'){
-        M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os*nvc) #+s(nvc,m=1))
+        M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os*nvc) 
         if(debug==1){
             M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + log(nvc)*os)
         }
@@ -199,6 +219,12 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
                 M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os*log(nvc) + offset(log(dau_cversion)))
             }
         }
+        if(channel %in% c("esr")){
+            M0 <-  bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1) + (1+os|c_version), sigma ~ os)
+            if(debug==1){
+                M0 <-  bf( log(1+dau_cm_crasher_cversion)   ~   os+offset(log( dau_cversion)))
+            }
+        }
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='cci'){
@@ -208,7 +234,6 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
         }
         if(channel %in% c('beta')){
             M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os+log(nvc))
-        ##    M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os+log(nvc))
             if(debug==1){
                 M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os*log(nvc) + offset(log(dau_cversion)) )
             }
@@ -217,6 +242,12 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
             M0 <- bf( log(1 + dau_cc_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os)
             if(debug==1){
                 M0 <- bf( log(1 + dau_cc_crasher_cversion) ~ os *log(nvc) + offset(log(dau_cversion)))
+            }
+        }
+        if(channel %in% c("esr")){
+            M0 <-  bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1) + (1+os|c_version), sigma ~ os)
+            if(debug==1){
+                M0 <-  bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion)))
             }
         }
         if(!is.null(bff)) M0 <- bff
@@ -248,20 +279,25 @@ getPredictions <- function(M,D, wh=NULL,givenx=NULL,summary=FALSE,ascale='respon
         x <-givenx
     }
     if(wh=='cmr'){
-        r <- exp( t(x) - D[, log( usage_cm_crasher_cversion+1/60)])
-    }
-    if(wh=='ccr'){
-         r <- exp(t(x) -  D[, log( usage_cc_crasher_cversion+1/60)])
-    }
-    if(wh=='cmi'){
+        if(fa == 'gaussian'){
+            r <-  exp(t(x))-1
+        }else if(fa=='negbinomial'){
+            r <- exp( t(x) - D[, log( usage_cm_crasher_cversion+1/60)])
+        }else stop(glue('what family? {fa}'))
+    }else if(wh=='ccr'){
+        if(fa=='gaussian'){
+            r <-  exp(t(x))-1
+        }else if(fa=='negbinomial'){
+            r <- exp(t(x) -  D[, log( usage_cc_crasher_cversion+1/60)])
+        }else stop(glue('what family? {fa}'))
+    }else if(wh=='cmi'){
         if(fa=='binomial'){
             r <- t(x) #boot::inv.logit(t(x))
         }else{
             r <- exp(t(x) -  D[, log( dau_cversion)])
             r[r>1]  <- 1
         }
-    }
-    if(wh=='cci'){
+    }else if(wh=='cci'){
         if(fa=='binomial'){
             r <- t(x) #boot::inv.logit(t(x))
         }else {

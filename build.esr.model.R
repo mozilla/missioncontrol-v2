@@ -71,28 +71,47 @@ dev.off()
 library(brms)
 y <- esr.data
 y[ ,os:=factor(os)]
-y[, nvc.f:=cut(nvc*100, 100*unique(quantile(nvc, seq(0,1,length=10))), include.lowest=TRUE,ordered=TRUE)]
+y[, nvc.logit:=boot::logit(nvc)]
+y[, cmr:=cmain/(usage_cm_crasher_cversion+1/60)]
+y[, ccr:=ccontent/(usage_cc_crasher_cversion+1/60)]
 
-m1 <- make.a.model(data=y,wh='cmr', channel='esr',
-             bff = bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)) + mo(nvc.f)*os + (1+os|c_version)
-                      , shape ~ mo(nvc.f)*os)+negbinomial()
-             )
+M <- ccr1
+ND <- 10
+y1 <- y[, list(x=mean(ccr)),by=os]
+y2 <- cbind(y[, list(os=os,d=(usage_cc_crasher_cversion+1/60))],t(predict(M,summary=FALSE,nsam=ND)))
+y2 <- y2[,{    .SD/.SD$d    },by=os][, d:=NULL]
+y2 <- reshape(y2, dir='long', varying=list(tail(colnames(y2),-1)))
+ggplot(y2, aes(x=V1)) + geom_density(aes(group=time))+facet_grid(cols = vars(os))
+
+cor <- function(a,b) stats::cor(a,b,method='pearson')
+
+cmr1 <- make.a.model(data=y,wh='cmr', channel='esr',
+                   bff = bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)) +  s(nvc, m = 1) + (1+os|c_version)
+                           ,shape~os )+negbinomial()
+                   )
+y[, x:=(fitted(cmr1)[,'Estimate'])/ (usage_cm_crasher_cversion+1/60)][,list(m1=mean(cmr),m2=mean(x))   ,by=list(os,c_version)][, list(mean((m1-m2)),100* mean(abs(m1-m2)/(1+m1)),sqrt(mean((m1-m2)^2)),cor(m1,m2))]
+
+ccr2 <- make.a.model(data=y,wh='ccr', channel='esr',
+                   bff = bf(  log(ccr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version)
+                           ,sigma~os  )
+                   )
+y[, x:=-1+exp(fitted(ccr2)[,'Estimate'])][,list(m1=mean(ccr),m2=mean(x))   ,by=list(os,c_version)][, list(mean(abs(m1-m2)),100* mean((m1-m2)/(1+m1)), sqrt(mean((m1-m2)^2)),cor(m1,m2))]
+
+###############################
+cmi2 <-  make.a.model(data=y,wh='cmi', channel='esr',
+                   bff = bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1) + (1+os|c_version), sigma ~ os)
+                   )
+cci2 <-  make.a.model(data=y,wh='cci', channel='esr',
+                   bff = bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1) + (1+os|c_version), sigma ~ os)
+                   )
+
+y[, x:=(-1+exp(fitted(cmi2)[,'Estimate']))/ (dau_cversion)][,list(m1=mean(cmi),m2=mean(x))   ,by=list(os,c_version)][, list(mean(abs(m1-m2)),100* mean(abs(m1-m2)/(1+m1)), sqrt(mean((m1-m2)^2)),cor(m1,m2))]
+y[, x:=(-1+exp(fitted(cci2)[,'Estimate']))/ (dau_cversion)][,list(m1=mean(cci),m2=mean(x))   ,by=list(os,c_version)][, list(mean(abs(m1-m2)),100* mean(abs(m1-m2)/(1+m1)), sqrt(mean((m1-m2)^2)),cor(m1,m2))]
 
 
-m2 <- make.a.model(data=y,wh='cmr', channel='esr',
-             bff = bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)) + mo(nvc.f)*os + (1+os|c_version)
-                      )+negbinomial()
-             )
+rel.list <- list(cmr = label(cmr1,'cmr'), ccr = label(cmr1,'ccr'), cmi = label(cmr1,'cmi'), cci = label(cmr1,'cci'))
+ll.rel <- make_posteriors(y, CHAN='esr', model.date = '2020-02-01',model.list=rel.list,last.model.date= '2019-01-01')
 
+ll.rel[os=='Windows_NT',list(m=mean(posterior), l = quantile(posterior,0.05), u = quantile(posterior,1-0.05)),
+       by=list(model_name,c_version,major,minor,os)][order(os,major,minor),][, del:=(u-l)/m][,]
 
-m3 <- make.a.model(data=y,wh='cmr', channel='esr',
-             bff = bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)) +  s(nvc,m=1,by=os)  + (1+os|c_version)
-                      )+negbinomial()
-             )
-
-m4 <- make.a.model(data=y,wh='cmr', channel='esr',
-             bff = bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)) + mo(nvc.f)*os + (1+os|c_version)
-                      ,shape~os )+negbinomial()
-             )
-
-    

@@ -27,6 +27,7 @@ uesr[rdate=='2040-01-01', rdate:=uesr[ pmin(which((rdate=='2040-01-01'))+1,nrow(
 esr.data <-  fread("bq query -n 500000000 --format=csv --nouse_legacy_sql 'select *  from analysis.missioncontrol_v2_raw_data_test_bh_mast'")
 
 esr.data <- merge(esr.data,uesr[, list(c_version, rdate)], by="c_version",keep.x=TRUE)
+## And this is how  we remove data beyond the 'end' date of a major/minor
 esr.data <- esr.data[date<=rdate][, rdate:=NULL]
 
 
@@ -51,7 +52,7 @@ esr.data <- esr.data[major>=68,]
 ## Is there a relationship with adoption?
 ## cmr
 
-y <- esr.data[cmr<Inf,][, cmr2:=log(cmr+1)]
+y <- esr.data
 pdf("Rplots.pdf",width=12)
 ggplot(y[os=='Windows_NT',], aes(nvc, cmr2,color=c_version))+geom_line(alpha=0.5)
 ggplot(y[os=='Linux',], aes(nvc, cmr2,color=c_version))+geom_line(alpha=0.5)
@@ -109,9 +110,10 @@ y[, x:=(-1+exp(fitted(cmi2)[,'Estimate']))/ (dau_cversion)][,list(m1=mean(cmi),m
 y[, x:=(-1+exp(fitted(cci2)[,'Estimate']))/ (dau_cversion)][,list(m1=mean(cci),m2=mean(x))   ,by=list(os,c_version)][, list(mean(abs(m1-m2)),100* mean(abs(m1-m2)/(1+m1)), sqrt(mean((m1-m2)^2)),cor(m1,m2))]
 
 
-rel.list <- list(cmr = label(cmr1,'cmr'), ccr = label(cmr1,'ccr'), cmi = label(cmr1,'cmi'), cci = label(cmr1,'cci'))
+rel.list <- list(cmr = label(cmr1,'cmr'), ccr = label(ccr2,'ccr'), cmi = label(cmi2,'cmi'), cci = label(cci2,'cci'))
 ll.rel <- make_posteriors(y, CHAN='esr', model.date = '2020-02-01',model.list=rel.list,last.model.date= '2019-01-01')
 
-ll.rel[os=='Windows_NT',list(m=mean(posterior), l = quantile(posterior,0.05), u = quantile(posterior,1-0.05)),
-       by=list(model_name,c_version,major,minor,os)][order(os,major,minor),][, del:=(u-l)/m][,]
-
+f <- ll.rel[os=='Windows_NT',list(m=mean(posterior), l = quantile(posterior,0.05), u = quantile(posterior,1-0.05)),
+       by=list(modelname,c_version,major,minor,os)][order(modelname,os,major,minor),][, del:=(u-l)/m][,]
+f[modelname=='cmi',]
+y[os=='Windows_NT', list(m = cmi[date==max(date)]),by=list(os,major,c_version,minor)][order(major,minor),]

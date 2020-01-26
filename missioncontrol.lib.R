@@ -110,7 +110,7 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
                     ,shape~os )+negbinomial()
         }
         if(debug==1){
-            M0 <-  bf(  log(cmr+1)  ~  os  ))
+            M0 <-  bf(  log(cmr+1)  ~  os  )
             }
         if(!is.null(bff)) M0 <- bff
     }

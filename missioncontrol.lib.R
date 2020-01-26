@@ -98,108 +98,68 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
   ## See wbeards work on nightly: https://metrics.mozilla.com/protected/wbeard/mc/nightly_model.html
   alter <- TRUE
     if(wh=="cmr"){
-        M0 <- bf( cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os)+(1+os|c_version), shape ~ os*log(nvc))+negbinomial()
-        if(debug==1){
-            M0 <- bf( cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  +log( nvc)*os)+negbinomial()
-        }
+        M0 <- bf(  log(cmr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version),sigma~os  )
         if(channel %in% c('beta')){
-            ##   M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + os*log(nvc))+negbinomial()
-            M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + s(nvc,m=1),shape~os)+negbinomial()
-            if(debug==1){
-                M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60))  + os + log(nvc))+negbinomial()
-            }
+            M0 <- bf(  log(cmr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version),sigma~os  )
         }
         if(channel %in% c("nightly")){
-            M0 <- bf( cmain + 1  ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) +  log(nvc)*os,
-                     shape ~ os)+negbinomial()
-            if(debug==1){
-             M0 <- bf( cmain + 1  ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os *log(nvc))+negbinomial()
-            }
+            M0 <- bf(  log(cmr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version),sigma~os  )
         }
         if(channel %in% c("esr")){
             M0 <- bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)) +  s(nvc, m = 1) + (1+os|c_version)
                     ,shape~os )+negbinomial()
-            if(debug==1){
-                M0 <- bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)))+negbinomial()
-            }
         }
+        if(debug==1){
+            M0 <-  bf(  log(cmr+1)  ~  os  ))
+            }
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='ccr'){
-        M0 <- bf( ccontent+1  ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version),
-                 shape ~  os*log(nvc)) +negbinomial() 
-        if(debug==1){
-            M0 <- bf( ccontent+1  ~  offset(log( usage_cc_crasher_cversion+1/60))  +os*log(nvc)) + negbinomial()
-        }
+        M0 <- bf(  log(ccr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version),sigma~os  )
         if(channel %in% c('beta')){
-            M0 <- bf( ccontent + 1 ~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
-                     shape ~ os*nvc) + negbinomial()  
-            if(debug==1){
-                M0 <- bf( ccontent + 1 ~ offset(log(usage_cc_crasher_cversion + 1/60)) +  log(nvc)*os)+negbinomial()
-            }
+            M0 <- bf(  log(ccr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version),sigma~os  )
         }
         if(channel %in% c("nightly")){
             M0 <- bf( ccontent + 1 ~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
                      shape ~ os)+negbinomial()
-            if(debug==1){
-                M0 <- bf( ccontent + 1 ~  offset(log(usage_cc_crasher_cversion + 1/60)) + os*log(nvc))+negbinomial()
-            }
         }
         if(channel %in% "esr"){
             M0 <- bf(  log(ccr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version),sigma~os  )
-            if(debug==1){
+        }
+        if(debug==1){
                 M0 <- bf(  log(ccr+1)  ~  os +  nvc )
-            }
         }
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='cmi'){
         M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
-        if(debug==1){
-            M0 <-  bf( cmi.logit   ~   os)
-        }
         if(channel %in% c('beta')){
             M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
-            if(debug==1){
-                M0 <-  bf( cmi.logit   ~   os)
-            }
         }
         if(channel %in% c('nightly')){
             M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
-            if(debug==1){
-                M0 <-  bf( cmi.logit   ~   os)
-            }
         }
         if(channel %in% c("esr")){
             M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
-            if(debug==1){
-                M0 <-  bf( cmi.logit   ~   os)
-            }
+        }
+        if(debug==1){
+            M0 <-  bf( cmi.logit   ~   os)
         }
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='cci'){
         M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
-        if(debug==1){
-            M0 <-  bf( cci.logit   ~   os)
-        }
         if(channel %in% c('beta')){
             M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
-            if(debug==1){
-                M0 <-  bf( cci.logit   ~   os)
-            }
         }
         if(channel %in% c("nightly")){
             M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
-            if(debug==1){
-                M0 <-  bf( cci.logit   ~   os)
-            }
         }
         if(channel %in% c("esr")){
             M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
-            if(debug==1){
-                M0 <-  bf( cci.logit   ~   os)
-            }
+        }
+        if(debug==1){
+            M0 <-  bf( cci.logit   ~   os)
         }
         if(!is.null(bff)) M0 <- bff
     }

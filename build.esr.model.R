@@ -72,18 +72,11 @@ dev.off()
 library(brms)
 y <- esr.data
 y[ ,os:=factor(os)]
-y[, nvc.logit:=boot::logit(nvc)]
 y[, cmr:=cmain/(usage_cm_crasher_cversion+1/60)]
 y[, ccr:=ccontent/(usage_cc_crasher_cversion+1/60)]
 
 
-M <- ccr1
-ND <- 10
-y1 <- y[, list(x=mean(ccr)),by=os]
-y2 <- cbind(y[, list(os=os,d=(usage_cc_crasher_cversion+1/60))],t(predict(M,summary=FALSE,nsam=ND)))
-y2 <- y2[,{    .SD/.SD$d    },by=os][, d:=NULL]
-y2 <- reshape(y2, dir='long', varying=list(tail(colnames(y2),-1)))
-ggplot(y2, aes(x=V1)) + geom_density(aes(group=time))+facet_grid(cols = vars(os))
+cmr1=cr.cm.nightly;ccr1=cr.cc.nightly
 
 cor <- function(a,b) stats::cor(a,b,method='pearson')
 
@@ -91,13 +84,26 @@ cmr1 <- make.a.model(data=y,wh='cmr', channel='esr',
                    bff = bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)) +  s(nvc, m = 1) + (1+os|c_version)
                            ,shape~os )+negbinomial()
                    )
-y[, x:=(fitted(cmr1)[,'Estimate'])/ (usage_cm_crasher_cversion+1/60)][,list(m1=mean(cmr),m2=mean(x))   ,by=list(os,c_version)][, list(mean((m1-m2)),100* mean(abs(m1-m2)/(1+m1)),sqrt(mean((m1-m2)^2)),cor(m1,m2))]
 
-ccr2 <- make.a.model(data=y,wh='ccr', channel='esr',
-                   bff = bf(  log(ccr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version)
+cmr2 <- make.a.model(data=y,wh='cmr', channel='esr',
+                   bff = bf(  log(cmr+1)  ~  os +  s(nvc, m = 1) + (1+os|c_version)
                            ,sigma~os  )
                    )
+
+y[, x:=(fitted(cmr1)[,'Estimate'])/ (usage_cm_crasher_cversion+1/60)][,list(m1=mean(cmr),m2=mean(x))   ,by=list(os,c_version)][, list(mean((m1-m2)),100* mean(abs(m1-m2)/(1+m1)),sqrt(mean((m1-m2)^2)),cor(m1,m2))]
+y[, x:=-1+exp(fitted(cmr2)[,'Estimate'])][,list(m1=mean(cmr),m2=mean(x))   ,by=list(os,c_version)][, list(mean(abs(m1-m2)),100* mean((m1-m2)/(1+m1)), sqrt(mean((m1-m2)^2)),cor(m1,m2))]
+
+
+
+ccr2 <- make.a.model(data=y,wh='ccr', channel='esr',
+                   bff = bf(  log(ccr+1)  ~  os +  s(nvc, m = 1) + (1+os|c_version)
+                           ,sigma~os  )
+                   )
+
+y[, x:=(fitted(ccr1)[,'Estimate'])/ (usage_cc_crasher_cversion+1/60)][,list(m1=mean(ccr),m2=mean(x))   ,by=list(os,c_version)][, list(mean((m1-m2)),100* mean(abs(m1-m2)/(1+m1)),sqrt(mean((m1-m2)^2)),cor(m1,m2))]
 y[, x:=-1+exp(fitted(ccr2)[,'Estimate'])][,list(m1=mean(ccr),m2=mean(x))   ,by=list(os,c_version)][, list(mean(abs(m1-m2)),100* mean((m1-m2)/(1+m1)), sqrt(mean((m1-m2)^2)),cor(m1,m2))]
+
+
 
 ###############################
 cmi2 <-  make.a.model(data=y,wh='cmi', channel='esr',

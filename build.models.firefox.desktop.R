@@ -65,9 +65,9 @@ dall.beta2 <- data.table(getModelDataForChannel("beta",v=3,input_file=command.li
 dall.nightly2 <- data.table(getModelDataForChannel("nightly",v=3,input_file=command.line$nightly_raw))[nvc>0,]
 
 invisible({
-    dall.rel2[, nvc.logit:=boot::logit(nvc)]
-    dall.beta2[, nvc.logit:=boot::logit(nvc)]
-    dall.nightly2[, nvc.logit:=boot::logit(nvc)]
+    dall.rel2[, ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
+    dall.beta2[, ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
+    dall.nightly2[, ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
     dall.rel2[, ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
     dall.beta2[,  ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
     dall.nightly2[,  ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]

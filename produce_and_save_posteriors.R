@@ -5,8 +5,9 @@ source("missioncontrol.lib.R")
 ## From the models, generate posteriors and save to BQ
 ## Also create some summary tables for BQ
 
-## Call as Rscript produce_and_save_posteriors.R --data_file=default is ./all.the.data.intermediate.Rdata --out=default is ./all.the.data.Rdata
-command.line <- commandArgs(asValues=TRUE,defaults=list(data_file="./all.the.data.intermediate.Rdata",out="./all.the.data.Rdata"),unique=TRUE)
+## Call as Rscript produce_and_save_posteriors.R --data_file=default is ./all.the.data.Rdata 
+command.line <- commandArgs(asValues=TRUE,defaults=list(data_file="./all.the.data.Rdata",backup=0),unique=TRUE)
+backup.mode <- command.line$backup
 loginfo(glue("loading data file from {command.line$data_file}"))
 load(command.line$data_file)
 
@@ -33,7 +34,7 @@ ll.nightly <- make_posteriors(dall.nightly2, CHAN='nightly', model.date = model.
 if(!is.null(ll.nightly)&& nrow(ll.nightly)>0) loginfo(glue("Nightly Posteriors updated to include {model.date}"))
 
 all.posteriors <- rbindlist(list(ll.rel,ll.beta,ll.nightly))
-if(nrow(all.posteriors)>0){
+if(nrow(all.posteriors)>0 & backup.mode==1){
     ## Now write this
     atemp <- tempfile()
     fwrite(all.posteriors, file=atemp,row.names=FALSE,quote=TRUE,na=0)
@@ -103,12 +104,13 @@ w <- paste(unlist(w),collapse='\n')
 w2 <- toJSON(list(w=w))
 channel.summary[, smry:=w2]
 
-atemp <- tempfile()
-fwrite(channel.summary, file=atemp,row.names=FALSE,quote=TRUE,na=0)
-system(glue("bq load --replace   --project_id moz-fx-data-derived-datasets  --source_format=CSV --skip_leading_rows=1 --null_marker=NA",
+if(backup.mode==1){
+    atemp <- tempfile()
+    fwrite(channel.summary, file=atemp,row.names=FALSE,quote=TRUE,na=0)
+    system(glue("bq load --replace   --project_id moz-fx-data-derived-datasets  --source_format=CSV --skip_leading_rows=1 --null_marker=NA",
                 " analysis.missioncontrol_v2_channel_summaries {atemp} ./channel_summary_schema.json"))
-loginfo("Uploaded Channel Summary")
-
+    loginfo("Uploaded Channel Summary")
+}
 
 
 

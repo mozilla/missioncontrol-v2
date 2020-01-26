@@ -556,3 +556,61 @@ select * from f
     x
 }
 
+posterior.version.change <- function(channel, nmonth){
+    ## this query is for studying how the model estimates a version as
+    ## new data comes in. The difference between this and the above is
+    ## that the above takes value of a crash metric for the latest
+    ## model for that version(so only one estimate per version) this
+    ## is longitudinal estimates per version.
+    ## Useful for long running versions such as Release/ESR to see if a
+    ## change of environment caused a crash spike wrt yesterday/
+    ## This should be one more graph.
+    nmonth <- as.integer(nmonth)
+    chan  <- channel
+    x <- g$q(glue("
+with
+a0 as (
+select os,modelname,c_version as cv,date as date,model_date,
+APPROX_QUANTILES(posterior, 100)[OFFSET(50)] as c,
+APPROX_QUANTILES(posterior, 100)[OFFSET(5)] as lo90,
+APPROX_QUANTILES(posterior, 100)[OFFSET(95)] as hi90,
+from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors
+where channel='{chan}' and date>=DATE_SUB(CURRENT_DATE(), INTERVAL {nmonth} MONTH)
+--and os != 'overall'
+group by 1,2,3,4,5
+order by 2,1,3,4,5
+),
+b as (select
+ os,modelname,cv, date, model_date,c, lo90,hi90,
+ row_number() OVER mywindow AS n_
+  from a0
+ WINDOW mywindow AS (PARTITION BY os,cv,modelname,model_date ORDER BY date DESC )
+),
+c as (select * except(n_) from b where n_ = 1),
+d as (
+select  os, c_version as cv, major,minor,date, cmr,ccr,cmi,cci,nvc as adoption
+from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_raw_data
+where channel = '{chan}'
+),
+e as (
+select A.os,A.date, A.cv,major,minor,adoption, modelname, model_date,c,lo90,hi90,cmr,ccr,cmi,cci
+from c A left join d
+on A.os=d.os and A.date=d.date and A.cv=d.cv
+order by modelname,model_date, os,major DESC,date DESC,minor DESC
+),
+f as ( 
+select 
+os,date,cv,major,minor,adoption,modelname,model_date,
+case when modelname ='cci' then cci
+    when modelname ='cmi' then cmi 
+    when modelname ='ccr' then ccr
+    when modelname ='cmr' then cmr 
+    else -1 end as orig,
+c,lo90,hi90
+from e
+)
+select * from f
+-- where modelname='cmi' and cv='72.0.2' and os='Windows_NT'
+"))
+}
+

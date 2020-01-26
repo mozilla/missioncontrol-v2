@@ -14,7 +14,8 @@ library(curl)
 library(feather)
 library(rmarkdown)
 })
-#library(future.apply)
+                                        #library(future.apply)
+options(error = function() traceback(3))
 options(future.globals.maxSize= 850*1024^2 )
 Lapply <- lapply #future_lapply
 
@@ -95,8 +96,18 @@ ffunc <- function(M,D,list0=NULL,iter=4000,thin=1,chains=4,cores=4)  {
  }
 
 make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NULL,iter=4000,thin=1,priorSim=FALSE){
-  ## See wbeards work on nightly: https://metrics.mozilla.com/protected/wbeard/mc/nightly_model.html
-  alter <- TRUE
+    ## See wbeards work on nightly: https://metrics.mozilla.com/protected/wbeard/mc/nightly_model.html
+    ## Found this useful for comparing models
+    ##  /home/sguha/crons/myrscript.sh /home/sguha/crons/rcrondriver.R /home/sguha/mz/missioncontrol/ex1/mc2/missioncontrol_v2_runner.R
+    ## y[, x:=(fitted(cmr1)[,'Estimate'])/ (usage_cm_crasher_cversion+1/60)][,list(m1=mean(cmr),m2=mean(x))   ,by=list(os,c_version)][, list(mean((m1-m2)),100* mean(abs(m1-m2)/(1+m1)),sqrt(mean((m1-m2)^2)),cor(m1,m2))]
+    ### y[, x:=-1+exp(fitted(cmr2)[,'Estimate'])][,list(m1=mean(cmr),m2=mean(x))   ,by=list(os,c_version)][, list(mean(abs(m1-m2)),100* mean((m1-m2)/(1+m1)), sqrt(mean((m1-m2)^2)),cor(m1,m2))]
+    ## Get outpu tvia
+    ## rel.list <- list(cmr = label(cmr1,'cmr'), ccr = label(ccr2,'ccr'), cmi = label(cmi2,'cmi'), cci = label(cci2,'cci'))
+    ## ll.rel <- make_posteriors(y, CHAN='esr', model.date = '2020-02-01',model.list=rel.list,last.model.date= '2019-01-01')
+    ## f <- ll.rel[os=='Windows_NT',list(m=mean(posterior), l = quantile(posterior,0.05), u = quantile(posterior,1-0.05)),
+    ##   by=list(modelname,c_version,major,minor,os)][order(modelname,os,major,minor),][, del:=(u-l)/m][,]
+
+    alter <- TRUE
     if(wh=="cmr"){
         M0 <- bf(  log(cmr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version),sigma~os  )
         if(channel %in% c('beta')){

@@ -40,7 +40,9 @@ esr.data <- cbind(esr.data,rbindlist(Map(function(s) {
 
 ## Restrict data to some cuttoff date (i dont think we need so much data anyways)
 ## the cutoff date is a bit arbitrary
-esr.data <- esr.data[major>=68,]
+## Did this for building models
+## But i think the API would be same as others i.e. get N last versions data
+esr.data <- esr.data[major>=68,] 
 
 ################################################################################
 ##
@@ -75,72 +77,3 @@ y[ ,os:=factor(os)]
 y[, cmr:=cmain/(usage_cm_crasher_cversion+1/60)]
 y[, ccr:=ccontent/(usage_cc_crasher_cversion+1/60)]
 
-
-cmr1=cr.cm.nightly;ccr1=cr.cc.nightly
-
-cor <- function(a,b) stats::cor(a,b,method='pearson')
-
-cmr1 <- make.a.model(data=y,wh='cmr', channel='esr',
-                   bff = bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)) +  s(nvc, m = 1) + (1+os|c_version)
-                           ,shape~os )+negbinomial()
-                   )
-
-cmr2 <- make.a.model(data=y,wh='cmr', channel='esr',
-                   bff = bf(  log(cmr+1)  ~  os +  s(nvc, m = 1) + (1+os|c_version)
-                           ,sigma~os  )
-                   )
-
-y[, x:=(fitted(cmr1)[,'Estimate'])/ (usage_cm_crasher_cversion+1/60)][,list(m1=mean(cmr),m2=mean(x))   ,by=list(os,c_version)][, list(mean((m1-m2)),100* mean(abs(m1-m2)/(1+m1)),sqrt(mean((m1-m2)^2)),cor(m1,m2))]
-y[, x:=-1+exp(fitted(cmr2)[,'Estimate'])][,list(m1=mean(cmr),m2=mean(x))   ,by=list(os,c_version)][, list(mean(abs(m1-m2)),100* mean((m1-m2)/(1+m1)), sqrt(mean((m1-m2)^2)),cor(m1,m2))]
-
-
-
-ccr2 <- make.a.model(data=y,wh='ccr', channel='esr',
-                   bff = bf(  log(ccr+1)  ~  os +  s(nvc, m = 1) + (1+os|c_version)
-                           ,sigma~os  )
-                   )
-
-y[, x:=(fitted(ccr1)[,'Estimate'])/ (usage_cc_crasher_cversion+1/60)][,list(m1=mean(ccr),m2=mean(x))   ,by=list(os,c_version)][, list(mean((m1-m2)),100* mean(abs(m1-m2)/(1+m1)),sqrt(mean((m1-m2)^2)),cor(m1,m2))]
-y[, x:=-1+exp(fitted(ccr2)[,'Estimate'])][,list(m1=mean(ccr),m2=mean(x))   ,by=list(os,c_version)][, list(mean(abs(m1-m2)),100* mean((m1-m2)/(1+m1)), sqrt(mean((m1-m2)^2)),cor(m1,m2))]
-
-
-
-###############################
-cmi2 <-  make.a.model(data=y,wh='cmi', channel='esr',
-                   bff = bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1) + (1+os|c_version), sigma ~ os)
-                   )
-cci2 <-  make.a.model(data=y,wh='cci', channel='esr',
-                   bff = bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1) + (1+os|c_version), sigma ~ os)
-                   )
-y[, x:=(-1+exp(fitted(cmi2)[,'Estimate']))/ (dau_cversion)][,list(m1=mean(cmi),m2=mean(x))   ,by=list(os,c_version)][, list(mean(abs(m1-m2)),100* mean(abs(m1-m2)/(1+m1)), sqrt(mean((m1-m2)^2)),cor(m1,m2))]
-y[, x:=(-1+exp(fitted(cci2)[,'Estimate']))/ (dau_cversion)][,list(m1=mean(cci),m2=mean(x))   ,by=list(os,c_version)][, list(mean(abs(m1-m2)),100* mean(abs(m1-m2)/(1+m1)), sqrt(mean((m1-m2)^2)),cor(m1,m2))]
-
-y[, cmi.logit:=boot::logit(cmi)]
-y[, cci.logit:=boot::logit(cci)]
-
-
-cmi3 <-  make.a.model(data=y,wh='cmi', channel='esr',
-                   bff = bf( cmi.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
-                   )
-cci3 <-  make.a.model(data=y,wh='cci', channel='esr',
-                   bff = bf( cci.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
-                   )
-
-y[, x:=(boot::inv.logit(fitted(cmi3)[,'Estimate']))][,list(m1=mean(cmi),m2=mean(x))   ,by=list(os,c_version)][, list(mean(abs(m1-m2)),100* mean(abs(m1-m2)/(1+m1)), sqrt(mean((m1-m2)^2)),cor(m1,m2))]
-y[, x:=(boot::inv.logit(fitted(cci3)[,'Estimate']))][,list(m1=mean(cci),m2=mean(x))   ,by=list(os,c_version)][, list(mean(abs(m1-m2)),100* mean(abs(m1-m2)/(1+m1)), sqrt(mean((m1-m2)^2)),cor(m1,m2))]
-
-
-rel.list <- list(cmr = label(cmr1,'cmr'), ccr = label(ccr2,'ccr'), cmi = label(cmi2,'cmi'), cci = label(cci2,'cci'))
-ll.rel <- make_posteriors(y, CHAN='esr', model.date = '2020-02-01',model.list=rel.list,last.model.date= '2019-01-01')
-
-f <- ll.rel[os=='Windows_NT',list(m=mean(posterior), l = quantile(posterior,0.05), u = quantile(posterior,1-0.05)),
-       by=list(modelname,c_version,major,minor,os)][order(modelname,os,major,minor),][, del:=(u-l)/m][,]
-f[modelname=='cmi',]
-y[os=='Windows_NT', list(m = cmi[date==max(date)]),by=list(os,major,c_version,minor)][order(major,minor),]
-
-
-
-f <- ll.rel[os=='Windows_NT',list(m=mean(posterior), l = quantile(posterior,0.05), u = quantile(posterior,1-0.05)),
-       by=list(modelname,c_version,major,minor,os)][order(modelname,os,major,minor),][, del:=(u-l)/m][,]
-f[modelname=='cmi',]
-y[os=='Windows_NT', list(m = cmi[date==max(date)]),by=list(os,major,c_version,minor)][order(major,minor),]

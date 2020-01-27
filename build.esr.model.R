@@ -77,3 +77,29 @@ y[ ,os:=factor(os)]
 y[, cmr:=cmain/(usage_cm_crasher_cversion+1/60)]
 y[, ccr:=ccontent/(usage_cc_crasher_cversion+1/60)]
 
+
+cr.cc.nightly2 <- make.a.model(dall.nightly2,'ccr',channel='nightly',debug=debug.mode,iter=4000)
+
+pp_check(cr.cm.nightly)
+pp_check(cr.cm.nightly,type='scatter_avg',nsam=100)
+pp_check(cr.cm.nightly, type='stat_grouped',group='os')
+pp_check(cr.cc.nightly2)
+pp_check(cr.cc.nightly2,type='scatter_avg',nsam=100)
+pp_check(cr.cc.nightly2, type='stat_grouped',group='os')
+pp_check(ci.cm.nightly)
+pp_check(ci.cm.nightly,type='scatter_avg',nsam=100)
+pp_check(ci.cm.nightly, type='stat_grouped',group='os')
+pp_check(ci.cc.nightly)
+pp_check(ci.cc.nightly,type='scatter_avg',nsam=100)
+pp_check(ci.cc.nightly, type='stat_grouped',group='os')
+dev.off()
+
+D <- dall.rel2[os=='Windows_NT',]
+pp_check(cr.cm.rel,newdata=D)
+pp_check(cr.cc.rel,newdata=)
+pp_check(ci.cm.rel,newdata=)
+pp_check(ci.cc.rel,newdata=)
+dev.off()
+
+
+

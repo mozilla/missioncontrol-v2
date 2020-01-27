@@ -60,9 +60,9 @@ if(command.line$debug == "0"){
 
 
 
-dall.rel2 <- data.table(getModelDataForChannel("release",v=3,input_file=command.line$release_raw))[nvc>0,]
-dall.beta2 <- data.table(getModelDataForChannel("beta",v=3,input_file=command.line$beta_raw))[nvc>0,]
-dall.nightly2 <- data.table(getModelDataForChannel("nightly",v=3,input_file=command.line$nightly_raw))[nvc>0,]
+dall.rel2 <- data.table(getModelDataForChannel("release",v=2,input_file=command.line$release_raw))[nvc>0,]
+dall.beta2 <- data.table(getModelDataForChannel("beta",v=2,input_file=command.line$beta_raw))[nvc>0,]
+dall.nightly2 <- data.table(getModelDataForChannel("nightly",v=2,input_file=command.line$nightly_raw))[nvc>0,]
 
 invisible({
     dall.rel2[, ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]

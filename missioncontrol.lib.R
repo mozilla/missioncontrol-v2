@@ -27,7 +27,8 @@ if(!exists("missioncontrol.lib.R")){
     ## executed only once
     basicConfig()
     plan(multisession)
-    options(future.globals.onReference = "error")
+    plan(sequential)
+    ##    options(future.globals.onReference = "error")
     missioncontrol.lib.R <- TRUE
 }
 
@@ -111,12 +112,12 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
 
     alter <- TRUE
     if(wh=="cmr"){
-        M0 <- bf(  log(cmr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version),sigma~os  )
+        M0 <- bf(  log(cmr+1)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
         if(channel %in% c('beta')){
-            M0 <- bf(  log(cmr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version),sigma~os  )
+            M0 <- bf(  log(cmr+1)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
         }
         if(channel %in% c("nightly")){
-            M0 <- bf(  log(cmr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version),sigma~os  )
+            M0 <- bf(  log(cmr+1)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
         }
         if(channel %in% c("esr")){
             M0 <- bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)) +  s(nvc, m = 1) + (1+os|c_version)
@@ -128,16 +129,15 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='ccr'){
-        M0 <- bf(  log(ccr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version),sigma~os  )
+        M0 <- bf(  log(ccr+1)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
         if(channel %in% c('beta')){
-            M0 <- bf(  log(ccr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version),sigma~os  )
+            M0 <- bf(  log(ccr+1)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
         }
         if(channel %in% c("nightly")){
-            M0 <- bf( ccontent + 1 ~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
-                     shape ~ os)+negbinomial()
+            M0 <- bf(  log(ccr+1)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
         }
         if(channel %in% "esr"){
-            M0 <- bf(  log(ccr+1)  ~  os +  s(nvc, m = 1,by=os) + (1+os|c_version),sigma~os  )
+            M0 <- bf(  log(ccr+1)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
         }
         if(debug==1){
                 M0 <- bf(  log(ccr+1)  ~  os +  nvc )
@@ -145,15 +145,15 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='cmi'){
-        M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os)
+        M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
         if(channel %in% c('beta')){
-            M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os)
+            M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
         }
         if(channel %in% c('nightly')){
             M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
         }
         if(channel %in% c("esr")){
-            M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os)
+            M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
         }
         if(debug==1){
             M0 <-  bf( cmi.logit   ~   os)
@@ -161,15 +161,15 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='cci'){
-        M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os)
+        M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
         if(channel %in% c('beta')){
-            M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os)
+            M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
         }
         if(channel %in% c("nightly")){
-            M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1,) + (1+os|c_version), sigma ~ os)
+            M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
         }
         if(channel %in% c("esr")){
-            M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os)
+            M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
         }
         if(debug==1){
             M0 <-  bf( cci.logit   ~   os)

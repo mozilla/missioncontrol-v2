@@ -33,7 +33,7 @@ result4=`Rscript backup.firefox.desktop.R --data_file=./all.the.data.Rdata  --ba
 echo "r4 ${result4}"
 
 
-resukt5=`Rscript produce_and_save_posteriors.R  --backup=1 --data_file=./all.the.data.Rdata`
+resukt5=`Rscript produce_and_save_posteriors.R  --backup=1 --data_file=./all.the.data.Rdata --overwrite=1`
 echo "r4 ${result4}"
 
 ## run as sh complete.runner.sh  2>&1 | tee logfile

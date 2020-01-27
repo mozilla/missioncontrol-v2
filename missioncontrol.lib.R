@@ -17,6 +17,7 @@ library(rmarkdown)
                                         #library(future.apply)
 options(error = function() traceback(3))
 options(future.globals.maxSize= 850*1024^2 )
+options(width=200)
 Lapply <- lapply #future_lapply
 
 BQCREDS <- Sys.getenv("GOOGLE_APPLICATION_CREDENTIALS", "~/gcloud.json")
@@ -608,9 +609,13 @@ case when modelname ='cci' then cci
     else -1 end as orig,
 c,lo90,hi90
 from e
-)
-select * from f
--- where modelname='cmi' and cv='72.0.2' and os='Windows_NT'
+),
+g as (
+select os, cv,model_date,c,modelname, lo90,hi90,adoption from f
+where os!='overall' and  modelname in ('cr','ci') and cv=(select c_version from  analysis.missioncontrol_v2_channel_summaries where os='Windows_NT' and channel='{chan}')
+order by os,model_date
+) 
+select * from g
 "))
 }
 

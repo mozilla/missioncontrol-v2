@@ -63,18 +63,21 @@ channel.info <- function(channel,g){
         version = posterior.current.versions(channel,g=g),
         usage   = posterior.usage(channel,g=g),
         summary = posterior.rate.incidence.summary(channel,g=g),
-        evolution = posterior.evolution(channel,g=g)
+        evolution = posterior.evolution(channel,g=g),
+        change = if(channel %in% c('release','esr')) posterior.version.change(channel,3) else NULL
     )
 }
 release.info <- channel.info('release',g)
 beta.info <- channel.info('beta',g)
 nightly.info <- channel.info('nightly',g)
+
+
 ccsv <- rbindlist(list(posterior.evolution('release',6,g),
                        posterior.evolution('beta',6,g),
                        posterior.evolution('nightly',6,g)))
 fwrite(ccsv,file="./mc2_rate_incidence_evolution.csv",row.names=FALSE,quote=TRUE,na=0)
 
-plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,pointSize=65){
+plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,pointSize=65,x.is.date=FALSE){
     u3 <- list(
         `$schema` = vega_schema(),
         data = list(values = f),
@@ -96,12 +99,16 @@ plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,
                                 ,
                 encoding = list(
                     size = list(value=pointSize),
-                    x = list(field="cv", type='ordinal', axis=list(title="",labelOverlap='parity'), sort=list(field="ordering",op='count')),
+                    x = if(x.is.date){
+                            list(field="date", timeUnit= "yearmonthdate",type='temporal', axis=list(title="Model Date",labelOverlap='parity')) 
+                        }else{
+                            list(field="cv", type='ordinal', axis=list(title="",labelOverlap='parity'), sort=list(field="ordering",op='count'))
+                        },
                     y = list(field="c",type="quantitative",axis=list(title="",titleFontSize=11)),
                     color = list(field = "os", type = "nominal",scale=list(scheme="set1")),
-                    shape=list(field='major', type='nominal'),
+                    shape=if(x.is.date) NULL else list(field='major', type='nominal'),
                     opacity = list(condition = list(selection="opsys",value = 1),value = 0.1),
-                    tooltip=list(list(field = "date",type="ordinal"),
+                    tooltip=list(list(field = "date",type="temporal"),
                                  list(field=if('nightly' %in% f$channel) 'cv2' else 'cv', type='ordinal',title='Version'),
                                  list(field='cv', type='ordinal',title='Version'),
                                  list(field = "Adoption",type="ordinal"),
@@ -112,7 +119,11 @@ plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,
                 mark = list(type="rule","strokeDash"=list(4, 2)),
                 encoding = list(
                     size = list(value=1),
-                    x = list(field="cv", type='ordinal',sort=list(field="ordering",op='count')),
+                    x =  if(x.is.date){
+                             list(field="date", timeUnit= "yearmonthdate",  type='temporal', axis=list(title="Model Date",labelOverlap='parity'))
+                         }else{
+                             list(field="cv", type='ordinal',sort=list(field="ordering",op='count'))
+                         },
                     y = list(field="lo90",type="quantitative",  grid=FALSE),
                     y2 = list(field="hi90",type="quantitative",  grid=FALSE),
                     opacity = list(condition = list(selection="opsys",value = 0.4),value = 0.1),
@@ -127,7 +138,6 @@ plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,
 makePlot <- function(evo,typec,title,xtip,width=990,height=200){
     xx <- evo[os!='overall' & modelname == typec,]
     xx <-merge(xx, xx[, .SD[order(major,minor),][,list(date, major,minor, ordering = 1:.N)],by=os], by=c("os","date","major","minor"))
-    xx[, xoff := runif(1),by=list(cv)]
     if(xtip=='Incidence') xx[,':='(c = c*100,lo90=lo90*100,hi90=hi90*100)]
     xy <- plotEvolution(xx, title=title, xtip=xtip,width=width,height=height)
     vegawidget(as_vegaspec(xy),embed=vega_embed(actions=TRUE))
@@ -204,7 +214,17 @@ makePlot(release.info$evolution, 'cci',"Content Crash Incidence(%)","Incidence")
 ```
 
 
+#### Estimates of Release Crash Rate over Time for Current Version
 
+```{r echo=FALSE}
+w <- plotEvolution(release.info$change[modelname=='cr',][, date := as.Date(model_date)], title="Crash Rate SCORE", xtip='Rate',width=990,height=300,x.is.date=TRUE)
+vegawidget(as_vegaspec(w),embed=vega_embed(actions=TRUE))
+
+w <- plotEvolution(release.info$change[modelname=='ci',][, ':='(date = as.date(model_date)c = c*100,lo90=lo90*100,hi90=hi90*100)]
+                 , title="Crash Incidence SCORE(%)", xtip='Incidence',width=990,height=300,x.is.date=TRUE)
+vegawidget(as_vegaspec(w),embed=vega_embed(actions=TRUE))
+
+```
 
 ### Beta
 

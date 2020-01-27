@@ -26,7 +26,8 @@ BQCREDS <- Sys.getenv("GOOGLE_APPLICATION_CREDENTIALS", "~/gcloud.json")
 if(!exists("missioncontrol.lib.R")){
     ## executed only once
     basicConfig()
-    plan(multicore)
+    plan(multisession)
+    options(future.globals.onReference = "error")
     missioncontrol.lib.R <- TRUE
 }
 

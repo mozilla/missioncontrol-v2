@@ -21,8 +21,13 @@ last.model.date <- system("bq query --format=prettyjson --nouse_legacy_sql 'sele
 last.model.date <- rjson::fromJSON(paste(last.model.date,collapse="\n"))[[1]]$x
 
 if(model.date == last.model.date & command.line$overwrite==1){
+    loginfo("Overwriting model data from table since overwrite was chosen")
     system("bq query --format=prettyjson --nouse_legacy_sql 'delete from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors where model_date={last.model.date}'")
+    loginfo("Getting new model date")
+    last.model.date <- system("bq query --format=prettyjson --nouse_legacy_sql 'select max(model_date) as x from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors'",intern=TRUE)
+    last.model.date <- rjson::fromJSON(paste(last.model.date,collapse="\n"))[[1]]$x
 }
+
 rel.list <- list(cmr = cr.cm.rel, ccr = cr.cc.rel, cmi = ci.cm.rel, cci = ci.cc.rel)
 ll.rel <- make_posteriors(dall.rel2, CHAN='release', model.date = model.date,model.list=rel.list,last.model.date= last.model.date)
 

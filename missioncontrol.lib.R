@@ -144,15 +144,15 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='cmi'){
-        M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
+        M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os)
         if(channel %in% c('beta')){
-            M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
+            M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os)
         }
         if(channel %in% c('nightly')){
             M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
         }
         if(channel %in% c("esr")){
-            M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
+            M0 <-  bf( cmi.logit   ~   os+ s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os)
         }
         if(debug==1){
             M0 <-  bf( cmi.logit   ~   os)
@@ -160,15 +160,15 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='cci'){
-        M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
+        M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os)
         if(channel %in% c('beta')){
-            M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
+            M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os)
         }
         if(channel %in% c("nightly")){
-            M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
+            M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1,) + (1+os|c_version), sigma ~ os)
         }
         if(channel %in% c("esr")){
-            M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1) + (1+os|c_version), sigma ~ os)
+            M0 <-  bf( cci.logit   ~   os+ s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os)
         }
         if(debug==1){
             M0 <-  bf( cci.logit   ~   os)

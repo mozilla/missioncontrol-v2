@@ -220,7 +220,7 @@ makePlot(release.info$evolution, 'cci',"Content Crash Incidence(%)","Incidence")
 w <- plotEvolution(release.info$change[modelname=='cr',][, date := as.Date(model_date)], title="Crash Rate SCORE", xtip='Rate',width=990,height=300,x.is.date=TRUE)
 vegawidget(as_vegaspec(w),embed=vega_embed(actions=TRUE))
 
-w <- plotEvolution(release.info$change[modelname=='ci',][, ':='(date = as.date(model_date)c = c*100,lo90=lo90*100,hi90=hi90*100)]
+w <- plotEvolution(release.info$change[modelname=='ci',][, ':='(date = as.date(model_date),c = c*100,lo90=lo90*100,hi90=hi90*100)]
                  , title="Crash Incidence SCORE(%)", xtip='Incidence',width=990,height=300,x.is.date=TRUE)
 vegawidget(as_vegaspec(w),embed=vega_embed(actions=TRUE))
 

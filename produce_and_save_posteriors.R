@@ -5,8 +5,8 @@ source("missioncontrol.lib.R")
 ## From the models, generate posteriors and save to BQ
 ## Also create some summary tables for BQ
 
-## Call as Rscript produce_and_save_posteriors.R --data_file=default is ./all.the.data.Rdata 
-command.line <- commandArgs(asValues=TRUE,defaults=list(data_file="./all.the.data.Rdata",backup=0),unique=TRUE)
+## Call as Rscript produce_and_save_posteriors.R --data_file=default is ./all.the.data.Rdata  --overwrite=0
+command.line <- commandArgs(asValues=TRUE,defaults=list(data_file="./all.the.data.Rdata",backup=0,overwrite=0),unique=TRUE)
 backup.mode <- command.line$backup
 loginfo(glue("loading data file from {command.line$data_file}"))
 load(command.line$data_file)
@@ -20,6 +20,9 @@ model.date <- max(dall.rel2$date)
 last.model.date <- system("bq query --format=prettyjson --nouse_legacy_sql 'select max(model_date) as x from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors'",intern=TRUE)
 last.model.date <- rjson::fromJSON(paste(last.model.date,collapse="\n"))[[1]]$x
 
+if(model.date == last.model.date & command.line$overwrite==1){
+    system("bq query --format=prettyjson --nouse_legacy_sql 'delete from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors where model_date={last.model.date}'")
+}
 rel.list <- list(cmr = cr.cm.rel, ccr = cr.cc.rel, cmi = ci.cm.rel, cci = ci.cc.rel)
 ll.rel <- make_posteriors(dall.rel2, CHAN='release', model.date = model.date,model.list=rel.list,last.model.date= last.model.date)
 

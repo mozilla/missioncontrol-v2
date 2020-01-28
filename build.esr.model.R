@@ -76,9 +76,9 @@ y <- esr.data
 y[ ,os:=factor(os)]
 y[, cmr:=cmain/(usage_cm_crasher_cversion+1/60)]
 y[, ccr:=ccontent/(usage_cc_crasher_cversion+1/60)]
-
-
-cr.cc.nightly2 <- make.a.model(dall.nightly2,'ccr',channel='nightly',debug=debug.mode,iter=4000)
+y[, ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
+y2 <- y[ major<=68 & minor <="4.1",]
+cmr <- make.a.model(y,'ccr',channel='esr',debug=debug.mode,iter=4000)
 
 pp_check(cr.cm.nightly)
 pp_check(cr.cm.nightly,type='scatter_avg',nsam=100)
@@ -100,6 +100,17 @@ pp_check(cr.cc.rel,newdata=)
 pp_check(ci.cm.rel,newdata=)
 pp_check(ci.cc.rel,newdata=)
 dev.off()
+
+
+rel.list <- list(cmr = label(cmr,'cmr'), ccr = label(cr.cc.rel,'ccr'), cmi = label(ci.cm.rel,'cmi'), cci = label(ci.cc.rel,'cci'))
+ll.rel <- make_posteriors(y2, CHAN='esr', model.date = '2020-20-01',model.list=rel.list,last.model.date= '2019-01-01')
+f1 <- ll.rel[os=='Windows_NT' & modelname=="cmr",list(m=mean(posterior), l = quantile(posterior,0.05), u = quantile(posterior,1-0.05)),
+            by=list(modelname,c_version,major,minor,os)][order(modelname,os,major,minor),][, del:=(u-l)/m][,]
+
+
+f2 <- ll.rel2[os=='Windows_NT' & modelname=="cmr",list(m=mean(posterior), l = quantile(posterior,0.05), u = quantile(posterior,1-0.05)),
+            by=list(modelname,c_version,major,minor,os)][order(modelname,os,major,minor),][, del:=(u-l)/m][,]
+
 
 
 

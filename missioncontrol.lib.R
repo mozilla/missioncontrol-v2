@@ -176,6 +176,7 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
         }
         if(!is.null(bff)) M0 <- bff
     }
+    print(M0)
     if(priorSim){ return(M0) }
     else  ffunc(M0,data,list0=list0,thin=thin,iter=iter, chains=if(debug==1) 1 else 4, cores=if(debug==1) 1 else 4)
 }

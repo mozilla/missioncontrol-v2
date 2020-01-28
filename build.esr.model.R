@@ -101,16 +101,27 @@ pp_check(ci.cm.rel,newdata=)
 pp_check(ci.cc.rel,newdata=)
 dev.off()
 
+y2 <- y[ major<=68 & minor <="4.1",][order(os,c_version,date),]
+cmr <- make.a.model(y2,'ccr',channel='esr')
 
-rel.list <- list(cmr = label(cmr,'cmr'), ccr = label(cr.cc.rel,'ccr'), cmi = label(ci.cm.rel,'cmi'), cci = label(ci.cc.rel,'cci'))
-ll.rel <- make_posteriors(y2, CHAN='esr', model.date = '2020-20-01',model.list=rel.list,last.model.date= '2019-01-01')
-f1 <- ll.rel[os=='Windows_NT' & modelname=="cmr",list(m=mean(posterior), l = quantile(posterior,0.05), u = quantile(posterior,1-0.05)),
-            by=list(modelname,c_version,major,minor,os)][order(modelname,os,major,minor),][, del:=(u-l)/m][,]
+y3=copy(y2)
+y3[os=="Windows_NT" & date==max(date), ccr:=4*ccr]
+cmr2 <- make.a.model(y3,'ccr',channel='esr')
+
+rel.list2 <- list(cmr = label(cmr,'cmr'), ccr = label(cmr,'ccr'), cmi = label(cmr,'cmi'), cci = label(cmr,'cci'))
+ll.rel2<- make_posteriors(y2, CHAN='esr', model.date = '2020-20-01',model.list=rel.list2,last.model.date= '2019-01-01')
+
+f1 <- ll.rel2[os=='Windows_NT' & modelname=="ccr",list(m=mean(posterior), l = quantile(posterior,0.05), u = quantile(posterior,1-0.05)),
+              by=list(modelname,c_version,major,minor,os)][order(os,major,minor),][,list(c_version, m,l,u)]
 
 
-f2 <- ll.rel2[os=='Windows_NT' & modelname=="cmr",list(m=mean(posterior), l = quantile(posterior,0.05), u = quantile(posterior,1-0.05)),
-            by=list(modelname,c_version,major,minor,os)][order(modelname,os,major,minor),][, del:=(u-l)/m][,]
+rel.list3 <- list(cmr = label(cmr2,'cmr'), ccr = label(cmr2,'ccr'), cmi = label(cmr2,'cmi'), cci = label(cmr2,'cci'))
+ll.rel3 <- make_posteriors(y3, CHAN='esr', model.date = '2020-20-01',model.list=rel.list3,last.model.date= '2019-01-01')
 
+f2 <- ll.rel3[os=='Windows_NT' & modelname=="ccr",list(m=mean(posterior), l = quantile(posterior,0.05), u = quantile(posterior,1-0.05)),
+              by=list(modelname,c_version,major,minor,os)][order(os,major,minor),][,list(c_version, m,l,u)]
+f1
+f2
 
 
 

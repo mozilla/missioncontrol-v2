@@ -123,5 +123,133 @@ f2 <- ll.rel3[os=='Windows_NT' & modelname=="ccr",list(m=mean(posterior), l = qu
 f1
 f2
 
+cmr2 <- make.a.model(dall.rel2, 'cmr',bff = bf(log(cmr+1)  ~  0+ os + Intercept+ nvc),channel='release')
 
 
+
+
+
+
+
+
+## Parameter Passing or Posterior Passing Estimate the model on some
+## data (here d1) (and we could have used priors for this too) and
+## then take coefficient estimates and use normal family with these as
+## mean and pass them to smaller data set If we pass in our own sigma
+## (not sigma of paramaters estimated) we can ciontrol how much the
+## priors influence the data smaller /tighter sigma will result in
+## less influence from the data. Using the estimate 'Esr.Error' might
+## be a good way to prevent new data from speaking too much
+
+
+d1 <- dall.rel2[date<=(max(date)-7),]
+d2 <- dall.rel2[date>(max(date)-7),]
+
+cmr2 <- brm(formula=bf(  log(cmr+1)  ~  0+ Intercept + os + nvc),
+            data = d1,cores=2,chains=2)
+
+## COmpare model estimates by changging 0.3 to something else
+cmr2a <- brm(formula=bf(  log(cmr+1)  ~  0+ Intercept + os + nvc),
+            prior=c(
+                prior(normal(  0.88,0.03)  , class = b, coef = Intercept),
+                prior(normal( -0.19,0.03)  , coef='osLinux',class = "b"),
+                prior(normal(  0.11,0.03)  , coef='osWindows_NT',class = "b"),
+                prior(normal( -0.52,0.05)  , coef='nvc',class = "b")
+            )
+            ,data =d2,cores=2,chains=2)
+
+## Lets expand the model to include grouping effect
+## One useful way to get a prior for these is to use lme4
+## Generally adding priors can reduce model fit time
+## and number of divergences
+library(lme4)
+summary(lmer(log(cmr+1)  ~  0+os + nvc + (1|c_version), data = d1))
+cmr2 <- brm(formula=bf(  log(cmr+1)  ~  0+ Intercept + os + nvc + (1+os|c_version)),
+            prior=c(
+                prior(normal(  0.96,1)  , class = b, coef = Intercept),
+                prior(normal( 0.79,1)  , coef='osLinux',class = "b"),
+                prior(normal(  1.06,1)  , coef='osWindows_NT',class = "b"),
+                prior(normal( -0.427,1)  , coef='nvc',class = "b"),
+                prior(normal( 0.51,1)  , coef='Intercept',group='c_version',class = "sd"), ## these came from actually running the model
+                prior(normal( 0.26,1)  , coef='osLinux',group='c_version',class = "sd"),
+                prior(normal( 0.35,1)  , coef='osWindows_NT',group='c_version',class = "sd"),
+                prior(lkj(0.9) ,group='c_version',class = "cor")
+            ),
+            data = d1,cores=2,chains=2)
+
+cmr2 <- brm(formula=bf(  log(cmr+1)  ~ os + nvc + (1+os|c_version),sigma~os),
+            data = d1,cores=2,chains=2)
+
+## LEts try on data set d2
+
+cmr2a <- brm(formula=bf(  log(cmr+1)  ~  0+ Intercept + os + nvc + (1+os|c_version)),
+            prior=c(
+                prior(normal(  0.96,0.3)  , class = b, coef = Intercept),
+                prior(normal( -0.13,0.15)  , coef='osLinux',class = "b"),
+                prior(normal(  0.03,0.25)  , coef='osWindows_NT',class = "b"),
+                prior(normal( -0.44,0.1)  , coef='nvc',class = "b"),
+                prior(normal( 0.56,0.3)  , coef='Intercept',group='c_version',class = "sd"), ## these came from actually running the model
+                prior(normal( 0.24,0.3)  , coef='osLinux',group='c_version',class = "sd"),
+                prior(normal( 0.37,0.3)  , coef='osWindows_NT',group='c_version',class = "sd"),
+                prior(lkj(1.1) ,group='c_version',class = "cor")
+            ),
+            data = d2,cores=2,chains=2)
+## Compare to this
+cmr2aa <- brm(formula=bf(  log(cmr+1)  ~  0+ Intercept + os + nvc + (1+os|c_version)),
+            data = d2,cores=2,chains=2)
+
+
+### Now Complicatting More
+cmr2 <- brm(formula=bf(  log(cmr+1)  ~   0+Intercept+os + s(nvc,m=1) + (1+os|c_version),sigma~os),
+            prior=c(
+                prior(normal( 0.79,1)  , coef='osLinux',class = "b"),
+                prior(normal(  1.06,1)  , coef='osWindows_NT',class = "b"),
+                prior(normal( 0.51,1)  , coef='Intercept',group='c_version',class = "sd"), ## these came from actually running the model
+                prior(normal( 0.26,1)  , coef='osLinux',group='c_version',class = "sd"),
+                prior(normal( 0.35,1)  , coef='osWindows_NT',group='c_version',class = "sd"),
+                prior(normal( 0.42,0.2)  , class='b',coef='osLinux',dpar = "sigma"),
+                prior(normal( -0.76,.2)  , class='b',coef='osWindows_NT',dpar = "sigma"),
+                prior(lkj(0.9) ,group='c_version',class = "cor")
+            ),
+            data = d1,cores=2,chains=2,control=list(adapt_delta = 0.999, max_treedepth=13))
+
+
+cmr2a <- brm(formula=bf(  log(cmr+1)  ~   0+Intercept+os + s(nvc,m=1) + (1+os|c_version),sigma~os),
+             prior=c(
+                 prior(normal( 0.95,.35)  , coef='Intercept',class = "b"),
+                 prior(normal( -0.10,.3)  , coef='osLinux',class = "b"),
+                 prior(normal( 0.03,0.25)  , coef='osWindows_NT',class = "b"),
+                 prior(normal( 0.52,0.3)  , coef='Intercept',group='c_version',class = "sd"), ## these came from actually running the model
+                 prior(normal( 0.23,0.3)  , coef='osLinux',group='c_version',class = "sd"),
+                 prior(normal( 0.36,0.25)  , coef='osWindows_NT',group='c_version',class = "sd"),
+                 prior(normal( 0.53,.18)  , class='b',coef='osLinux',dpar = "sigma"),
+                 prior(normal( -0.63,.18)  , class='b',coef='osWindows_NT',dpar = "sigma"),
+                 prior(normal( 0.24,0.1)  , class='sds',coef='s(nvc,m=1)'),
+                 prior(lkj(1.1) ,group='c_version',class = "cor")
+             ),
+            data = d2,cores=2,chains=2,control=list(adapt_delta = 0.999, max_treedepth=13))
+## Trythe above without priors. miserable fits
+
+#dall.rel2[, x:=-1+exp(fitted(cmr2)[,'Estimate'])][,list(m1=mean(cmr),m2=mean(x))   ,by=list(os,c_version)][, list(mean(abs(m1-m2)),100* mean((m1-m2)/(1+m1)), sqrt(mean((m1-m2)^2)),cor(m1,m2))]
+
+
+cmr <- cr.cm.rel
+y2 <- dall.rel2
+rel.list2 <- list(cmr = label(cmr,'cmr'), ccr = label(cmr,'ccr'), cmi = label(cmr,'cmi'), cci = label(cmr,'cci'))
+ll.rel2<- make_posteriors(y2, CHAN='esr', model.date = '2020-20-01',model.list=rel.list2,last.model.date= '2019-01-01')
+
+f1 <- ll.rel2[os=='Windows_NT' & modelname=="cmr",list(m=mean(posterior), l = quantile(posterior,0.05), u = quantile(posterior,1-0.05)),
+              by=list(modelname,c_version,major,minor,os)][order(os,major,minor),][,list(c_version, m,l,u)]
+
+f1[c_version %in% c('72.0.1', '72.0.2'),]
+
+
+cmr <- cmr2a
+y2 <- d2
+rel.list2 <- list(cmr = label(cmr,'cmr'), ccr = label(cmr,'ccr'), cmi = label(cmr,'cmi'), cci = label(cmr,'cci'))
+ll.rel2<- make_posteriors(y2, CHAN='esr', model.date = '2020-20-01',model.list=rel.list2,last.model.date= '2019-01-01')
+
+f1 <- ll.rel2[os=='Windows_NT' & modelname=="cmr",list(m=mean(posterior), l = quantile(posterior,0.05), u = quantile(posterior,1-0.05)),
+              by=list(modelname,c_version,major,minor,os)][order(os,major,minor),][,list(c_version, m,l,u)]
+
+f1[c_version %in% c('72.0.1', '72.0.2'),]

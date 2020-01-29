@@ -8,7 +8,7 @@ source("missioncontrol.lib.R")
 ## Call as Rscript produce_and_save_posteriors.R --data_file=default is ./all.the.data.Rdata  --overwrite=0
 command.line <- commandArgs(asValues=TRUE,defaults=list(data_file="./all.the.data.Rdata",backup=0,overwrite=0),unique=TRUE)
 backup.mode <- command.line$backup
-loginfo(glue("loading data file from {command.line$data_file}"))
+loginfo(glue("loading data file from {command.line$data_file} and backup mode is {backup.mode}"))
 load(command.line$data_file)
 
 

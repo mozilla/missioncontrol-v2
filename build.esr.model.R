@@ -200,6 +200,7 @@ cmr2aa <- brm(formula=bf(  log(cmr+1)  ~  0+ Intercept + os + nvc + (1+os|c_vers
 
 
 ### Now Complicatting More
+d1 <- dall.rel2[date<=(max(date)-7),]
 cmr2 <- brm(formula=bf(  log(cmr+1)  ~   0+Intercept+os + s(nvc,m=1) + (1+os|c_version),sigma~os),
             prior=c(
                 prior(normal( 0.79,1)  , coef='osLinux',class = "b"),
@@ -258,16 +259,31 @@ f1 <- ll.rel2[os=='Windows_NT' & modelname=="cmr",list(m=mean(posterior), l = qu
 f1[c_version %in% c('72.0.1', '72.0.2'),]
 
 
+dx <- dall.rel2[date<="2020-01-13",]
+cmr2 <- brm(formula=bf(  log(cmr+1)  ~   0+Intercept+os + s(nvc,m=1,by=os) + (1+os|c_version),sigma~os),
+            prior=c(
+                prior(normal( 0.79,1)  , coef='osLinux',class = "b"),
+                prior(normal(  1.06,1)  , coef='osWindows_NT',class = "b"),
+                prior(normal( 0.51,1)  , coef='Intercept',group='c_version',class = "sd"), ## these came from actually running the model
+                prior(normal( 0.26,1)  , coef='osLinux',group='c_version',class = "sd"),
+                prior(normal( 0.35,1)  , coef='osWindows_NT',group='c_version',class = "sd"),
+                prior(normal( 0.42,0.2)  , class='b',coef='osLinux',dpar = "sigma"),
+                prior(normal( -0.76,.2)  , class='b',coef='osWindows_NT',dpar = "sigma"),
+                prior(lkj(0.9) ,group='c_version',class = "cor")
+            ),
+            data = dx,cores=2,chains=2,control=list(adapt_delta = 0.999, max_treedepth=13))
 
-getPriorValues <- function(model=NULL,SF=SF){
-    fillIn <- function(p, m,SF=SF){
+
+
+getPriorValues <- function(model=NULL,sf=1.5){
+    fillIn <- function(p, m,ee,SF=sf){
         po <- posterior_samples(model,par=p)[,1]
-        pf <- parent.frame()
-        assign(glue("{m}_m"), mean(po),env=pf)
-        assign(glue("{m}_s"), SF*sd(po),env=pf)
+        assign(glue("{m}_m"), mean(po),env=ee)
+        assign(glue("{m}_s"), SF*sd(po),env=ee)
     }
+   
     if(is.null(model)){
-        nvc_m <- 0.24                       ; nvc_s <- 0.1
+        nvc_m <- 0.25                       ; nvc_s <- 0.1
         Intercept_c_version_sd_m <- 0.52    ; Intercept_c_version_sd_s <- 0.3
         osLinux_c_version_sd_m <- 0.23      ; osLinux_c_version_sd_s <- 0.3;
         osWindows_NT_c_version_sd_m <- 0.36 ; osWindows_NT_c_version_sd_s <- 0.25;
@@ -278,16 +294,17 @@ getPriorValues <- function(model=NULL,SF=SF){
         osWindows_NT_sigma_m <- -0.63       ; osWindows_NT_sigma_s <- 0.18
         Intercept_sigma_m <- -2.38          ; Intercept_sigma_s <- 0.3
     }else{
-        fillIn("sds_snvc_1","nvc")
-        fillIn("sd_c_version__Intercept","Intercept_c_version_sd")
-        fillIn("sd_c_version__osLinux","osLinux_c_version_sd")
-        fillIn("sd_c_version__osWindows_NT","osWindows_NT_c_version_sd")
-        fillIn("b_Intercept","Intercept_b")
-        fillIn("b_osLinux","osLinux_b")
-        fillIn("b_osWindows_NT","osWindows_NT_b")
-        fillIn("b_sigma_osLinux","osLinux_sigma")
-        fillIn("b_sigma_osWindows_NT","osWindows_NT_sigma")
-        fillIn("b_sigma_Intercept","Intercept_sigma")
+        ee <- environment()
+        fillIn("sds_snvc_1","nvc",ee)
+        fillIn("sd_c_version__Intercept","Intercept_c_version_sd",ee)
+        fillIn("sd_c_version__osLinux","osLinux_c_version_sd",ee)
+        fillIn("sd_c_version__osWindows_NT","osWindows_NT_c_version_sd",ee)
+        fillIn("b_Intercept","Intercept_b",ee)
+        fillIn("b_osLinux","osLinux_b",ee)
+        fillIn("b_osWindows_NT","osWindows_NT_b",ee)
+        fillIn("b_sigma_osLinux","osLinux_sigma",ee)
+        fillIn("b_sigma_osWindows_NT","osWindows_NT_sigma",ee)
+        fillIn("b_sigma_Intercept","Intercept_sigma",ee)
     }
     l <- c(
         prior_string(glue("normal({nvc_m},{nvc_s})"),class='sds',coef='s(nvc,m=1)'),
@@ -305,7 +322,7 @@ getPriorValues <- function(model=NULL,SF=SF){
 }
 
         
-iter.magic <- function(dall.rel2, nmodels=9,SF=1.5){
+iter.magic <- function(dall.rel2, nmodels=9,fac=1.5){
     ds <- tail(dall.rel2[, sort(unique(date))] ,nmodels)
     ds1 <- ds[1]
     cc <- list()
@@ -316,11 +333,10 @@ iter.magic <- function(dall.rel2, nmodels=9,SF=1.5){
         if(i==1) model <- NULL else model <- prior.model
         M <- brm(formula=bf(  log(cmr+1)  ~   0+Intercept+os + s(nvc,m=1) + (1+os|c_version),sigma~os),
                  data = D,cores=2,chains=2,control=list(adapt_delta = 0.999, max_treedepth=13),
-                 prior=getPriorValues(model,SF=SF))
+                 prior=getPriorValues(model,sf=fac))
         prior.model <- M
         cc[[ length(cc)+1]] <- M
     }
-    
     l0 <- rbindlist(lapply(seq_along(ds),function(i){
         ds1 <- ds[i]
         D <- dall.rel2[date %between% c(ds1-6,ds1),][, nvc:=0.6]
@@ -333,4 +349,6 @@ iter.magic <- function(dall.rel2, nmodels=9,SF=1.5){
 }
 
 
-l10 = iter.magic(dall.rel2, nmodels=9,SF=1.0)
+l10 = iter.magic(dall.rel2, nmodels=9,fac=1.0)
+l20 = iter.magic(dall.rel2, nmodels=9,fac=2.0)
+l30 = iter.magic(dall.rel2, nmodels=9,SF=3.0)

@@ -64,15 +64,53 @@ dall.rel2 <- data.table(getModelDataForChannel("release",v=3,input_file=command.
 dall.beta2 <- data.table(getModelDataForChannel("beta",v=2,input_file=command.line$beta_raw))[nvc>0,]
 dall.nightly2 <- data.table(getModelDataForChannel("nightly",v=2,input_file=command.line$nightly_raw))[nvc>0,]
 
+
+## At the time of writing these field did not have the extra minute added and hence we had infinities
+## this protects from that. Ideally this should be in the SQL code.
+
 invisible({
-    dall.rel2[, ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
-    dall.beta2[, ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
+    dall.rel2[,     ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
+    dall.beta2[,    ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
     dall.nightly2[, ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
-    dall.rel2[, ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
-    dall.beta2[,  ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
-    dall.nightly2[,  ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
+    dall.rel2[,     ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
+    dall.beta2[,    ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
+    dall.nightly2[, ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
     
 })
+
+
+
+## Is this or in SQL the best place for this to be?  I can;'t really
+## say. Nevertheless, this is where we keep 'valid' data'. I will
+## explain this For release, keep data for a version till a new one is
+## released (similar to ESR, with no overlap).
+dall.rel2 <-local({
+    u <- jsonlite::fromJSON("https://product-details.mozilla.org/1.0/firefox.json")
+    u <- u$release[ unlist(Map(function(n,s) if(grepl("(major|stability)",n) || grepl("(major|stability)",s$category)) TRUE else FALSE,names(u$release), u$release)) ]
+    u <- u[ unlist(Map(function(n,s) if(!grepl("esr",n) & !grepl("esr",s$category)) TRUE else FALSE,names(u), u)) ]
+    u <- rbindlist(Map(function(s1) data.table(c_version=s1$version, sdate = s1$date), u))[order(sdate),][, sdate:=as.Date(sdate)][order(sdate),]
+    u <- u[,rdate:=as.Date(c(tail(u$sdate,-1),as.Date('2040-01-01')))]
+    merge(dall.rel2, u[, list(c_version, rdate)], by='c_version',all.x=TRUE)[date<=rdate][, rdate:=NULL]
+})
+
+## For Nightly and Beta, we keep all data on a version till it reaches
+## maximum adoption Note, we dont use current because sometimes _two_
+## versions are current e.g. in Nightly a version released today will
+## be in use for 2-3 days and versions are released everyday so we
+## dont just keep data while a version is current
+
+dall.beta2 <- local({
+    dall.beta2[,{
+        .SD[date<=date[which.max(nvc)],]
+    },by=list(os,c_version)]
+})
+
+dall.nightly2 <- local({
+    dall.nightly2[,{
+        .SD[date<=date[which.max(nvc)],]
+    },by=list(os,c_version)]
+})
+
 
 
 loginfo("Using following dates")

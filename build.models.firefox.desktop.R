@@ -20,17 +20,17 @@ getModelDataForChannel <- function(ch, v, input_file = NULL,asfeather=FALSE){
 ## also bigquery utils(bqutils) needs to be initialized/logged in  else the uploads will fail
 ## /home/sguha/anaconda3/bin/conda  activate mc2
 cd mc2
-python data/crud.py dl_raw --base_project_id {GCP_PROJECT_ID} --project_id {GCP_PROJECT_ID} --creds_loc {BQCREDS}  --channel {ch} --n_majors {v} --cache False --outname '{rtemp}'
+python data/crud.py dl_raw  --creds_loc {BQCREDS}  --channel {ch} --n_majors {v} --cache False --outname '{rtemp}'
 ")
         writeLines(runner,con="./runner.sh")
         loginfo(glue("Starting Gettting Model Data for channel {ch} and nversions {v}"))
         res  <- system2("sh", "./runner.sh",stderr=TRUE,stdout=TRUE)
         loginfo(paste(res, collapse="\n"))
-        if(any(grepl("(E|e)xception",res))|| any(grepl("(f|F)ailed",res))){
+        if(any(grepl("(Error|(E|e)xception)",res))|| any(grepl("(f|F)ailed",res))){
             logerror(glue("Problem with Downloading Model Data for channel {ch}"))
             stop(glue("Problem with Downloading Model Data for channel {ch}"))
         }
-        
+
         loginfo(glue("Finished Gettting Model Data for channel {ch} and nversions {v}"))
         if(asfeather) feather(rtemp)
         else{
@@ -61,8 +61,57 @@ if(command.line$debug == "0"){
 
 
 dall.rel2 <- data.table(getModelDataForChannel("release",v=3,input_file=command.line$release_raw))[nvc>0,]
-dall.beta2 <- data.table(getModelDataForChannel("beta",v=3,input_file=command.line$beta_raw))[nvc>0,]
-dall.nightly2 <- data.table(getModelDataForChannel("nightly",v=3,input_file=command.line$nightly_raw))[nvc>0,]
+dall.beta2 <- data.table(getModelDataForChannel("beta",v=2,input_file=command.line$beta_raw))[nvc>0,]
+dall.nightly2 <- data.table(getModelDataForChannel("nightly",v=2,input_file=command.line$nightly_raw))[nvc>0,]
+
+
+## At the time of writing these field did not have the extra minute added and hence we had infinities
+## this protects from that. Ideally this should be in the SQL code.
+
+invisible({
+    dall.rel2[,     ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
+    dall.beta2[,    ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
+    dall.nightly2[, ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
+    dall.rel2[,     ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
+    dall.beta2[,    ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
+    dall.nightly2[, ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
+
+})
+
+
+
+## Is this or in SQL the best place for this to be?  I can;'t really
+## say. Nevertheless, this is where we keep 'valid' data'. I will
+## explain this For release, keep data for a version till a new one is
+## released (similar to ESR, with no overlap).
+dall.rel2 <-local({
+    u <- jsonlite::fromJSON("https://product-details.mozilla.org/1.0/firefox.json")
+    u <- u$release[ unlist(Map(function(n,s) if(grepl("(major|stability)",n) || grepl("(major|stability)",s$category)) TRUE else FALSE,names(u$release), u$release)) ]
+    u <- u[ unlist(Map(function(n,s) if(!grepl("esr",n) & !grepl("esr",s$category)) TRUE else FALSE,names(u), u)) ]
+    u <- rbindlist(Map(function(s1) data.table(c_version=s1$version, sdate = s1$date), u))[order(sdate),][, sdate:=as.Date(sdate)][order(sdate),]
+    u <- u[,rdate:=as.Date(c(tail(u$sdate,-1),as.Date('2040-01-01')))]
+    merge(dall.rel2, u[, list(c_version, rdate)], by='c_version',all.x=TRUE)[date<=rdate][, rdate:=NULL]
+})
+
+## For Nightly and Beta, we keep all data on a version till it reaches
+## maximum adoption Note, we dont use current because sometimes _two_
+## versions are current e.g. in Nightly a version released today will
+## be in use for 2-3 days and versions are released everyday so we
+## dont just keep data while a version is current
+
+dall.beta2 <- local({
+    dall.beta2[,{
+        .SD[date<=date[which.max(nvc)],]
+    },by=list(os,c_version)]
+})
+
+dall.nightly2 <- local({
+    dall.nightly2[,{
+        .SD[date<=date[which.max(nvc)],]
+    },by=list(os,c_version)]
+})
+
+
 
 invisible({
     dall.rel2[, nvc.logit:=boot::logit(nvc)]
@@ -84,10 +133,10 @@ cr.cc.rel.f <- future({ make.a.model(d.rel,'ccr',debug=debug.mode) })
 ci.cm.rel.f <- future({ make.a.model(d.rel,'cmi',debug=debug.mode) })
 ci.cc.rel.f <- future({ make.a.model(d.rel,'cci',debug=debug.mode) })
 
-cr.cm.rel <- label(value(cr.cm.rel.f),'cmr');loginfo("Finished Release cr.cm"); 
-cr.cc.rel <- label(value(cr.cc.rel.f),'ccr');loginfo("Finished Release cr.cc"); 
-ci.cm.rel <- label(value(ci.cm.rel.f),'cmi');loginfo("Finished Release ci.cm"); 
-ci.cc.rel <- label(value(ci.cc.rel.f),'cci');loginfo("Finished Release ci.cc"); 
+cr.cm.rel <- label(value(cr.cm.rel.f),'cmr');loginfo("Finished Release cr.cm");
+cr.cc.rel <- label(value(cr.cc.rel.f),'ccr');loginfo("Finished Release cr.cc");
+ci.cm.rel <- label(value(ci.cm.rel.f),'cmi');loginfo("Finished Release ci.cm");
+ci.cc.rel <- label(value(ci.cc.rel.f),'cci');loginfo("Finished Release ci.cc");
 
 loginfo("Finished Release Models")
 ## Beta Model
@@ -131,9 +180,10 @@ bad.models <- names(all.models)[ unlist(Map(function(i,m){
 if(length(bad.models)>0){
     loginfo(glue("The following models has R-hats>1.1, be careful: {f}",f=paste(bad.models,collapse=", ")))
 }
-               
+
 loginfo(glue("Writing datasets to {command.line$out}"))
-save(cr.cm.rel,cr.cc.rel,ci.cm.rel,ci.cc.rel,
+n <- as.character(dall.rel2[,max(date)])
+save(cr.cm.rel,cr.cc.rel,ci.cm.rel,ci.cc.rel,n,
      cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta,
      cr.cm.nightly,cr.cc.nightly,ci.cm.nightly,ci.cc.nightly,
      dall.rel2,dall.beta2,dall.nightly2,file=command.line$out)

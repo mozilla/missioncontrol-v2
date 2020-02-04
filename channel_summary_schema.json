@@ -1,0 +1,69 @@
+[
+  {
+    "name": "os",
+    "type": "STRING"
+  },
+  {
+    "name": "c_version",
+    "type": "STRING"
+  },
+  {
+      "name": "date",
+    "type": "DATE"
+  },
+  {
+    "name": "major",
+    "type": "STRING"
+  },
+  {
+    "name": "minor",
+    "type": "STRING"
+  },
+  {
+    "name": "nvc",
+    "type": "float64"
+  },
+  {
+    "name": "dau_cversion",
+    "type": "integer"
+  },
+  {
+    "name": "call",
+    "type": "integer"
+  },
+   
+  {
+    "name": "dau_call_crasher_cversion",
+    "type": "integer"
+  },
+    {"name":"usage_call_crasher_cversion",
+     "type":"float64"
+    },
+  {
+    "name": "ncurrent",
+    "type": "integer"
+  },
+  {
+    "name": "o_version",
+    "type": "string"
+  },
+  {
+    "name": "nolder",
+    "type": "integer"
+  },
+  {
+    "name": "channel",
+    "type": "string"
+  },
+      {
+    "name": "asOf",
+    "type": "date"
+      },
+      {
+    "name": "smry",
+    "type": "string"
+  }
+
+    
+    
+]

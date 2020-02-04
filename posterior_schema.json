@@ -1,0 +1,65 @@
+[
+  {
+    "name": "channel",
+    "type": "STRING"
+  },
+  {
+    "name": "os",
+    "type": "STRING"
+  },
+  {
+    "name": "c_version",
+    "type": "STRING"
+  },
+  {
+    "name": "major",
+    "type": "STRING"
+  },
+  {
+    "name": "minor",
+    "type": "STRING"
+  },
+  {
+    "name": "model_date",
+    "type": "DATE"
+  },
+  {
+    "name": "date",
+    "type": "DATE"
+  },
+  {
+    "name": "nvc",
+    "type": "float64"
+  },
+  {
+    "name": "dau_cversion",
+    "type": "float64"
+  },
+    
+  {
+    "name": "usage_cc_crasher_cversion",
+    "type": "float64"
+  },
+    
+  {
+    "name": "usage_cm_crasher_cversion",
+    "type": "float64"
+  },
+    
+  {
+    "name": "modelname",
+    "type": "string"
+  },
+    
+  {
+    "name": "rep",
+    "type": "integer"
+  },
+    
+  {
+    "name": "posterior",
+    "type": "float64"
+  }
+    
+    
+]

@@ -189,7 +189,10 @@ def print_rows_dau(bq_loc: BqLocation, creds_loc=None):
 
 def print_rows_loc(bq_loc: BqLocation, creds_loc=None):
     bq_read_no_cache = mk_bq_reader(
-        creds_loc=creds_loc, base_project_id=bq_loc.project_id, cache=False
+        creds_loc=creds_loc,
+        base_project_id="moz-fx-data-bq-data-science",
+        cache=False
+        # creds_loc=creds_loc, base_project_id=bq_loc.project_id, cache=False
     )
     summary = bq_read_no_cache(f"select count(*) as n_rows from {bq_loc.sql}")
     n_rows = summary.iloc[0, 0]

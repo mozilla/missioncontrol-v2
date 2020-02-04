@@ -84,6 +84,21 @@ def beta_version_parse(disp_vers: str):
     return d
 
 
+def esr_version_parse(disp_vers: str):
+    disp_vers = disp_vers.rstrip("esr")
+    pat = re.compile(r"(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<dot>\d+))?$")
+
+    m = pat.match(disp_vers)
+    if not m:
+        raise ValueError(f"unable to parse version string: {disp_vers}")
+    d = m.groupdict()
+    if not d.get("dot"):
+        d["dot"] = "0"
+    minor = int(d.pop("minor")) * 100 + int(d.pop("dot"))
+    d["minor"] = minor
+    return d
+
+
 def get_peak_date(vers_df, vers_col="dvers", date_col="date"):
     """
     Get nvc peak date
@@ -577,7 +592,7 @@ def pull_data_esr(download_meta_data, sql_template, bq_read):
         )
         .drop(["till"], axis=1)
     )
-    data = add_version_elements(data, beta_version_parse, "c_version", to=int)
+    data = add_version_elements(data, esr_version_parse, "c_version", to=int)
     data = (
         get_peak_date(data, "c_version")
         .pipe(verbose_query("date <= peak_date"))

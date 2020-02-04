@@ -1,6 +1,6 @@
 cache/joblib/
 cache/
-
+gcloud.json
 mc2/data/debug.py
 mc2/data/ipy_imps.py
 mc2/test_run.sh
@@ -8,5 +8,6 @@ mc2/test_run_master.sh
 mc2/copy_table.sh
 notebooks/boot_utes.py
 *.fthr
+*.Rdata
 mc2/data/samp/
 mc2/bin/

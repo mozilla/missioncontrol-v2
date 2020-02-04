@@ -1,0 +1,28 @@
+version: 2.1
+
+# See https://circleci.com/orbs/registry/orb/circleci/gcp-gcr
+orbs:
+  gcp-gcr: circleci/gcp-gcr@0.6.1
+
+workflows:
+  version: 2
+  build:
+    jobs:
+    - gcp-gcr/build-and-push-image:
+        # This step relies on several environment variables provided to the
+        # build job via CircleCI configuration:
+        #   GCLOUD_SERVICE_KEY
+        #   GOOGLE_PROJECT_ID
+        #   GOOGLE_COMPUTE_ZONE
+        # We provisioned a dataops sandbox project specifically for this
+        # repository, enabled the GCR API, and provisioned a service account
+        # with read and write access to GCS per
+        #   https://cloud.google.com/container-registry/docs/access-control
+        # We also have marked the repository in GCR as public via the GCP console
+        # so that arbitrary users and applications can access the images.
+        dockerfile: Dockerfile
+        path: .
+        image: missioncontrol-etl
+        filters:
+          branches:
+            only: master

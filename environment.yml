@@ -1,24 +1,19 @@
-name: mc2
 dependencies:
 - python=3.6
-
-# Bare necessities
-- flake8
-- cython
-- pandas >= 0.25
-- jupyterlab
-- pyarrow
-
-# Optional:
-- joblib  # to be able to use crud.main(cache=True)
-- fastparquet
-- termcolor  # tmux
-
-- pip
-
-- pip:
-  - toolz
-  - fire
-  - pandas-gbq
-  - jupytext
-  # - google-cloud-bigquery
+- fire=0.2.1
+- joblib=0.14.1
+- pandas-gbq=0.13.0
+- pandas=0.25.3
+- pyarrow=0.15.1
+- r-base=3.6.1
+- r-boot=1.3_20
+- r-brms=2.10.0
+- r-data.table=1.12.8
+- r-dt=0.11
+- r-feather=0.3.5
+- r-formattable=0.2.0.1
+- r-glue=1.3.1
+- r-logging=0.10_108
+- r-r.utils=2.9.2
+- r-rjson=0.2.20
+- r-vegawidget=0.2.1

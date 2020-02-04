@@ -1,9 +1,0 @@
-cython
-fastparquet
-fire
-flake8
-joblib
-pandas >= 0.25
-pandas-gbq
-pyarrow
-toolz

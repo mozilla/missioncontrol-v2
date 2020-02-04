@@ -18,9 +18,10 @@ library(rmarkdown)
 options(future.globals.maxSize= 850*1024^2 )
 Lapply <- lapply #future_lapply
 
-BQCREDS <- Sys.getenv("GOOGLE_APPLICATION_CREDENTIALS", "~/gcloud.json")
-GCP_PROJECT_ID <- Sys.getenv("GCP_PROJECT_ID", "moz-fx-data-derived-datasets")
-GCS_OUTPUT_PREFIX <- Sys.getenv("GCS_OUTPUT_PREFIX", "gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2")
+GCP_PROJECT_ID <- Sys.getenv("GCP_PROJECT_ID")
+GCS_OUTPUT_PREFIX <- Sys.getenv("GCS_OUTPUT_PREFIX") ## e.g. gs://missioncontrol-v2
+RAW_OUTPUT_TABLE <- Sys.getenv("RAW_OUTPUT_TABLE") ## e.g. missioncontrol_v2_raw_data
+MODEL_OUTPUT_TABLE <- Sys.getenv("MODEL_OUTPUT_TABLE") ## e.g. missioncontrol_v2_model_output
 
 if(!exists("missioncontrol.lib.R")){
     ## executed only once
@@ -112,25 +113,25 @@ ffunc <- function(M,D,list0=NULL,iter=4000,thin=1,chains=4,cores=4)  {
                                                  else list0
                                      , cores = cores,iter=iter,thin=thin)
 }
-make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NULL,iter=4000,thin=1,priorSim=FALSE){
+make.a.model <- function(data,wh,channel='not-nightly',simple=0,bff=NULL,list0=NULL,iter=4000,thin=1,priorSim=FALSE){
   ## See wbeards work on nightly: https://metrics.mozilla.com/protected/wbeard/mc/nightly_model.html
   alter <- TRUE
     if(wh=="cmr"){
         M0 <- bf( cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  + s(nvc,m=1,by=os)+(1+os|c_version), shape ~ os*log(nvc))+negbinomial()
-        if(debug==1){
+        if(simple==1){
             M0 <- bf( cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60))  +log( nvc)*os)+negbinomial()
         }
         if(channel %in% c('beta')){
             M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) + os*log(nvc) ,
                      shape ~ os)+negbinomial()
-            if(debug==1){
+            if(simple==1){
                 M0 <- bf( cmain + 1 ~ offset(log(usage_cm_crasher_cversion + 1/60))  + os + log(nvc))+negbinomial()
             }
         }
         if(channel %in% c("nightly")){
             M0 <- bf( cmain + 1  ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os + (1+os | c_version) +  log(nvc)*os,
                      shape ~ os)+negbinomial()
-            if(debug==1){
+            if(simple==1){
              M0 <- bf( cmain + 1  ~ offset(log(usage_cm_crasher_cversion + 1/60)) + os *log(nvc))+negbinomial()
             }
         }
@@ -139,20 +140,20 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
     if(wh=='ccr'){
         M0 <- bf( ccontent+1  ~  os+offset(log( usage_cc_crasher_cversion+1/60))  + s(nvc,m=1,by=os) + (1+os|c_version),
                  shape ~  os*log(nvc)) +negbinomial() # os+s(nvc,1)
-        if(debug==1){
+        if(simple==1){
             M0 <- bf( ccontent+1  ~  offset(log( usage_cc_crasher_cversion+1/60))  +os*log(nvc)) + negbinomial()
         }
         if(channel %in% c('beta')){
             M0 <- bf( ccontent + 1 ~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
                      shape ~ os*nvc) + negbinomial()  #log(dau_cversion + 1))
-            if(debug==1){
+            if(simple==1){
                 M0 <- bf( ccontent + 1 ~ offset(log(usage_cc_crasher_cversion + 1/60)) +  log(nvc)*os)+negbinomial()
             }
         }
         if(channel %in% c("nightly")){
             M0 <- bf( ccontent + 1 ~ os + offset(log(usage_cc_crasher_cversion + 1/60)) +  s(nvc, m = 1, by = os) + (1 + os | c_version),
                      shape ~ os)+negbinomial()
-            if(debug==1){
+            if(simple==1){
                 M0 <- bf( ccontent + 1 ~  offset(log(usage_cc_crasher_cversion + 1/60)) + os*log(nvc))+negbinomial()
             }
         }
@@ -160,18 +161,18 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
     }
     if(wh=='cmi'){
         M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os*nvc) #+s(nvc,m=1))
-        if(debug==1){
+        if(simple==1){
             M0<- bf( log(1+dau_cm_crasher_cversion)   ~   os+ offset(log( dau_cversion)) + log(nvc)*os)
         }
         if(channel %in% c('beta')){
             M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version) ,sigma ~ os*nvc)
-            if(debug==1){
+            if(simple==1){
                 M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os * log(nvc) + offset(log(dau_cversion)))
             }
         }
         if(channel %in% c('nightly')){
             M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os + offset(log(dau_cversion)) + os*log(1+nvc) + (1 + os | c_version) ,sigma ~ os)
-            if(debug==1){
+            if(simple==1){
                 M0 <- bf(log(1 + dau_cm_crasher_cversion) ~ os*log(nvc) + offset(log(dau_cversion)))
             }
         }
@@ -179,25 +180,25 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
     }
     if(wh=='cci'){
         M0<- bf( log(1+dau_cc_crasher_cversion)   ~   os+ offset(log( dau_cversion))  + s(nvc,m=1,by=os) + (1+os|c_version), sigma ~ os*nvc) #+s(nvc,m=1))
-        if(debug==1){
+        if(simple==1){
             M0 <- bf( log(1+dau_cc_crasher_cversion)   ~   os*log(nvc)+ offset(log( dau_cversion)) )
         }
         if(channel %in% c('beta')){
             M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os+log(nvc))
-            if(debug==1){
+            if(simple==1){
                 M0 <- bf( log(1 + dau_cc_crasher_cversion)  ~ os*log(nvc) + offset(log(dau_cversion)) )
             }
         }
         if(channel %in% c("nightly")){
             M0 <- bf( log(1 + dau_cc_crasher_cversion) ~ os + offset(log(dau_cversion)) + s(nvc, m = 1,by=os) + (1 + os | c_version),sigma ~ os)
-            if(debug==1){
+            if(simple==1){
                 M0 <- bf( log(1 + dau_cc_crasher_cversion) ~ os *log(nvc) + offset(log(dau_cversion)))
             }
         }
         if(!is.null(bff)) M0 <- bff
     }
     if(priorSim){ return(M0) }
-    else  ffunc(M0,data,list0=list0,thin=thin,iter=iter, chains=if(debug==1) 1 else 4, cores=if(debug==1) 1 else 4)
+    else  ffunc(M0,data,list0=list0,thin=thin,iter=iter, chains=if(simple==1) 1 else 4, cores=if(simple==1) 1 else 4)
 }
 
 Predict <- function(M,D,ascale='response',...){

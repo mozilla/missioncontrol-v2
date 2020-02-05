@@ -264,7 +264,6 @@ def add_fields(df, current_version, date0, till):
     Applied df by df to chunks as they are downloaded
     """
     date0, till = map(pd.to_datetime, [date0, till])
-    round_down = lambda x: 0 if x < 60 / 3600 else x
 
     df = df.assign(
         # date=date0,
@@ -274,13 +273,9 @@ def add_fields(df, current_version, date0, till):
         t=lambda x: (x.date - date0).astype("timedelta64[D]").astype(int),
     ).assign(
         cmi=lambda x: (1 + x.dau_cm_crasher_cversion) / x.dau_cversion,
-        cmr=lambda x: (1 + x.cmain)
-        / x.usage_cm_crasher_cversion.map(round_down),
-        # cmr=lambda x: (1 + x.cmain)
-        # .div(x.usage_cm_crasher_cversion).map(round_down),
+        cmr=lambda x: x.cmain / (x.usage_cm_crasher_cversion + 1 / 60),
         cci=lambda x: (1 + x.dau_cc_crasher_cversion) / x.dau_cversion,
-        ccr=lambda x: (1 + x.ccontent)
-        / x.usage_cc_crasher_cversion.map(round_down),
+        ccr=lambda x: x.ccontent / (x.usage_cc_crasher_cversion + 1 / 60),
         nvc=lambda x: x.usage_cversion / x.usage_all,
         os=lambda x: x.os.astype(os_dtype),
     )
@@ -299,8 +294,6 @@ def add_fields_single(df):
     Currently works for beta, but should be applied to other channels
     as well.
     """
-    round_down = lambda x: 0 if x < 60 / 3600 else x
-
     df = df.assign(
         isLatest=lambda x: x.date <= x.till,
         t=lambda x: (x.date - x.release_date)
@@ -308,11 +301,9 @@ def add_fields_single(df):
         .astype(int),
     ).assign(
         cmi=lambda x: (1 + x.dau_cm_crasher_cversion) / x.dau_cversion,
-        cmr=lambda x: (1 + x.cmain)
-        / x.usage_cm_crasher_cversion.map(round_down),
+        cmr=lambda x: x.cmain / (x.usage_cm_crasher_cversion + 1 / 60),
         cci=lambda x: (1 + x.dau_cc_crasher_cversion) / x.dau_cversion,
-        ccr=lambda x: (1 + x.ccontent)
-        / x.usage_cc_crasher_cversion.map(round_down),
+        ccr=lambda x: x.ccontent / (x.usage_cc_crasher_cversion + 1 / 60),
         nvc=lambda x: x.usage_cversion / x.usage_all,
         os=lambda x: x.os.astype(os_dtype),
     )

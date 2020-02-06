@@ -30,7 +30,7 @@ python data/crud.py dl_raw  --creds_loc {BQCREDS}  --channel {ch} --n_majors {v}
             logerror(glue("Problem with Downloading Model Data for channel {ch}"))
             stop(glue("Problem with Downloading Model Data for channel {ch}"))
         }
-        
+
         loginfo(glue("Finished Gettting Model Data for channel {ch} and nversions {v}"))
         if(asfeather) feather(rtemp)
         else{
@@ -75,7 +75,7 @@ invisible({
     dall.rel2[,     ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
     dall.beta2[,    ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
     dall.nightly2[, ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
-    
+
 })
 
 
@@ -113,6 +113,12 @@ dall.nightly2 <- local({
 
 
 
+invisible({
+    dall.rel2[, nvc.logit:=boot::logit(nvc)]
+    dall.beta2[, nvc.logit:=boot::logit(nvc)]
+    dall.nightly2[, nvc.logit:=boot::logit(nvc)]
+})
+
 loginfo("Using following dates")
 print(dall.rel2[, list(channel='release',UsingDateTill=max(date)),by=os][order(os),])
 print(dall.beta2[, list(channel='beta',UsingDateTill=max(date)),by=os][order(os),])
@@ -127,10 +133,10 @@ cr.cc.rel.f <- future({ make.a.model(d.rel,'ccr',debug=debug.mode) })
 ci.cm.rel.f <- future({ make.a.model(d.rel,'cmi',debug=debug.mode) })
 ci.cc.rel.f <- future({ make.a.model(d.rel,'cci',debug=debug.mode) })
 
-cr.cm.rel <- label(value(cr.cm.rel.f),'cmr');loginfo("Finished Release cr.cm"); 
-cr.cc.rel <- label(value(cr.cc.rel.f),'ccr');loginfo("Finished Release cr.cc"); 
-ci.cm.rel <- label(value(ci.cm.rel.f),'cmi');loginfo("Finished Release ci.cm"); 
-ci.cc.rel <- label(value(ci.cc.rel.f),'cci');loginfo("Finished Release ci.cc"); 
+cr.cm.rel <- label(value(cr.cm.rel.f),'cmr');loginfo("Finished Release cr.cm");
+cr.cc.rel <- label(value(cr.cc.rel.f),'ccr');loginfo("Finished Release cr.cc");
+ci.cm.rel <- label(value(ci.cm.rel.f),'cmi');loginfo("Finished Release ci.cm");
+ci.cc.rel <- label(value(ci.cc.rel.f),'cci');loginfo("Finished Release ci.cc");
 
 loginfo("Finished Release Models")
 ## Beta Model
@@ -174,7 +180,7 @@ bad.models <- names(all.models)[ unlist(Map(function(i,m){
 if(length(bad.models)>0){
     loginfo(glue("The following models has R-hats>1.1, be careful: {f}",f=paste(bad.models,collapse=", ")))
 }
-               
+
 loginfo(glue("Writing datasets to {command.line$out}"))
 n <- as.character(dall.rel2[,max(date)])
 save(cr.cm.rel,cr.cc.rel,ci.cm.rel,ci.cc.rel,n,

@@ -1,31 +1,35 @@
-# pip
-# google-cloud-bigquery
-# pandas-gbq
-# Optional:
-# pip install joblib
-
 import os
 from functools import partial
 from os.path import abspath, exists, expanduser
 
-import fire
-import pandas as pd
+import fire  # type: ignore
+import pandas as pd  # type: ignore
 import release_versions as rv
 from bq_utils import BqLocation
 from download_bq import download_raw_data, pull_all_model_data
-from google.cloud import bigquery  # noqa
-from google.oauth2 import service_account  # noqa
+from google.cloud import bigquery  # type: ignore
+from google.oauth2 import service_account  # type: ignore
 from upload_bq import delete_versions, drop_table, run_model_upload, upload
+import schema
 
-# from src.download_bq import pull_all_model_data
-# from src.upload_bq import delete_versions, drop_table, upload
-
-
-# pandas-gbq -> google-cloud-bigquery
-#            -> google-auth
 
 # project_id: 'moz-fx-data-derived-datasets'
 # bucket: 'moz-fx-data-derived-datasets-analysis'
+
+
+def assert_eq_collections(s1, s2):
+    s1 = set(s1)
+    s2 = set(s2)
+    errs = []
+    s1_extra = s1 - s2
+    if s1_extra:
+        errs.append(f"First collection has extra elems {s1_extra}")
+    s1_msg = s2 - s1
+    if s1_msg:
+        errs.append(f"First collection has extra elems {s1_msg}")
+    if not errs:
+        return
+    raise AssertionError(". ".join(errs))
 
 
 def strong_bool(b):
@@ -55,7 +59,9 @@ def get_creds(creds_loc=None):
     return creds
 
 
-def mk_bq_reader(creds_loc=None, cache=False):
+def mk_bq_reader(
+    creds_loc=None, cache=False, base_project_id="moz-fx-data-derived-datasets"
+):
     """
     Returns function that takes a BQ sql query and
     returns a pandas dataframe
@@ -64,9 +70,7 @@ def mk_bq_reader(creds_loc=None, cache=False):
 
     bq_read = partial(
         pd.read_gbq,
-        project_id="moz-fx-data-derived-datasets",
-        # TODO: delete following
-        # creds.project_id,
+        project_id=base_project_id,
         credentials=creds,
         dialect="standard",
     )
@@ -120,21 +124,30 @@ def dl_raw(
     channel,
     n_majors: int,
     creds_loc=None,
-    analysis_table="missioncontrol_v2_raw_data",
+    table="missioncontrol_v2_raw_data",
+    dataset="analysis",
+    project_id="moz-fx-data-derived-datasets",
     outname=None,
     cache=False,
+    base_project_id="moz-fx-data-derived-datasets",
 ):
     """
     Wrapper for download_bq.download_raw_data(). After running `main`,
     this will download rows corresponding to the specified `channel`
     and save them to a feather format file.
+
+    The `base_project_id` param is used to generate the query client.
     """
-    bq_read_fn = mk_bq_reader(creds_loc=creds_loc, cache=cache)
+    bq_read_fn = mk_bq_reader(
+        creds_loc=creds_loc, cache=cache, base_project_id=base_project_id
+    )
     fname = download_raw_data(
         bq_read_fn,
         channel,
         n_majors,
-        analysis_table=analysis_table,
+        table=table,
+        dataset=dataset,
+        project_id=project_id,
         outname=outname,
     )
     return fname
@@ -161,17 +174,10 @@ def upload_model_data(
     print_rows_loc(bq_loc=bq_loc, creds_loc=creds_loc)
 
 
-# TODO: replace occurrences with print_rows_loc
-def print_rows(full_sql_table_name, creds_loc=None):
-    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
-    n_rows = bq_read_no_cache(
-        "select count(*) from {}".format(full_sql_table_name)
-    ).iloc[0, 0]
-    print("=> {} now has {} rows".format(full_sql_table_name, n_rows))
-
-
 def print_rows_dau(bq_loc: BqLocation, creds_loc=None):
-    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
+    bq_read_no_cache = mk_bq_reader(
+        creds_loc=creds_loc, base_project_id=bq_loc.project_id, cache=False
+    )
     summary = bq_read_no_cache(
         "select count(*) as n_rows, avg(dau_cversion) / 1e6"
         f" as dau_cversion_mm from {bq_loc.sql}"
@@ -182,7 +188,12 @@ def print_rows_dau(bq_loc: BqLocation, creds_loc=None):
 
 
 def print_rows_loc(bq_loc: BqLocation, creds_loc=None):
-    bq_read_no_cache = mk_bq_reader(creds_loc=creds_loc, cache=False)
+    bq_read_no_cache = mk_bq_reader(
+        creds_loc=creds_loc,
+        base_project_id="moz-fx-data-bq-data-science",
+        cache=False
+        # creds_loc=creds_loc, base_project_id=bq_loc.project_id, cache=False
+    )
     summary = bq_read_no_cache(f"select count(*) as n_rows from {bq_loc.sql}")
     n_rows = summary.iloc[0, 0]
     print(f"=> {bq_loc.sql} now has {n_rows} rows")
@@ -192,15 +203,17 @@ def main(
     add_schema: bool = False,
     creds_loc=None,
     cache: bool = False,
+    project_id="moz-fx-data-derived-datasets",
+    dataset="analysis",
     table_name="wbeard_crash_rate_raw",
     drop_first: bool = False,
     return_df: bool = False,
     force: bool = False,
     skip_delete: bool = False,
     add_fake_columns: bool = True,
-    dataset="analysis",
-    project_id="moz-fx-data-derived-datasets",
     sub_date=None,
+    # ESR params
+    esr=False,
 ):
     """
     Process and upload raw data. For debugging (including dropping the test
@@ -241,11 +254,13 @@ def main(
         print("Not using cached queries")
     if drop_first:
         drop_table(table_name=table_name)
-    bq_read = mk_bq_reader(creds_loc=creds_loc, cache=cache)
+    bq_read = mk_bq_reader(
+        creds_loc=creds_loc, base_project_id=project_id, cache=cache
+    )
     query_func = mk_query_func(creds_loc=creds_loc)
 
     print("Starting data pull")
-    df_all = pull_all_model_data(bq_read, sub_date_str=sub_date)
+    df_all = pull_all_model_data(bq_read, sub_date_str=sub_date, esr=esr)
 
     if add_fake_columns:
         # First, give dummy values for plugin columns that are no longer
@@ -260,9 +275,17 @@ def main(
         for col, loc, val in new_cols:
             df_all.insert(loc, col, val)
 
+    assert_eq_collections(schema.raw_col_order, df_all)
+    df_all = df_all[schema.raw_col_order]
+
     if not skip_delete:
         delete_versions(df_all, query_func=query_func, bq_loc=bq_loc)
-    upload(df_all, table_name=table_name, add_schema=add_schema)
+    upload(
+        df_all,
+        project_id=project_id,
+        table_name=table_name,
+        add_schema=add_schema,
+    )
 
     # Double check: print how many rows
     print_rows_dau(bq_loc=bq_loc, creds_loc=creds_loc)

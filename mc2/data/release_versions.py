@@ -1,7 +1,18 @@
+"""
+This module calculates date ranges and the relevant versions
+that were active for those dates.
+
+The general format for `prod_det_process_{channel}` is to return
+a dataframe with a `version` field and a corresponding
+`release_date` and `till` field which convey the beginning and
+ending submission dates in which that version was the primary
+version (and should have high `nvc`).
+"""
+
 import datetime as dt
 import re
 from collections import OrderedDict
-from typing import Optional
+from typing import List, Optional
 
 import buildhub_bid as bh
 import numpy as np  # type: ignore
@@ -38,17 +49,13 @@ def read_product_details():
     return df
 
 
-def next_release_date(
-    d: "pd.Series[dt.datetime]", max_sub_date: str
-):
+def next_release_date(d: "pd.Series[dt.datetime]", max_sub_date: str):
     """
     d: Series of dates of releases, ordered by time
     return: date of next release. For most recent release,
         return `max_sub_date`
     """
-    # max_date = pd.to_datetime(dt.date.today()) if use_today_as_max else d.max()
     max_sub_date = pd.to_datetime(max_sub_date)
-    # way_later = max_date + pd.Timedelta(days=max_days_future)
     return d.shift(-1).fillna(max_sub_date)
 
 
@@ -119,7 +126,7 @@ def prod_det_process_beta(max_sub_date: str, n_total_builds=4, n_days_later=4):
         # .assign(till=lambda x: x.date + pd.Timedelta(days=n_days_later))
         .assign(
             # till=lambda x: end_till_date(x.date, n_days_later, max_sub_date),
-            till=lambda x: next_release_date(x.date, max_sub_date),
+            till=lambda x: next_release_date(x.date, max_sub_date)
         )
     )
 
@@ -154,6 +161,9 @@ def latest_n_release_beta(beta_release_dates, sub_date, n_releases: int = 1):
     return latest
 
 
+###########
+# Nightly #
+###########
 def prod_det_process_nightly_builds(
     max_sub_date=None, n_total_builds=4, n_days_later=4
 ):
@@ -243,3 +253,106 @@ def prod_det_process_nightly(
         )
     )
     return meta
+
+
+#######
+# ESR #
+#######
+def prod_det_extract_esr(max_sub_date: str, pd_all=None, n_days_later: int = 2):
+    """
+    Extract esr-related data from product-details document. This will
+    return 2 dataframes, one for the current release and the one which has
+    received stability updates.
+    """
+    if pd_all is None:
+        pd_all = read_product_details()
+    max_sub_date_ts = pd.to_datetime(max_sub_date or dt.datetime.today())
+    max_sub_date_dt: dt.date = max_sub_date_ts.date()
+
+    pd_esr_all = (
+        pd_all.rename(columns={"date": "release_date"})
+        .pipe(lambda x: x[x.release_label.str.endswith("esr")])
+        .drop(["description", "is_security_driven", "product"], axis=1)
+        .assign(release_date=lambda x: pd.to_datetime(x.release_date))
+        .query(f"release_date < '{max_sub_date_dt}'")
+        .sort_values(["release_date"], ascending=True)
+        .reset_index(drop=1)
+    )
+
+    proc = lambda df: df.assign(
+        till=lambda x: next_release_date(x.release_date, max_sub_date)
+        + pd.Timedelta(days=n_days_later)
+    )
+    pd_esr_stab = pd_esr_all.query("category == 'stability'").pipe(proc)
+    pd_esr_new = pd_esr_all.query("category == 'esr'").pipe(proc)
+
+    # print(f"pd_esr_stab: {pd_esr_stab}")
+    # print(f"pd_esr_new: {pd_esr_new}")
+
+    return pd_esr_stab, pd_esr_new
+
+
+def esr_lookup_version(sub_dates: List[str], esr_meta: pd.DataFrame):
+    """
+    @esr_meta: DataFrame[release_date, version, till]
+    Returns list of (sub_date, version) pairs. Both sub_dates and versions
+    can be duplicated (but not the combination).
+    """
+    version_dates = []
+    for sub_date in sub_dates:
+        release_data = esr_meta.query(
+            f"release_date <= '{sub_date}' & till >= '{sub_date}'"
+        )
+        for version in release_data.version:
+            version_dates.append((sub_date, version))
+    return version_dates
+
+
+def esr_query_sub_dates(sub_dates, meta_current, meta_stable):
+    """
+    For a given submission date that we're interested in,
+    this will look up what the most recent 'new' and 'stability'
+    release versions are from product details.
+
+    `meta_current` and `meta_stable` are prod-details-derived metadata
+    tables for current and stable ESR releases. They should be of
+    type `DataFrame[release_date, version, till]`.
+    """
+    sub_date_versions_ = esr_lookup_version(
+        sub_dates, meta_current
+    ) + esr_lookup_version(sub_dates, meta_stable)
+    sub_date_versions = (
+        pd.DataFrame(sub_date_versions_, columns=["sub_date", "version"])
+        .groupby(["version"])
+        .sub_date.agg(["min", "max"])
+    )
+
+    return sub_date_versions
+
+
+def prod_det_process_esr(
+    max_sub_date: str,
+    pd_all=None,
+    n_days_later: int = 4,
+    n_days_activity: int = 2,
+):
+    """
+    ESR data will typically be pulled with `max_sub_date == today`, but it can
+    be set for other dates in the past for backfill.
+    @pd_all: product-details DataFrame from `read_product_details()`
+    @n_days_activity: if 2, then pull data for `max_sub_date` and the day
+    before.
+    @n_days_later: if 4, then extend the window of activity for version V to 4
+    days past the release of version V + 1.
+    """
+    sub_dates = pd.date_range(
+        end=max_sub_date, periods=n_days_activity, freq="D"
+    )
+    pd_esr_stab, pd_esr_new = prod_det_extract_esr(
+        max_sub_date=max_sub_date, pd_all=pd_all, n_days_later=n_days_later
+    )
+    sub_date_versions = esr_query_sub_dates(
+        sub_dates=sub_dates, meta_current=pd_esr_new, meta_stable=pd_esr_stab
+    ).reset_index(drop=0)
+
+    return sub_date_versions

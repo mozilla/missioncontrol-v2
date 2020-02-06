@@ -21,6 +21,8 @@ options(width=200)
 Lapply <- lapply #future_lapply
 
 BQCREDS <- Sys.getenv("GOOGLE_APPLICATION_CREDENTIALS", "~/gcloud.json")
+GCP_PROJECT_ID <- Sys.getenv("GCP_PROJECT_ID", "moz-fx-data-derived-datasets")
+GCS_OUTPUT_PREFIX <- Sys.getenv("GCS_OUTPUT_PREFIX", "gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2")
 
 
 if(!exists("missioncontrol.lib.R")){
@@ -60,7 +62,7 @@ adoptionsCompare <- function(os,ch,DF=FALSE){
                         31.74024, 634.10478 , 22.34219,
                          17.38312, 12928.50682  , 110.84559
                         ),
-                    ## i got these numbers based on medians of adoptions 
+                    ## i got these numbers based on medians of adoptions
                     adopt =  c(0.4468343,0.7819889,0.5782132,
                                0.2464732,0.4819733,0.293562,
                                0.2593343, 0.3811480,0.2736847,
@@ -70,7 +72,7 @@ adoptionsCompare <- function(os,ch,DF=FALSE){
 }
 
 getArchiveLoc <- function(){
-    return("gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2/archive")
+    return(glue("{GCS_OUTPUT_PREFIX}/archive"))
 }
 
 loadArchiveData<- function(date=NULL,path=NULL
@@ -89,7 +91,7 @@ loadArchiveData<- function(date=NULL,path=NULL
     e
 }
 
-        
+
 ffunc <- function(M,D,list0=NULL,iter=4000,thin=1,chains=4,cores=4)  {
  brm(M,data=D, chains = chains,
                                        control = if(is.null(list0))
@@ -190,7 +192,7 @@ Predict <- function(M,D,ascale='response',...){
     return(p)
 }
 
-  
+
 getPredictions <- function(M,D, wh=NULL,givenx=NULL,summary=FALSE,ascale='response',...){
     fa <- family(M)$fam
     #if(fa=='gaussian') inv.lnk <- exp else inv.lnk <- function(x) x
@@ -232,7 +234,7 @@ getPredictions <- function(M,D, wh=NULL,givenx=NULL,summary=FALSE,ascale='respon
     }
     r
 }
- 
+
 
 label <- function(M,x){
     S <- M
@@ -303,7 +305,7 @@ make_posterior_newdata <- function(mydata,model_date,CHAN){
                                                        nvc=adopt, dau_cversion = dau,
                                                        usage_cc_crasher_cversion =  usage_cc,
                                                        usage_cm_crasher_cversion =  usage_cm)]
-    mydata.posteriors.at  <- mydata.posteriors.at [order(major,minor, os, date),]                                                   
+    mydata.posteriors.at  <- mydata.posteriors.at [order(major,minor, os, date),]
 }
 
 getModelDate <- function(path){
@@ -336,7 +338,7 @@ make_posteriors <- function(mydata, CHAN,model.date,model.list,last.model.date){
     mydata.posteriors.ci.cm <- getPredictions(M=model.list$cmi,,D=mydata.posteriors.at,nsamples=Nposterior)
     mydata.posteriors.ci.cc <- getPredictions(M=model.list$cci,D=mydata.posteriors.at,nsamples=Nposterior)
     mydata.posteriors.ci <- mydata.posteriors.ci.cm + mydata.posteriors.ci.cc
-    
+
     posterior.os.individual.scores <- rbind(
         rbindlist(lapply(1:nrow(mydata.posteriors.at),function(i){
             cbind( mydata.posteriors.at[i,],data.table(modelname = 'cr',rep=1:Nposterior, posterior=mydata.posteriors.cr[i,]))
@@ -385,7 +387,7 @@ where channel="{chan}" and os="Windows_NT"
 
 model.summary <- function(g){
     g$q("
-select 
+select
 JSON_EXTRACT_SCALAR(smry,'$.w')  as allmods
 from  analysis.missioncontrol_v2_channel_summaries
 limit 1
@@ -542,13 +544,13 @@ from c A left join d
 on A.os=d.os and A.date=d.date and A.cv=d.cv
 order by modelname, os,major DESC,date DESC,minor DESC
 ),
-f as ( 
-select 
+f as (
+select
 os,date,cv,major,minor,adoption,modelname,
 case when modelname ='cci' then cci
-    when modelname ='cmi' then cmi 
+    when modelname ='cmi' then cmi
     when modelname ='ccr' then ccr
-    when modelname ='cmr' then cmr 
+    when modelname ='cmr' then cmr
     else -1 end as orig,
 c,lo90,hi90
 from e
@@ -601,13 +603,13 @@ from c A left join d
 on A.os=d.os and A.date=d.date and A.cv=d.cv
 order by modelname,model_date, os,major DESC,date DESC,minor DESC
 ),
-f as ( 
-select 
+f as (
+select
 os,date,cv,major,minor,adoption,modelname,model_date,
 case when modelname ='cci' then cci
-    when modelname ='cmi' then cmi 
+    when modelname ='cmi' then cmi
     when modelname ='ccr' then ccr
-    when modelname ='cmr' then cmr 
+    when modelname ='cmr' then cmr
     else -1 end as orig,
 c,lo90,hi90
 from e
@@ -616,8 +618,7 @@ g as (
 select os, cv,model_date,c,modelname, lo90,hi90,adoption from f
 where os!='overall' and  modelname in ('cr','ci') and cv=(select c_version from  analysis.missioncontrol_v2_channel_summaries where os='Windows_NT' and channel='{chan}')
 order by os,model_date
-) 
+)
 select * from g
 "))
 }
-

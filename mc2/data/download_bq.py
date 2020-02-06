@@ -8,10 +8,13 @@ from typing import Optional
 
 import pandas as pd  # type: ignore
 import release_versions as rv
+from bq_utils import BqLocation
 from pandas import DataFrame
 from pandas.testing import assert_frame_equal  # type: ignore
 
-SQL_FNAME = "data/download_template.sql"
+SQL_FNAME = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), "download_template.sql"
+)
 dbg = lambda: None
 SUB_DATE_FMT = "%Y-%m-%d"
 dash_date_fmt = str  # "%Y-%m-%d"
@@ -78,6 +81,21 @@ def beta_version_parse(disp_vers: str):
     if d.get("minor") is None:
         d["minor"] = "0"
         d["major"] = str(int(d["major"]) + 1)
+    return d
+
+
+def esr_version_parse(disp_vers: str):
+    disp_vers = disp_vers.rstrip("esr")
+    pat = re.compile(r"(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<dot>\d+))?$")
+
+    m = pat.match(disp_vers)
+    if not m:
+        raise ValueError(f"unable to parse version string: {disp_vers}")
+    d = m.groupdict()
+    if not d.get("dot"):
+        d["dot"] = "0"
+    minor = int(d.pop("minor")) * 100 + int(d.pop("dot"))
+    d["minor"] = minor
     return d
 
 
@@ -246,7 +264,6 @@ def add_fields(df, current_version, date0, till):
     Applied df by df to chunks as they are downloaded
     """
     date0, till = map(pd.to_datetime, [date0, till])
-    round_down = lambda x: 0 if x < 60 / 3600 else x
 
     df = df.assign(
         # date=date0,
@@ -256,13 +273,9 @@ def add_fields(df, current_version, date0, till):
         t=lambda x: (x.date - date0).astype("timedelta64[D]").astype(int),
     ).assign(
         cmi=lambda x: (1 + x.dau_cm_crasher_cversion) / x.dau_cversion,
-        cmr=lambda x: (1 + x.cmain)
-        / x.usage_cm_crasher_cversion.map(round_down),
-        # cmr=lambda x: (1 + x.cmain)
-        # .div(x.usage_cm_crasher_cversion).map(round_down),
+        cmr=lambda x: x.cmain / (x.usage_cm_crasher_cversion + 1 / 60),
         cci=lambda x: (1 + x.dau_cc_crasher_cversion) / x.dau_cversion,
-        ccr=lambda x: (1 + x.ccontent)
-        / x.usage_cc_crasher_cversion.map(round_down),
+        ccr=lambda x: x.ccontent / (x.usage_cc_crasher_cversion + 1 / 60),
         nvc=lambda x: x.usage_cversion / x.usage_all,
         os=lambda x: x.os.astype(os_dtype),
     )
@@ -281,8 +294,6 @@ def add_fields_single(df):
     Currently works for beta, but should be applied to other channels
     as well.
     """
-    round_down = lambda x: 0 if x < 60 / 3600 else x
-
     df = df.assign(
         isLatest=lambda x: x.date <= x.till,
         t=lambda x: (x.date - x.release_date)
@@ -290,11 +301,9 @@ def add_fields_single(df):
         .astype(int),
     ).assign(
         cmi=lambda x: (1 + x.dau_cm_crasher_cversion) / x.dau_cversion,
-        cmr=lambda x: (1 + x.cmain)
-        / x.usage_cm_crasher_cversion.map(round_down),
+        cmr=lambda x: x.cmain / (x.usage_cm_crasher_cversion + 1 / 60),
         cci=lambda x: (1 + x.dau_cc_crasher_cversion) / x.dau_cversion,
-        ccr=lambda x: (1 + x.ccontent)
-        / x.usage_cc_crasher_cversion.map(round_down),
+        ccr=lambda x: x.ccontent / (x.usage_cc_crasher_cversion + 1 / 60),
         nvc=lambda x: x.usage_cversion / x.usage_all,
         os=lambda x: x.os.astype(os_dtype),
     )
@@ -361,6 +370,10 @@ def pull_data_release(download_meta_data, sql_template, bq_read, process=True):
 def build_version_date_filter(meta, date_field, version_field):
     """
     meta: DataFrame['version', 'release_date', 'till']
+        - for channels with faster release cycles like
+        beta and nightly, `release_date` makes more sense,
+        but more generally the idea is
+        DataFrame['version', 'submission_start', 'submission_end']
     date_field: SQL field name for dates
     version_field: SQL field name for version
 
@@ -494,6 +507,92 @@ def pull_data_nightly(download_meta_data, sql_template, bq_read):
     return data2
 
 
+def pull_data_esr(download_meta_data, sql_template, bq_read):
+    """
+    @download_meta_data: DataFrame[version, min, max]
+        - version, and corresponding min/max submission dates
+    """
+    download_meta_data = download_meta_data.rename(
+        columns={"min": "release_date", "max": "till"}
+    )[["version", "release_date", "till"]].assign(
+        release_date=lambda x: x.release_date.map(to_sub_date_fmt),
+        till=lambda x: x.till.map(to_sub_date_fmt),
+    )
+
+    # Sometimes `app_display_version` has esr suffix, sometimes not
+    # https://sql.telemetry.mozilla.org/queries/67591/source
+    app_version_field = "app_version"
+    # https://sql.telemetry.mozilla.org/queries/67592/source
+    crash_build_version_field = "environment.build.version"
+
+    version_filter = build_version_date_filter(
+        download_meta_data,
+        date_field="date",
+        version_field="channel_app_version",
+    )
+    crash_version_filter = build_version_date_filter(
+        download_meta_data,
+        date_field="date",
+        version_field="channel_app_version_crash",
+    )
+
+    kwargs = dict(
+        norm_channel="esr",
+        app_version_field=app_version_field,
+        crash_build_version_field=crash_build_version_field,
+        min_sub_date=download_meta_data.release_date.min(),
+        max_sub_date=download_meta_data.till.max(),
+        current_usage_versions_dates=version_filter,
+        crash_current_versions_dates=crash_version_filter,
+    )
+
+    esr_query = sql_template.format(**kwargs)
+
+    with open("/tmp/s.sql", "w") as fp:
+        fp.write(esr_query)
+    # aa
+    data = bq_read(esr_query)
+
+    # date, till, c_version_rel need to be datetime
+    # This gets us the `release_date` and `till` columns,
+    # latter based on future release dates
+    data = (
+        data.merge(
+            download_meta_data,
+            left_on=["channel_app_version"],
+            right_on=["version"],
+        )
+        .drop("version", axis=1)
+        .assign(
+            **{
+                date_col: lambda x, c=date_col: pd.to_datetime(x[c])
+                for date_col in ["release_date", "date", "till"]
+            }
+        )
+    )
+
+    # `add_fields_single` needs `till` to calculate whether a version
+    # is still active (`isLatest`). We don't need it anymore after that though.
+    data = (
+        add_fields_single(data)
+        .rename(
+            columns={
+                "release_date": "c_version_rel",
+                "channel_app_version": "c_version",
+            }
+        )
+        .drop(["till"], axis=1)
+    )
+    data = add_version_elements(data, esr_version_parse, "c_version", to=int)
+    data = (
+        get_peak_date(data, "c_version")
+        .pipe(verbose_query("date <= peak_date"))
+        .drop(["peak_date"], axis=1)
+        .reset_index(drop=1)
+    )
+    return data
+
+
 ###########
 # Combine #
 ###########
@@ -523,16 +622,47 @@ def write(fname, txt):
 
 
 def pull_all_model_data(
-    bq_read, sql_fname=SQL_FNAME, sub_date_str: Optional[str] = None
+    bq_read,
+    sql_fname=SQL_FNAME,
+    sub_date_str: Optional[str] = None,
+    # channel: Optional[str] = None,
+    esr=False,
+    n_days_activity: int = 2,
 ):
+    """
+    @n_days_activity: only implemented for ESR.
+    """
     sub_date_str = sub_date_str or dt.datetime.today().strftime("%Y-%m-%d")
+    sql_template = read(sql_fname)
+    if esr:
+        channels = {"esr"}
+    else:
+        channels = {"release", "beta", "nightly", "esr"}
+    # Implemented for nightly, beta, esr
+    sql_template_single = read("data/download_template_single.sql")
 
     pd_all = rv.read_product_details()
+
+    if "esr" in channels:
+        metadata_esr = rv.prod_det_process_esr(
+            sub_date_str,
+            pd_all=pd_all,
+            n_days_activity=n_days_activity,
+            n_days_later=4,
+        )
+        print("ESR metadata:")
+        print(metadata_esr)
+
+        with pull_done("\nPulling ESR data"):
+            df_esr = pull_data_esr(metadata_esr, sql_template_single, bq_read)
+        df_esr = df_esr.assign(channel="esr")
+
+    if esr:
+        return df_esr
+
     pd_release_download = prod_det_process_release(
         pd_all, sub_date=sub_date_str
     )
-
-    sql_template = read(sql_fname)
 
     with pull_done("\nPulling release data"):
         df_release = pull_data_release(
@@ -545,8 +675,6 @@ def pull_all_model_data(
 
     print("Beta metadata:")
     print(pd_beta_download)
-
-    sql_template_single = read("data/download_template_single.sql")
     with pull_done("\nPulling beta data"):
         df_beta = pull_data_beta(
             pd_beta_download.rename(columns={"date": "release_date"}),
@@ -584,16 +712,15 @@ def pull_all_model_data(
 # Pull model data after it's been uploaded #
 ############################################
 def pull_model_data_pre_query(
-    bq_read_fn, channel, n_majors, analysis_table="wbeard_crash_rate_raw"
+    bq_read_fn, channel, n_majors, bq_loc: BqLocation
 ):
-    pre_query = """
-    select distinct major from `moz-fx-data-derived-datasets`.analysis.{table}
+    pre_query = f"""
+    select distinct major from {bq_loc.sql}
     where channel = '{channel}'
     ORDER BY major desc
-    LIMIT {n}
-    """.format(
-        table=analysis_table, n=n_majors, channel=channel
-    )
+    LIMIT {n_majors}
+    """
+    print(pre_query)
     pre_data = bq_read_fn(pre_query)
     prev_majors = pre_data.major.astype(int).tolist()
     prev_major_strs = ", ".join(map(str, prev_majors))
@@ -606,25 +733,29 @@ def pull_model_data_pre_query(
     return prev_major_strs
 
 
-def pull_model_data_(bq_read_fn, channel, n_majors, analysis_table):
+def pull_model_data_(bq_read_fn, channel, n_majors, bq_loc):
     prev_major_strs = pull_model_data_pre_query(
-        bq_read_fn, channel, n_majors, analysis_table
+        bq_read_fn, channel, n_majors, bq_loc
     )
 
-    pull_all_recent_query = """
-    select * from `moz-fx-data-derived-datasets`.analysis.{table}
+    pull_all_recent_query = f"""
+    select * from {bq_loc.sql}
     where channel = '{channel}'
-          and major in ({major_strs})
-    """.format(
-        table=analysis_table, channel=channel, major_strs=prev_major_strs
-    )
+          and major in ({prev_major_strs})
+    """
     print("Running query:\n", pull_all_recent_query)
     df = bq_read_fn(pull_all_recent_query)
     return df
 
 
 def download_raw_data(
-    bq_read_fn, channel, n_majors: int, analysis_table, outname=None
+    bq_read_fn,
+    channel,
+    n_majors: int,
+    table,
+    dataset="analysis",
+    project_id="moz-fx-data-derived-datasets",
+    outname=None,
 ):
     """
     Given a channel and a number of recent major version, return all of the
@@ -637,7 +768,8 @@ def download_raw_data(
     This will write the file to a temporary feather file and return the
     filename.
     """
-    df = pull_model_data_(bq_read_fn, channel, n_majors, analysis_table)
+    bq_loc = BqLocation(table, dataset=dataset, project_id=project_id)
+    df = pull_model_data_(bq_read_fn, channel, n_majors, bq_loc)
     if outname is None:
         outname = tempfile.NamedTemporaryFile(delete=False, mode="w+").name
     df.to_feather(outname)

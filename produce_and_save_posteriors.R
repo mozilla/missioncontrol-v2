@@ -22,7 +22,7 @@ last.model.date <- rjson::fromJSON(paste(last.model.date,collapse="\n"))[[1]]$x
 
 if(model.date == last.model.date & command.line$overwrite==1){
     loginfo("Overwriting model data from table since overwrite was chosen")
-    system("bq query --format=prettyjson --nouse_legacy_sql 'delete from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors where model_date={last.model.date}'")
+    system(glue("bq query --format=prettyjson --nouse_legacy_sql 'delete from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors where model_date=\"{last.model.date}\" '"))
     loginfo("Getting new model date")
     last.model.date <- system("bq query --format=prettyjson --nouse_legacy_sql 'select max(model_date) as x from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors'",intern=TRUE)
     last.model.date <- rjson::fromJSON(paste(last.model.date,collapse="\n"))[[1]]$x
@@ -41,7 +41,13 @@ nightly.list <- list(cmr = cr.cm.nightly, ccr = cr.cc.nightly, cmi = ci.cm.night
 ll.nightly <- make_posteriors(dall.nightly2, CHAN='nightly', model.date = model.date,model.list=nightly.list,last.model.date= last.model.date)
 if(!is.null(ll.nightly)&& nrow(ll.nightly)>0) loginfo(glue("Nightly Posteriors updated to include {model.date}"))
 
-all.posteriors <- rbindlist(list(ll.rel,ll.beta,ll.nightly))
+
+esr.list <- list(cmr = cr.cm.esr, ccr = cr.cc.esr, cmi = ci.cm.esr, cci = ci.cc.esr)
+ll.esr <- make_posteriors(dall.esr2, CHAN='esr', model.date = model.date,model.list=esr.list,last.model.date= last.model.date)
+if(!is.null(ll.esr)&& nrow(ll.esr)>0) loginfo(glue("esr Posteriors updated to include {model.date}"))
+
+
+all.posteriors <- rbindlist(list(ll.rel,ll.beta,ll.nightly,ll.esr))
 if(nrow(all.posteriors)>0 & backup.mode==1){
     ## Now write this
     atemp <- tempfile()
@@ -85,14 +91,27 @@ current.nightly.smry[, 'nolder':=older.nightly[os=='Windows_NT',.N]]
 current.nightly.smry[, channel:='nightly']
 current.nightly.smry[, asOf:=max(date)]
 
-channel.summary <- rbindlist(list(current.nightly.smry,current.beta.smry,current.release.smry))
+current.esr <- dall.esr2[c_version == getCurrentVersion(dall.esr2,'Windows_NT','release') ,]
+older.esr <-  dall.esr2[c_version == getPreviousVersion(dall.esr2,'Windows_NT','release') ,]
+current.esr.smry <- current.esr[, .SD[date==max(date),list(c_version,date,major,minor,nvc,dau_cversion,call,dau_call_crasher_cversion,usage_call_crasher_cversion)],by=os]
+current.esr.smry[, "ncurrent":=current.esr[os=='Windows_NT',.N]]
+current.esr.smry[, 'o_version':=older.esr[,c_version[1]]]
+current.esr.smry[, 'nolder':=older.esr[os=='Windows_NT',.N]]
+current.esr.smry[, channel:='esr']
+current.esr.smry[, asOf:=max(date)]
+
+
+channel.summary <- rbindlist(list(current.nightly.smry,current.beta.smry,current.release.smry,current.esr.smry))
 
 
 ## Now Add Some Model information
 
 all.models <- list("cr.cm.rel"=cr.cm.rel,"cr.cc.rel"=cr.cc.rel,"ci.cm.rel"=ci.cm.rel,"ci.cc.rel"=ci.cc.rel,
                "cr.cm.beta"=cr.cm.beta,"cr.cc.beta"=cr.cc.beta,"ci.cm.beta"=ci.cm.beta,"ci.cc.beta"=ci.cc.beta,
-               "cr.cm.nightly"=cr.cm.nightly,"cr.cc.nightly"=cr.cc.nightly,"ci.cm.nightly"=ci.cm.nightly,"ci.cc.nightly"=ci.cc.nightly)
+               "cr.cm.nightly"=cr.cm.nightly,"cr.cc.nightly"=cr.cc.nightly,"ci.cm.nightly"=ci.cm.nightly,"ci.cc.nightly"=ci.cc.nightly,
+               "cr.cm.esr"=cr.cm.esr,"cr.cc.esr"=cr.cc.esr,"ci.cm.esr"=ci.cm.esr,"ci.cc.esr"=ci.cc.esr
+               )
+
 bad.models <- names(all.models)[ unlist(Map(function(i,m){
     if(any( brms::rhat(m) >=1.1)) TRUE else FALSE
 },names(all.models),all.models))]
@@ -119,6 +138,8 @@ if(backup.mode==1){
                 " analysis.missioncontrol_v2_channel_summaries {atemp} ./channel_summary_schema.json"))
     loginfo("Uploaded Channel Summary")
 }
+
+
 
 
 

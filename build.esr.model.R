@@ -263,7 +263,7 @@ dx <- dall.rel2[date<="2020-01-13",]
 cmr2 <- brm(formula=bf(  log(cmr+1)  ~   0+Intercept+os + s(nvc,m=1,by=os) + (1+os|c_version),sigma~os),
             prior=c(
                 prior(normal( 0.79,1)  , coef='osLinux',class = "b"),
-                prior(normal(  1.06,1)  , coef='osWindows_NT',class = "b"),
+                prior(normal( 1.06,1)  , coef='osWindows_NT',class = "b"),
                 prior(normal( 0.51,1)  , coef='Intercept',group='c_version',class = "sd"), ## these came from actually running the model
                 prior(normal( 0.26,1)  , coef='osLinux',group='c_version',class = "sd"),
                 prior(normal( 0.35,1)  , coef='osWindows_NT',group='c_version',class = "sd"),

@@ -63,6 +63,7 @@ if(command.line$debug == "0"){
 dall.rel2 <- data.table(getModelDataForChannel("release",v=3,input_file=command.line$release_raw))[nvc>0,]
 dall.beta2 <- data.table(getModelDataForChannel("beta",v=2,input_file=command.line$beta_raw))[nvc>0,]
 dall.nightly2 <- data.table(getModelDataForChannel("nightly",v=2,input_file=command.line$nightly_raw))[nvc>0,]
+dall.esr2 <- data.table(getModelDataForChannel("esr",v=2,input_file=command.line$esr_raw))[nvc>0,]
 
 
 ## At the time of writing these field did not have the extra minute added and hence we had infinities
@@ -72,10 +73,11 @@ invisible({
     dall.rel2[,     ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
     dall.beta2[,    ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
     dall.nightly2[, ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
+    dall.esr2[, ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
     dall.rel2[,     ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
     dall.beta2[,    ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
     dall.nightly2[, ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
-
+    dall.esr2[, ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
 })
 
 
@@ -111,18 +113,46 @@ dall.nightly2 <- local({
     },by=list(os,c_version)]
 })
 
+## For ESR, its much like release except some majors overlap(by design)
+uesr <- local({
+    u <- jsonlite::fromJSON("https://product-details.mozilla.org/1.0/firefox.json")
+    uesr <- u$release[ unlist(Map(function(n,s) if(grepl("esr",n) || s$category=='esr') TRUE else FALSE,names(u$release), u$release)) ]
+    uesr <- rbindlist(Map(function(s1) data.table(c_version=s1$version, sdate = s1$date), uesr))[order(sdate),][, sdate:=as.Date(sdate)]
+    ## Add Major/Minor
+    uesr <- cbind(uesr,rbindlist(Map(function(s) {
+        f <- strsplit(s,".",fixed=TRUE)[[1]]
+        data.table(major = f[1], minor=paste(f[-1],collapse="."))
+    },uesr$c_version)))
+    ## For minors with major, the end date of a minor is the start date of subsequent minor
+    uesr <- uesr[,rdate:={
+        x <- .SD[order(sdate),]
+        as.Date(c(tail(x$sdate,-1),as.Date('2040-01-01')))
+    },by=major]
+    ## Now for major/minor dates=='2040-01-01' fill in with next most one
+    ## which will correspond to end date of last minor on previous major
+    ## This step is required since we two minors of a version overlap with
+    ## subsequent major version.
+    uesr[rdate=='2040-01-01', rdate:=uesr[ pmin(which((rdate=='2040-01-01'))+1,nrow(uesr)) ,rdate]]
+})
+
+
+dall.esr2 <- merge(dall.esr2,uesr[, list(c_version, rdate)], by="c_version",keep.x=TRUE)
+## And this is how  we remove data beyond the 'end' date of a major/minor
+dall.esr2 <- dall.esr2[date<=rdate][, rdate:=NULL]
 
 
 invisible({
     dall.rel2[, nvc.logit:=boot::logit(nvc)]
     dall.beta2[, nvc.logit:=boot::logit(nvc)]
     dall.nightly2[, nvc.logit:=boot::logit(nvc)]
+    dall.esr2[, nvc.logit:=boot::logit(nvc)]
 })
 
 loginfo("Using following dates")
 print(dall.rel2[, list(channel='release',UsingDateTill=max(date)),by=os][order(os),])
 print(dall.beta2[, list(channel='beta',UsingDateTill=max(date)),by=os][order(os),])
 print(dall.nightly2[, list(channel='nightly',UsingDateTill=max(date)),by=os][order(os),])
+print(dall.esr2[, list(channel='esr',UsingDateTill=max(date)),by=os][order(os),])
 
 ## BUILD MODELS
 loginfo(glue("Started Release Models, debug.mode = {debug.mode}"))
@@ -167,12 +197,26 @@ ci.cm.nightly <- label(value(ci.cm.nightly.f),'cmi');loginfo("Finished Nightly c
 ci.cc.nightly <- label(value(ci.cc.nightly.f),'cci');loginfo("Finished Nightly ci.cc");
 loginfo("Finished Nightly Models")
 
+
+loginfo(glue("Started esr Models,  debug.mode = {debug.mode}"))
+d.esr <- dall.esr2
+cr.cm.esr.f <- future({ make.a.model(d.esr,'cmr',channel='esr',debug=debug.mode,iter=4000) })
+cr.cc.esr.f <- future({ make.a.model(d.esr,'ccr',channel='esr',debug=debug.mode,iter=4000) })
+ci.cm.esr.f <- future({ make.a.model(d.esr,'cmi',channel='esr',debug=debug.mode,iter=4000,list0=list(adapt_delta = 0.99, max_treedepth=13)) })
+ci.cc.esr.f <- future({ make.a.model(d.esr,'cci',channel='esr',debug=debug.mode,iter=4000) })
+cr.cm.esr <- label(value(cr.cm.esr.f),'cmr');loginfo("Finished Esr cr.cm");
+cr.cc.esr <- label(value(cr.cc.esr.f),'ccr');loginfo("Finished Esr cr.cc");
+ci.cm.esr <- label(value(ci.cm.esr.f),'cmi');loginfo("Finished Esr ci.cm");
+ci.cc.esr <- label(value(ci.cc.esr.f),'cci');loginfo("Finished Esr ci.cc");
+loginfo("Finished esr Models")
+
 loginfo("Finished Modelling")
 
 
 all.models <- list("cr.cm.rel"=cr.cm.rel,"cr.cc.rel"=cr.cc.rel,"ci.cm.rel"=ci.cm.rel,"ci.cc.rel"=ci.cc.rel,
                "cr.cm.beta"=cr.cm.beta,"cr.cc.beta"=cr.cc.beta,"ci.cm.beta"=ci.cm.beta,"ci.cc.beta"=ci.cc.beta,
-               "cr.cm.nightly"=cr.cm.nightly,"cr.cc.nightly"=cr.cc.nightly,"ci.cm.nightly"=ci.cm.nightly,"ci.cc.nightly"=ci.cc.nightly)
+               "cr.cm.nightly"=cr.cm.nightly,"cr.cc.nightly"=cr.cc.nightly,"ci.cm.nightly"=ci.cm.nightly,"ci.cc.nightly"=ci.cc.nightly,
+               "cr.cm.esr"=cr.cm.esr,"cr.cc.esr"=cr.cc.esr,"ci.cm.esr"=ci.cm.esr,"ci.cc.esr"=ci.cc.esr)
 
 bad.models <- names(all.models)[ unlist(Map(function(i,m){
     if(any( brms::rhat(m) >=1.1)) TRUE else FALSE
@@ -186,4 +230,6 @@ n <- as.character(dall.rel2[,max(date)])
 save(cr.cm.rel,cr.cc.rel,ci.cm.rel,ci.cc.rel,n,
      cr.cm.beta,cr.cc.beta,ci.cm.beta,ci.cc.beta,
      cr.cm.nightly,cr.cc.nightly,ci.cm.nightly,ci.cc.nightly,
-     dall.rel2,dall.beta2,dall.nightly2,file=command.line$out)
+     cr.cm.esr,cr.cc.esr,ci.cm.esr,ci.cc.esr,
+     dall.rel2,dall.beta2,dall.nightly2,dall.esr2,
+     file=command.line$out)

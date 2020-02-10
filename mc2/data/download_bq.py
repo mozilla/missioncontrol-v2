@@ -698,6 +698,7 @@ def pull_all_model_data(
             df_release.assign(channel="release"),
             df_beta.assign(channel="beta"),
             df_nightly.assign(channel="nightly"),
+            df_esr.assign(channel="esr"),
         ],
         ignore_index=True,
         sort=False,

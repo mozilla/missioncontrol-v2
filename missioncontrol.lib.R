@@ -319,53 +319,53 @@ make_posteriors <- function(mydata, CHAN,model.date,model.list,last.model.date){
     ## Only keep latest dates since all prior dates will have same crash rate
     mydata.posteriors.at <-
         mydata.posteriors.at[, .SD[date==max(date),],by=list(channel, os, c_version,major,minor)]
-
+    mydata.posteriors.at[, date:=as.Date('1970-01-01')]
     ## Posteriors for CR(M,C) and CI(M,C)
     ## For Operating Systems
     posterior.os.individual.metrics <- rbindlist(Map(function(m, w){
         mydata.posteriors <- getPredictions(M=m,D=mydata.posteriors.at,nsamples=Nposterior)
         mydata.posteriors <- rbindlist(lapply(1:nrow(mydata.posteriors.at),function(i){
-            cbind( mydata.posteriors.at[i,],data.table(modelname = w,rep=1:Nposterior, posterior=mydata.posteriors[i,]))
+            cbind( mydata.posteriors.at[i,],data.table(rep=1:Nposterior, modelname = w,posterior=mydata.posteriors[i,]))
         }))
     }, m=model.list,w=names(model.list)))
 
     ## Posteriors for CR-Score and CI-Score
     ## For operating systems
-    mydata.posteriors.cr.cm <- getPredictions(M=model.list$cmr,,D=mydata.posteriors.at,nsamples=Nposterior)
-    mydata.posteriors.cr.cc <- getPredictions(M=model.list$ccr,,D=mydata.posteriors.at,nsamples=Nposterior)
-    mydata.posteriors.cr <- mydata.posteriors.cr.cm + mydata.posteriors.cr.cc
 
-    mydata.posteriors.ci.cm <- getPredictions(M=model.list$cmi,,D=mydata.posteriors.at,nsamples=Nposterior)
-    mydata.posteriors.ci.cc <- getPredictions(M=model.list$cci,D=mydata.posteriors.at,nsamples=Nposterior)
-    mydata.posteriors.ci <- mydata.posteriors.ci.cm + mydata.posteriors.ci.cc
+    posterior.os.individual.metrics <- rbind(posterior.os.individual.metrics,
+                                             posterior.os.individual.metrics[,rbind(
+        data.table(modelname = 'cr', posterior = .SD[modelname=='cmr',posterior]+ .SD[modelname=='ccr',posterior]),
+        data.table(modelname = 'ci', posterior = .SD[modelname=='cmi',posterior]+ .SD[modelname=='cci',posterior])),
+        by=list(channel, os, c_version,major,minor,model_date,
+                date,
+                nvc, dau_cversion, usage_cc_crasher_cversion, usage_cm_crasher_cversion, rep)]
+       )
 
-    posterior.os.individual.scores <- rbind(
-        rbindlist(lapply(1:nrow(mydata.posteriors.at),function(i){
-            cbind( mydata.posteriors.at[i,],data.table(modelname = 'cr',rep=1:Nposterior, posterior=mydata.posteriors.cr[i,]))
-        })),
-        rbindlist(lapply(1:nrow(mydata.posteriors.at),function(i){
-            cbind( mydata.posteriors.at[i,],data.table(modelname = 'ci',rep=1:Nposterior, posterior=mydata.posteriors.ci[i,]))
-        }))
-    )
-
-    ttmp <- rbind(posterior.os.individual.scores,posterior.os.individual.metrics)
+    ## Now OVERALL SCORES
+    ttmp <-  posterior.os.individual.metrics
     ttmp2 <- ttmp[,{
+        if(.BY$modelname=='cmi') { X<<-.SD; Y<<-.BY}
         osdarwin  <- .SD[os=='Darwin',][order(rep),]
         oswindows <- .SD[os=='Windows_NT',][order(rep),]
         oslinux   <- .SD[os=='Linux',][order(rep),]
-        ns <- c(nrow(osdarwin),nrow(oswindows),nrow(oslinux))
+        ns <- c(darwin=nrow(osdarwin),windows=nrow(oswindows),linux=nrow(oslinux))
+        if(any(ns==0))
+            loginfo(glue("OS LEVEL SCORE: missing operating system data for {paste(c(.BY$modelname,.BY$c_version,as.character(.BY$model_date)),collapse=',')} ones absent: {paste(names(ns)[ns==0],collapse=',')}"))
         if(!(sum(ns==0)>=2) ){
             osall <- apply(cbind(osdarwin[,posterior], oswindows[,posterior], oslinux[,posterior]),1,mean)
             if(length(osall) >0){
                 .SD[, list(os='overall', nvc=0, dau_cversion=0, usage_cc_crasher_cversion =0,usage_cm_crasher_cversion=0, rep=1:length(osall), posterior=osall)]
             }
         }
-    },by=list(channel, c_version, major, minor,date,model_date,modelname)]
+    },by=list(channel, c_version, major, minor,
+              date,
+              model_date,modelname)]
+    
     if(nrow(ttmp2)>0){
-        ttmp2 <- ttmp2[, list(channel,os,c_version,major,minor,model_date,date,nvc,dau_cversion,usage_cc_crasher_cversion,usage_cm_crasher_cversion,modelname,rep,posterior)]
+        ttmp2 <- ttmp2[, list(channel,os,c_version,major,minor,model_date, date, nvc,dau_cversion,usage_cc_crasher_cversion,usage_cm_crasher_cversion,rep,modelname,posterior)]
         posterior.os.all <- rbind(ttmp,ttmp2)
     }else posterior.os.all <- ttmp
-    posterior.os.all
+    posterior.os.all[, list(channel,os,c_version,major,minor,model_date, date, nvc,dau_cversion,usage_cc_crasher_cversion,usage_cm_crasher_cversion,modelname,rep,posterior)]
 }
 
 

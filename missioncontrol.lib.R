@@ -319,7 +319,7 @@ make_posteriors <- function(mydata, CHAN,model.date,model.list,last.model.date){
     ## Only keep latest dates since all prior dates will have same crash rate
     mydata.posteriors.at <-
         mydata.posteriors.at[, .SD[date==max(date),],by=list(channel, os, c_version,major,minor)]
-    mydata.posteriors.at[, date:=as.Date('1970-01-01')]
+    mydata.posteriors.at[, date:=as.Date('2970-01-01')]
     ## Posteriors for CR(M,C) and CI(M,C)
     ## For Operating Systems
     posterior.os.individual.metrics <- rbindlist(Map(function(m, w){
@@ -519,7 +519,7 @@ APPROX_QUANTILES(posterior, 100)[OFFSET(50)] as c,
 APPROX_QUANTILES(posterior, 100)[OFFSET(5)] as lo90,
 APPROX_QUANTILES(posterior, 100)[OFFSET(95)] as hi90,
 from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors
-where channel='{chan}' and date>=DATE_SUB(CURRENT_DATE(), INTERVAL {nmonth} MONTH)
+where channel='{chan}' and model_date>=DATE_SUB(CURRENT_DATE(), INTERVAL {nmonth} MONTH)
 --and os != 'overall'
 group by 1,2,3,4,5
 order by 2,1,3,4,5

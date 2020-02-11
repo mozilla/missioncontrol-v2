@@ -75,7 +75,10 @@ esr.info <- channel.info('esr',g)
 
 ccsv <- rbindlist(list(posterior.evolution('release',6,g),
                        posterior.evolution('beta',6,g),
-                       posterior.evolution('nightly',6,g)))
+                       posterior.evolution('nightly',6,g),
+                       posterior.evolution('esr',6,g)
+                       ))
+
 fwrite(ccsv,file="./mc2_rate_incidence_evolution.csv",row.names=FALSE,quote=TRUE,na=0)
 
 plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,pointSize=65,x.is.date=FALSE){
@@ -359,6 +362,82 @@ makePlot(nightly.info$evolution, 'cmi',"Main Crash Incidence(%)","Incidence")
 makePlot(nightly.info$evolution, 'cci',"Content Crash Incidence(%)","Incidence")
 
 ```
+
+
+
+### ESR 
+
+`asOf` is the date till which the model uses data
+
+
+```{r eval=TRUE, echo=FALSE}
+
+datatable(esr.info$version, caption = 'Comparing Current Version To ... ',
+          colnames=c("Current Version","Days Present","Older Version","Days Present", "asOf"),
+          options = list(
+              searching = FALSE,columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = 1,lengthChange = FALSE,dom = 't'),rownames= FALSE
+          )
+
+datatable(esr.info$usage[, DAU_on_Current := if(params$isPublic=='yes') NA else  DAU_on_Current],   caption = 'Usage on Current',
+          colnames=c("OS","Adoption","Total Crashes","DAU On Current"),
+          options = list(
+              searching = FALSE,columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = nrow(release.info$usage),lengthChange = FALSE,dom = 't'),rownames= FALSE
+          ) 
+
+
+
+```
+
+
+
+```{r echo=FALSE,eval=TRUE}
+datatable(esr.info$summary[type=='rate',list(os,Score,CM,CC)], caption = 'Crash Rate Summary',
+          rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
+          options = list(
+              searching = FALSE,dom='t',lengthChange=FALSE,
+              columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = nrow(esr.info$summary)))
+
+datatable(esr.info$summary[type=='incidence',list(os,Score,CM,CC)], caption = 'Crash Incidence Summary',
+          rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
+          options = list(
+              searching = FALSE,dom='t',lengthChange=FALSE,
+              columnDefs = list(list(className = 'dt-center',targets="_all")),
+              pageLength = nrow(esr.info$summary)))
+
+```
+
+
+
+
+- Click on an OS in the legend to hide others and click on the chart to bring
+them all back
+- use scroll to zoom in/out figures
+
+
+```{r echo=FALSE,eval=FALSE}
+makePlot(esr.info$evolution, 'cmr',"Main Crash Rate","Rate")
+makePlot(esr.info$evolution, 'ccr',"Content Crash Rate","Rate")
+makePlot(esr.info$evolution, 'cmi',"Main Crash Incidence(%)","Incidence")
+makePlot(esr.info$evolution, 'cci',"Content Crash Incidence(%)","Incidence")
+
+```
+
+
+#### Estimates of Release Crash Rate over Time for Current Version
+
+```{r echo=FALSE,eval=FALSE}
+w <- plotEvolution(esr.info$change[modelname=='cr',][, date := as.Date(model_date)], title="Crash Rate SCORE", xtip='Rate',width=990,height=300,x.is.date=TRUE)
+vegawidget(as_vegaspec(w),embed=vega_embed(actions=TRUE))
+
+w <- plotEvolution(esr.info$change[modelname=='ci',][, ':='(date = as.Date(model_date),c = c*100,lo90=lo90*100,hi90=hi90*100)]
+                 , title="Crash Incidence SCORE(%)", xtip='Incidence',width=990,height=300,x.is.date=TRUE)
+vegawidget(as_vegaspec(w),embed=vega_embed(actions=TRUE))
+
+```
+
 
 
 ### Download CSV of Crash Metrics

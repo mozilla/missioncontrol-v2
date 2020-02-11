@@ -70,6 +70,7 @@ channel.info <- function(channel,g){
 release.info <- channel.info('release',g)
 beta.info <- channel.info('beta',g)
 nightly.info <- channel.info('nightly',g)
+esr.info <- channel.info('esr',g)
 
 
 ccsv <- rbindlist(list(posterior.evolution('release',6,g),

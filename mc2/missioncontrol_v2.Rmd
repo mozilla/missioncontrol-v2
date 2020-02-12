@@ -83,7 +83,6 @@ ccsv <- rbindlist(list(posterior.evolution('release',6,g),
 fwrite(ccsv,file="./mc2_rate_incidence_evolution.csv",row.names=FALSE,quote=TRUE,na=0)
 
 plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,pointSize=65,x.is.date=FALSE){
-    print(f)
     u3 <- list(
         `$schema` = vega_schema(),
         data = list(values = f),

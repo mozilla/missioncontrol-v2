@@ -55,6 +55,7 @@ knitr::opts_chunk$set(  echo=FALSE,warning=FALSE,message=FALSE,eval=TRUE)
 ```
 
 ```{r echo=FALSE,warning=FALSE, results='hide',message=FALSE,eval=if(exists("_donotrun_")) FALSE else TRUE}
+
 library(DT)
 source("../missioncontrol.lib.R")
 g <- bq()
@@ -417,7 +418,7 @@ them all back
 - use scroll to zoom in/out figures
 
 
-```{r echo=FALSE,eval=FALSE}
+```{r echo=FALSE,eval=TRUE}
 makePlot(esr.info$evolution, 'cmr',"Main Crash Rate","Rate")
 makePlot(esr.info$evolution, 'ccr',"Content Crash Rate","Rate")
 makePlot(esr.info$evolution, 'cmi',"Main Crash Incidence(%)","Incidence")
@@ -428,7 +429,7 @@ makePlot(esr.info$evolution, 'cci',"Content Crash Incidence(%)","Incidence")
 
 #### Estimates of Release Crash Rate over Time for Current Version
 
-```{r echo=FALSE,eval=FALSE}
+```{r echo=FALSE,eval=TRUE}
 w <- plotEvolution(esr.info$change[modelname=='cr',][, date := as.Date(model_date)], title="Crash Rate SCORE", xtip='Rate',width=990,height=300,x.is.date=TRUE)
 vegawidget(as_vegaspec(w),embed=vega_embed(actions=TRUE))
 

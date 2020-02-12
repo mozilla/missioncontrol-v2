@@ -504,8 +504,7 @@ sr, f1.os, 'incidence' as type , stringify(Score,Score_rl,true,whatColor(Score_I
  stringify(CC, CC_rl,true,whatColor(CC_Imp, CC_Reg)) as CC,
 from f1 join f2 on f1.os=f2.os  join f3 on f2.os=f3.os join osorder on osorder.os=f3.os order by sr ),
 final as (select *   from e union all  select * from f order by type DESC,sr)
---select * except(sr) from final
-select * from b
+select * except(sr) from final
 "),-1)
 }
 

@@ -139,8 +139,6 @@ plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,
     )
     u3
 }
-w <- plotEvolution(release.info$change[modelname=='cr',][, date := strftime(as.Date(model_date) , "%Y-%m-%d")][, Date := date], title="Crash Rate SCORE", xtip='Rate',width=990,height=300,x.is.date=TRUE)
-vegawidget(as_vegaspec(w),embed=vega_embed(actions=TRUE))
 
 
 makePlot <- function(evo,typec,title,xtip,width=990,height=200){
@@ -226,10 +224,10 @@ makePlot(release.info$evolution, 'cci',"Content Crash Incidence(%)","Incidence")
 #### Estimates of Release Crash Rate over Time for Current Version
 
 ```{r echo=FALSE}
-w <- plotEvolution(release.info$change[modelname=='cr',][, date := as.Date(model_date)], title="Crash Rate SCORE", xtip='Rate',width=990,height=300,x.is.date=TRUE)
+w <- plotEvolution(release.info$change[modelname=='cr',][, date := strftime(as.Date(model_date) , "%Y-%m-%d")][, Date := date], title="Crash Rate SCORE", xtip='Rate',width=990,height=300,x.is.date=TRUE)
 vegawidget(as_vegaspec(w),embed=vega_embed(actions=TRUE))
 
-w <- plotEvolution(release.info$change[modelname=='ci',][, ':='(date = as.Date(model_date),c = c*100,lo90=lo90*100,hi90=hi90*100)]
+w <- plotEvolution(release.info$change[modelname=='ci',][, ':='(date = as.Date(model_date),c = c*100,lo90=lo90*100,hi90=hi90*100)][, date := strftime(date , "%Y-%m-%d")][, Date := date]
                  , title="Crash Incidence SCORE(%)", xtip='Incidence',width=990,height=300,x.is.date=TRUE)
 vegawidget(as_vegaspec(w),embed=vega_embed(actions=TRUE))
 
@@ -433,12 +431,13 @@ makePlot(esr.info$evolution, 'cci',"Content Crash Incidence(%)","Incidence")
 #### Estimates of Release Crash Rate over Time for Current Version
 
 ```{r echo=FALSE,eval=TRUE}
-w <- plotEvolution(esr.info$change[modelname=='cr',][, date := as.Date(model_date)], title="Crash Rate SCORE", xtip='Rate',width=990,height=300,x.is.date=TRUE)
+w <- plotEvolution(esr.info$change[modelname=='cr',][, date := strftime(as.Date(model_date) , "%Y-%m-%d")][, Date := date], title="Crash Rate SCORE", xtip='Rate',width=990,height=300,x.is.date=TRUE)
 vegawidget(as_vegaspec(w),embed=vega_embed(actions=TRUE))
 
-w <- plotEvolution(esr.info$change[modelname=='ci',][, ':='(date = as.Date(model_date),c = c*100,lo90=lo90*100,hi90=hi90*100)]
+w <- plotEvolution(esr.info$change[modelname=='ci',][, ':='(date = as.Date(model_date),c = c*100,lo90=lo90*100,hi90=hi90*100)][, date := strftime(date , "%Y-%m-%d")][, Date := date]
                  , title="Crash Incidence SCORE(%)", xtip='Incidence',width=990,height=300,x.is.date=TRUE)
 vegawidget(as_vegaspec(w),embed=vega_embed(actions=TRUE))
+
 
 ```
 

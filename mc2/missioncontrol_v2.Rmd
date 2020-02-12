@@ -83,6 +83,7 @@ ccsv <- rbindlist(list(posterior.evolution('release',6,g),
 fwrite(ccsv,file="./mc2_rate_incidence_evolution.csv",row.names=FALSE,quote=TRUE,na=0)
 
 plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,pointSize=65,x.is.date=FALSE){
+    print(f)
     u3 <- list(
         `$schema` = vega_schema(),
         data = list(values = f),
@@ -105,7 +106,7 @@ plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,
                 encoding = list(
                     size = list(value=pointSize),
                     x = if(x.is.date){
-                            list(field="date", timeUnit= "yearmonthdate",type='temporal', axis=list(title="Model Date",labelOverlap='parity')) 
+                            list(field="date", timeUnit= "utcyearmonthdate",type='temporal', axis=list(title="Model Date",labelOverlap='parity')) 
                         }else{
                             list(field="cv", type='ordinal', axis=list(title="",labelOverlap='parity'), sort=list(field="ordering",op='count'))
                         },
@@ -113,7 +114,7 @@ plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,
                     color = list(field = "os", type = "nominal",scale=list(scheme="set1")),
                     shape=if(x.is.date) NULL else list(field='major', type='nominal'),
                     opacity = list(condition = list(selection="opsys",value = 1),value = 0.1),
-                    tooltip=list(list(field = "date",type="temporal"),
+                    tooltip=list(list(field = "Date",type="ordinal"),
                                  list(field=if('nightly' %in% f$channel) 'cv2' else 'cv', type='ordinal',title='Version'),
                                  list(field='cv', type='ordinal',title='Version'),
                                  list(field = "Adoption",type="ordinal"),
@@ -125,7 +126,7 @@ plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,
                 encoding = list(
                     size = list(value=1),
                     x =  if(x.is.date){
-                             list(field="date", timeUnit= "yearmonthdate",  type='temporal', axis=list(title="Model Date",labelOverlap='parity'))
+                             list(field="date", timeUnit= "utcyearmonthdate",  type='ordinal', axis=list(title="Model Date",labelOverlap='parity'))
                          }else{
                              list(field="cv", type='ordinal',sort=list(field="ordering",op='count'))
                          },
@@ -139,10 +140,14 @@ plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,
     )
     u3
 }
+w <- plotEvolution(release.info$change[modelname=='cr',][, date := strftime(as.Date(model_date) , "%Y-%m-%d")][, Date := date], title="Crash Rate SCORE", xtip='Rate',width=990,height=300,x.is.date=TRUE)
+vegawidget(as_vegaspec(w),embed=vega_embed(actions=TRUE))
+
 
 makePlot <- function(evo,typec,title,xtip,width=990,height=200){
     xx <- evo[os!='overall' & modelname == typec,]
     xx <-merge(xx, xx[, .SD[order(major,minor),][,list(date, major,minor, ordering = 1:.N)],by=os], by=c("os","date","major","minor"))
+    xx[, Date := strftime(date,"%Y-%m-%d")]
     if(xtip=='Incidence') xx[,':='(c = c*100,lo90=lo90*100,hi90=hi90*100)]
     xy <- plotEvolution(xx, title=title, xtip=xtip,width=width,height=height)
     vegawidget(as_vegaspec(xy),embed=vega_embed(actions=TRUE))
@@ -393,20 +398,19 @@ datatable(esr.info$usage[, DAU_on_Current := if(params$isPublic=='yes') NA else 
 
 
 
-```{r echo=FALSE,eval=TRUE}
+```{r echo=FALSE,eval=nrow(esr.info)>0}
 datatable(esr.info$summary[type=='rate',list(os,Score,CM,CC)], caption = 'Crash Rate Summary',
-          rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
-          options = list(
-              searching = FALSE,dom='t',lengthChange=FALSE,
-              columnDefs = list(list(className = 'dt-center',targets="_all")),
-              pageLength = nrow(esr.info$summary)))
-
+              rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
+              options = list(
+                  searching = FALSE,dom='t',lengthChange=FALSE,
+                  columnDefs = list(list(className = 'dt-center',targets="_all")),
+                  pageLength = nrow(esr.info$summary)))
 datatable(esr.info$summary[type=='incidence',list(os,Score,CM,CC)], caption = 'Crash Incidence Summary',
-          rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
-          options = list(
-              searching = FALSE,dom='t',lengthChange=FALSE,
-              columnDefs = list(list(className = 'dt-center',targets="_all")),
-              pageLength = nrow(esr.info$summary)))
+              rownames=FALSE,colnames=c('OS','Score','Main Crash','Content Crash'),
+              options = list(
+                  searching = FALSE,dom='t',lengthChange=FALSE,
+                  columnDefs = list(list(className = 'dt-center',targets="_all")),
+                  pageLength = nrow(esr.info$summary)))
 
 ```
 

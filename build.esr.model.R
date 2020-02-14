@@ -406,15 +406,15 @@ mean( (oo73-oo72)/oo72*100 > 20)
 
 
 
-y73 <- fread("https://sql.telemetry.mozilla.org/api/queries/68289/results.csv?api_key=d4VL1jBjwCz4khKk5ARWJLasNCYGGS8N2UEjVGqa")[order(date),]
-y72 <- fread("https://sql.telemetry.mozilla.org/api/queries/68290/results.csv?api_key=dVc0rlUK3cjyzJyRPSgspckI1PJhGnKxnZdGSocp")[order(date),]
+y73 <- fread("https://sql.telemetry.mozilla.org/api/queries/68289/results.csv?api_key=d4VL1jBjwCz4khKk5ARWJLasNCYGGS8N2UEjVGqa")[order(date),][,lab:='73']
+y72 <- fread("https://sql.telemetry.mozilla.org/api/queries/68290/results.csv?api_key=dVc0rlUK3cjyzJyRPSgspckI1PJhGnKxnZdGSocp")[order(date),][,lab:='72.0.2']
 y722 <- y72[nvc<max(y73$nvc),]
-ggplot(y73,aes(nvc, cmr))+geom_point(color='red')+geom_smooth(color='red')+
-    geom_point(data=y722,aes(x=nvc,y=cmr),color='blue')+geom_smooth(data=y722,aes(x=nvc,y=cmr),color='blue')
-ggplot(y73,aes(nvc, cmi*100))+geom_point(color='red')+geom_smooth(color='red')+
-    geom_point(data=y722,aes(x=nvc,y=cmi*100),color='blue')+geom_smooth(data=y722,aes(x=nvc,y=cmi*100),color='blue')
 
+y <- rbind(y73,y722)
+ggplot(y,aes(nvc, cmr,color=lab,fill=lab))+geom_point()+geom_smooth()
+ggplot(y,aes(nvc, cmi*100,color=lab,fill=lab))+geom_point()+geom_smooth()
 dev.off()
 
+m1 <- gam( cmi ~ lab+s(nvc,by=lab),data=y)
 
 

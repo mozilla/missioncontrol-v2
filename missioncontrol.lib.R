@@ -469,7 +469,7 @@ b0 as (select os,model_date,modelname,c_version as ov,rep,posterior as op from `
 ),
 b00 as ( select os, max(model_date) as max_model_date from b0 group by 1) ,
 b as (select b0.* from b0 join b00 on b0.os=b00.os and b0.model_date = b00.max_model_date),
-c as (select a.os,a.modelname,cv,ov,a.rep,cp, ( cp-op)/op as rel from a join b on a.os=b.os and a.rep=b.rep and a.modelname=b.modelname),
+c as (select a.os,a.modelname,cv,ov,a.rep,cp, SAFE_DIVIDE( cp-op,op) as rel from a join b on a.os=b.os and a.rep=b.rep and a.modelname=b.modelname),
 d as (select os, modelname, cv,ov,
  APPROX_QUANTILES(cp, 100)[OFFSET(50)] as c,
  APPROX_QUANTILES( rel,100)[OFFSET(50)] as relchange,

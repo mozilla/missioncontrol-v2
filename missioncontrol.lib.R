@@ -15,7 +15,12 @@ library(feather)
 library(rmarkdown)
 })
                                         #library(future.apply)
-options(error = function() traceback(3))
+options(error = function() {
+    traceback(3);
+    options(error = NULL)
+    stop(geterrmessage())
+})
+
 options(future.globals.maxSize= 850*1024^2 )
 options(width=200)
 Lapply <- lapply #future_lapply

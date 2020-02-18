@@ -114,35 +114,35 @@ make.a.model <- function(data,wh,channel='not-nightly',debug=0,bff=NULL,list0=NU
 
     alter <- TRUE
     if(wh=="cmr"){
-        M0 <- bf(  log(cmr)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
+        M0 <- bf(  log(1+cmr)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
         if(channel %in% c('beta')){
-            M0 <- bf(  log(cmr)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
+            M0 <- bf(  log(1+cmr)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
         }
         if(channel %in% c("nightly")){
-            M0 <- bf(  log(cmr)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
+            M0 <- bf(  log(1+cmr)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
         }
         if(channel %in% c("esr")){
             M0 <- bf(  cmain+1   ~  os+offset(log( usage_cm_crasher_cversion+1/60)) +  s(nvc, m = 1) + (1+os|c_version)
                     ,shape~os )+negbinomial()
         }
         if(debug==1){
-            M0 <-  bf(  log(cmr)  ~  os  )
+            M0 <-  bf(  log(1+cmr)  ~  os  )
             }
         if(!is.null(bff)) M0 <- bff
     }
     if(wh=='ccr'){
-        M0 <- bf(  log(ccr)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
+        M0 <- bf(  log(1+ccr)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
         if(channel %in% c('beta')){
-            M0 <- bf(  log(ccr)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
+            M0 <- bf(  log(1+ccr)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
         }
         if(channel %in% c("nightly")){
-            M0 <- bf(  log(ccr)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
+            M0 <- bf(  log(1+ccr)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
         }
         if(channel %in% "esr"){
-            M0 <- bf(  log(ccr)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
+            M0 <- bf(  log(1+ccr)  ~  os +  s(nvc, m = 1) + (1+os|c_version),sigma~os  )
         }
         if(debug==1){
-                M0 <- bf(  log(ccr)  ~  os +  nvc )
+                M0 <- bf(  log(1+ccr)  ~  os +  nvc )
         }
         if(!is.null(bff)) M0 <- bff
     }
@@ -207,13 +207,13 @@ getPredictions <- function(M,D, wh=NULL,givenx=NULL,summary=FALSE,ascale='respon
     }
     if(wh=='cmr'){
         if(fa == 'gaussian'){
-            r <-  exp(t(x)) #-1
+            r <-  pmax(0,exp(t(x))-1)
         }else if(fa=='negbinomial'){
             r <- exp( t(x) - D[, log( usage_cm_crasher_cversion+1/60)])
         }else stop(glue('what family? {fa}'))
     }else if(wh=='ccr'){
         if(fa=='gaussian'){
-            r <-  exp(t(x)) #-1
+            r <-  pmax(0,exp(t(x))-1)
         }else if(fa=='negbinomial'){
             r <- exp(t(x) -  D[, log( usage_cc_crasher_cversion+1/60)])
         }else stop(glue('what family? {fa}'))

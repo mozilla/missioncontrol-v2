@@ -46,8 +46,7 @@ python data/crud.py dl_raw  --creds_loc {BQCREDS}  --channel {ch} --n_majors {v}
 ## Rscript build.models.firefox.desktop.R --debug=1 --release_raw=path-to-release-feather
 ## You can also name the output file (default is ./all.the.data.intermediate.Rdata)
 ## Rscript build.models.firefox.desktop.R --debug=1 --out=./all.the.data.intermediate.Rdata
-
-command.line <- commandArgs(asValues=TRUE,defaults=list(debug="0",out="./all.the.data.intermediate.Rdata"),unique=TRUE)
+command.line <- commandArgs(asValues=TRUE,defaults=list(debug="0",out="./all.the.data.Rdata"),unique=TRUE)
 
 if(command.line$debug == "0"){
     debug.mode <- 0
@@ -70,10 +69,10 @@ dall.esr2 <- data.table(getModelDataForChannel("esr",v=2,input_file=command.line
 ## this protects from that. Ideally this should be in the SQL code.
 
 invisible({
-    dall.rel2[,     ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
-    dall.beta2[,    ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
-    dall.nightly2[, ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
-    dall.esr2[, ":="(cmr=cmain/(usage_cm_crasher_cversion+1/60),ccr=ccontent/(usage_cc_crasher_cversion+1/60))]
+    dall.rel2[,     ":="(cmr=(cmain)/(usage_cm_crasher_cversion+1/60),ccr=(ccontent)/(usage_cc_crasher_cversion+1/60))]
+    dall.beta2[,    ":="(cmr=(cmain)/(usage_cm_crasher_cversion+1/60),ccr=(ccontent)/(usage_cc_crasher_cversion+1/60))]
+    dall.nightly2[, ":="(cmr=(cmain)/(usage_cm_crasher_cversion+1/60),ccr=(ccontent)/(usage_cc_crasher_cversion+1/60))]
+    dall.esr2[,     ":="(cmr=(cmain)/(usage_cm_crasher_cversion+1/60),ccr=(ccontent)/(usage_cc_crasher_cversion+1/60))]
     dall.rel2[,     ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
     dall.beta2[,    ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
     dall.nightly2[, ":="(cmi.logit=boot::logit(cmi), cci.logit=boot::logit(cci))]
@@ -84,7 +83,7 @@ invisible({
 
 ## Is this or in SQL the best place for this to be?  I can;'t really
 ## say. Nevertheless, this is where we keep 'valid' data'. I will
-## explain this For release, keep data for a version till a new one is
+e## explain this For release, keep data for a version till a new one is
 ## released (similar to ESR, with no overlap).
 dall.rel2 <-local({
     u <- jsonlite::fromJSON("https://product-details.mozilla.org/1.0/firefox.json")
@@ -215,10 +214,11 @@ loginfo("Finished Modelling")
 
 all.models <- list("cr.cm.rel"=cr.cm.rel,"cr.cc.rel"=cr.cc.rel,"ci.cm.rel"=ci.cm.rel,"ci.cc.rel"=ci.cc.rel,
                "cr.cm.beta"=cr.cm.beta,"cr.cc.beta"=cr.cc.beta,"ci.cm.beta"=ci.cm.beta,"ci.cc.beta"=ci.cc.beta,
-               "cr.cm.nightly"=cr.cm.nightly,"cr.cc.nightly"=cr.cc.nightly,"ci.cm.nightly"=ci.cm.nightly,"ci.cc.nightly"=ci.cc.nightly,
-               "cr.cm.esr"=cr.cm.esr,"cr.cc.esr"=cr.cc.esr,"ci.cm.esr"=ci.cm.esr,"ci.cc.esr"=ci.cc.esr)
+               "cr.cm.nightly"=cr.cm.nightly,"cr.cc.nightly"=cr.cc.nightly,"ci.cm.nightly"=ci.cm.nightly,"ci.cc.nightly"=ci.cc.nightly
+               ,"cr.cm.esr"=cr.cm.esr,"cr.cc.esr"=cr.cc.esr,"ci.cm.esr"=ci.cm.esr,"ci.cc.esr"=ci.cc.esr)
 
 bad.models <- names(all.models)[ unlist(Map(function(i,m){
+#    print(i)
     if(any( brms::rhat(m) >=1.1)) TRUE else FALSE
 },names(all.models),all.models))]
 if(length(bad.models)>0){

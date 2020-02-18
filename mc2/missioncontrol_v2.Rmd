@@ -50,11 +50,11 @@ pre code, pre, code {
 
 
 
-```{r echo=FALSE}
+```{r Z0,echo=FALSE}
 knitr::opts_chunk$set(  echo=FALSE,warning=FALSE,message=FALSE,eval=TRUE)
 ```
 
-```{r echo=FALSE,warning=FALSE, results='hide',message=FALSE,eval=if(exists("_donotrun_")) FALSE else TRUE}
+```{r Z1,echo=FALSE,warning=FALSE, results='hide',message=FALSE,eval=if(exists("_donotrun_")) FALSE else TRUE}
 
 library(DT)
 source("../missioncontrol.lib.R")
@@ -73,7 +73,9 @@ beta.info <- channel.info('beta',g)
 nightly.info <- channel.info('nightly',g)
 esr.info <- channel.info('esr',g)
 
+```
 
+```{r Z3,echo=FALSE,warning=FALSE, results='hide',message=FALSE,eval=if(exists("_donotrun_")) FALSE else TRUE}
 ccsv <- rbindlist(list(posterior.evolution('release',6,g),
                        posterior.evolution('beta',6,g),
                        posterior.evolution('nightly',6,g),
@@ -165,7 +167,7 @@ makePlot <- function(evo,typec,title,xtip,width=990,height=200){
 `asOf` is the date till which the model uses data
 
 
-```{r eval=TRUE, echo=FALSE}
+```{r Z4,eval=TRUE, echo=FALSE}
 
 datatable(release.info$version, caption = 'Comparing Current Version To ... ',
           colnames=c("Current Version","Days Present","Older Version","Days Present", "asOf"),

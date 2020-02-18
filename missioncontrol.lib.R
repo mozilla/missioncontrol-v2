@@ -17,7 +17,7 @@ library(rmarkdown)
                                         #library(future.apply)
 options(error = function() {
     traceback(3);
-    options(error = NULL)
+    if(!interactive()) options(error = NULL)
     stop(geterrmessage())
 })
 
@@ -212,13 +212,13 @@ getPredictions <- function(M,D, wh=NULL,givenx=NULL,summary=FALSE,ascale='respon
     }
     if(wh=='cmr'){
         if(fa == 'gaussian'){
-            r <-  pmax(0,exp(t(x))-1)
+            r <-  t(apply(exp(t(x))-1,1,pmax,0))
         }else if(fa=='negbinomial'){
             r <- exp( t(x) - D[, log( usage_cm_crasher_cversion+1/60)])
         }else stop(glue('what family? {fa}'))
     }else if(wh=='ccr'){
         if(fa=='gaussian'){
-            r <-  pmax(0,exp(t(x))-1)
+            r <-  t(apply(exp(t(x))-1,1,pmax,0))
         }else if(fa=='negbinomial'){
             r <- exp(t(x) -  D[, log( usage_cc_crasher_cversion+1/60)])
         }else stop(glue('what family? {fa}'))

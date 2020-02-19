@@ -478,13 +478,7 @@ vegawidget(as_vegaspec(w),embed=vega_embed(actions=TRUE))
 
 
 
-### Download CSV of Crash Metrics
-
-You can download a CSV of crash rates/incidences for different operating systems
-(and overall) ,different channels  and different versions (from last 6 months)  [here](./mc2_rate_incidence_evolution.csv)
-
-
-### Definitions
+### Definitions, Downloads, and Model Summary
 
 - **Crash Incidence** is the proportion of DAU experiencing a crash (content or
   main as the case may be)
@@ -512,6 +506,10 @@ In the 'Summary Tables' , the format `X (Y%)` is the actual rate followed by the
 - if we are between 60-75% confident of a 20%+ regression you will see △
 - if we are more than 75% confident of a 20%+ improvement you will see a ▼ arrow
 - otherwise nothing
+
+#### Downloads
+You can download a CSV of crash rates/incidences for different operating systems
+(and overall) ,different channels  and different versions (from last 6 months)  [here](./mc2_rate_incidence_evolution.csv)
 
 
 #### Model Summary

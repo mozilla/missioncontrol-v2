@@ -1,6 +1,6 @@
 ---
 title: "MissionControl v2"
-author: "Managed by Data Science, and  `r sprintf('rendered on %s',Sys.time())`"
+author: "Managed by Data Science and `r sprintf('rendered at %s PST',Sys.time())`"
 output:
   html_document:
     toc: false
@@ -10,23 +10,37 @@ params:
     
 ---
 
+
+<head>
+<link href="https://fonts.googleapis.com/css?family=Nunito|Quattrocento+Sans|Roboto+Mono:300&display=swap" rel="stylesheet"> 
+</head>
+
+
 ```{js echo=FALSE}
-$("h1,h2,h3,h4,h5").filter(function(i) {
-    // Note: tried selecting "div.section > h1,h2,h3,h4,h5", but 
-    // this was pulling in the initial h4 date heading.
-    return $(this).parent().hasClass("section");
-}).wrap(function() {
-    var sectionref = $(this).parent().attr("id");
-    // Add a custom class for additional styling control.
-    return "<a class='header-link' href='#" + sectionref + "'></a>";
+function addHeaderLinks() {
+        $("h1,h2,h3,h4,h5").filter(function(i) {
+            // Note: tried selecting "div.section > h1,h2,h3,h4,h5", but 
+            // this was pulling in the initial h4 date heading.
+            return $(this).parent().hasClass("section");
+        }).wrap(function() {
+            var sectionref = $(this).parent().attr("id");
+            // Add a custom class for additional styling control.
+            return "<a class='header-link' href='#" + sectionref + "'></a>";
+        });
+}
+$(document).ready(function() {
+                addHeaderLinks();
 });
 ```
-
 
 <style>
 body {
     line-height: 1.4em;
+    font-family: 'Quattrocento Sans', sans-serif;
+    background-color: transparent;
     }
+    
+
 .break-out {
     text-align: center;
     width: 100vw;
@@ -43,6 +57,24 @@ pre code, pre, code {
   overflow-x: scroll !important;
   word-break: keep-all !important;
   word-wrap: initial !important;
+}
+
+h1,h2,h3,h4,h5,h6 {
+    font-family: 'Nunito', sans-serif;
+}
+
+table {
+font-family: 'Roboto Mono', monospace;
+}
+
+pre,code {
+    border:0;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 80%;
+}
+
+ul.navtabs !{
+    border:0;
 }
 
 </style>
@@ -483,7 +515,7 @@ In the 'Summary Tables' , the format `X (Y%)` is the actual rate followed by the
 
 #### Model Summary
 
-```{r echo=FALSE}
+```{r echo=FALSE,comment=""}
 y <- model.summary(g)
 cat(y$allmods)
 ```

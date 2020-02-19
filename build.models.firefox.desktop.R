@@ -83,7 +83,7 @@ invisible({
 
 ## Is this or in SQL the best place for this to be?  I can;'t really
 ## say. Nevertheless, this is where we keep 'valid' data'. I will
-e## explain this For release, keep data for a version till a new one is
+## explain this For release, keep data for a version till a new one is
 ## released (similar to ESR, with no overlap).
 dall.rel2 <-local({
     u <- jsonlite::fromJSON("https://product-details.mozilla.org/1.0/firefox.json")

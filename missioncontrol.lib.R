@@ -17,7 +17,8 @@ library(rmarkdown)
                                         #library(future.apply)
 options(error = function() {
     traceback(3);
-    if(!interactive()) options(error = NULL)
+    if(!interactive())
+        options(error = NULL)
     stop(geterrmessage())
 })
 

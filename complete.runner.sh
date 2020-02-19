@@ -24,17 +24,17 @@ export PYTHONNOUSERSITE=True
 conda activate mc2
 rm -rf all.the.data.Rdata
 result1=`Rscript etl.R`
-echo "r1 ${result1}"
+echo "r1 ${result1}\n"
 
 result2=`Rscript build.models.firefox.desktop.R --debug=0 --out=./all.the.data.Rdata`
-echo "r2 ${result2}"
+echo "r2 ${result2}\n"
 
 result4=`Rscript backup.firefox.desktop.R --data_file=./all.the.data.Rdata  --backup=1`
-echo "r4 ${result4}"
+echo "r4 ${result4}\n"
 
 
 resukt5=`Rscript produce_and_save_posteriors.R  --backup=1 --data_file=./all.the.data.Rdata --overwrite=1`
-echo "r4 ${result4}"
+echo "r4 ${result4}\n"
 
 ## run as sh complete.runner.sh  2>&1 | tee logfile
 

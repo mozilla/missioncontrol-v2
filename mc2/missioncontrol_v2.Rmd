@@ -557,15 +557,14 @@ system("gzip -c ./post_raw.csv > ./post_raw.csv.gz")
 4. The estimates of estimated crash rates/incidences for all channels along with
 error bands can be found [here](./mc2_rate_incidence_evolution.csv)
 (last 6 months)
-5  But really what you need is the _raw_ data I used to compute (2)-(4). This
-[zipped](./post_raw.csv.gz)  file contains 1000 draws from the posteriors for every model(one for each
+5.  But really what you need is the _raw_ data I used to compute (3) and most of
+(4). This [zipped](./post_raw.csv.gz)  file contains 1000 draws from the posteriors for every model(one for each
 channel and model (rate or incidence)). How were these used to derive the
 tables? Its an involved process but see
 [RMD](https://github.com/mozilla/missioncontrol-v2/blob/store_posterior_approach/mc2/missioncontrol_v2.Rmd)
 file and the  SQL queries it references. Note the zip file contains data for models
 computed in last `r downloads.days`  days. You'd need to scrape this page and
 combine data across zip files to build a complete history. Be sure to "dedupe" on `channel,os,c_version, model_date, date`.
-
 
 
 

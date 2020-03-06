@@ -115,7 +115,6 @@ ccsv <- rbindlist(list(posterior.evolution('release',6,g),
                        posterior.evolution('esr',6,g)
                        ))
 
-fwrite(ccsv,file="./mc2_rate_incidence_evolution.csv",row.names=FALSE,quote=TRUE,na=0)
 
 plotEvolution <- function(f, title, xtip,width=NULL,height=NULL,showlegend=TRUE,pointSize=65,x.is.date=FALSE){
     u3 <- list(
@@ -507,9 +506,68 @@ In the 'Summary Tables' , the format `X (Y%)` is the actual rate followed by the
 - if we are more than 75% confident of a 20%+ improvement you will see a ▼ arrow
 - otherwise nothing
 
-#### Downloads
-You can download a CSV of crash rates/incidences for different operating systems
-(and overall) ,different channels  and different versions (from last 6 months)  [here](./mc2_rate_incidence_evolution.csv)
+#### Downloads and Code
+
+The code for this webpage can be found
+[here](https://github.com/mozilla/missioncontrol-v2/blob/store_posterior_approach/mc2/missioncontrol_v2.Rmd)
+and in particular depends on several SQL queries found
+[here](https://github.com/mozilla/missioncontrol-v2/blob/store_posterior_approach/missioncontrol.lib.R#L380).
+
+But you if you were dissatisfied with this dashboard you would not be able to
+create a better one without the data. I've placed several CSV files for you to
+produce alternative dashboards.
+
+```{r echo=FALSE}
+comparing.to <- cbind(data.table(channel = c("release","beta","nightly","esr")),
+                      rbindlist(lapply(list(release.info,beta.info,nightly.info, esr.info),
+                                       function(s) s$version)))
+usage.on <- rbindlist(
+    Map(function(ch,s){
+        s$usage[, channel := ch][,]
+    },c("release","beta","nightly","esr"),
+    list(release.info,beta.info,nightly.info, esr.info)))
+usage.on <- usage.on[, list(channel,OS,Adoption, Total_Crashes)]
+
+
+summary.on <- rbindlist(
+    Map(function(ch,s){
+        s$summary[, channel := ch][,]
+    },c("release","beta","nightly","esr"),
+    list(release.info,beta.info,nightly.info, esr.info)))
+
+downloads.days <- 3
+if(exists("_donotrun_")){
+    al <- g$q(glue("select channel,os, c_version, model_date, date, nvc, modelname, rep, posterior from
+`moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors
+where  model_date>='{Sys.Date()-downloads.days}'"),-1)
+}
+
+fwrite(ccsv,file="./mc2_rate_incidence_evolution.csv",row.names=FALSE,quote=TRUE,na=0)
+fwrite(comparing.to,file="./comparing_version.csv",row.names=FALSE,quote=TRUE,na=0)
+fwrite(usage.on,file="./usage_on.csv",row.names=FALSE,quote=TRUE,na=0)
+fwrite(summary.on,file="./summary_on.csv",row.names=FALSE,quote=TRUE,na=0)
+fwrite(al,"./post_raw.csv")
+system("gzip -c ./post_raw.csv > ./post_raw.csv.gz")
+```
+
+1. The "comparing current version to..." table can be found [here](./comparing_version.csv).
+2. The "usage on current" table can be found [here](./usage_on.csv) (You'll
+  need to remove some commas from numbers)
+3. The "Crash Rate Summary" and "Crash Incidence Summary" can be found [here](./summary_on.csv).
+4. The estimates of estimated crash rates/incidences for all channels along with
+error bands can be found [here](./mc2_rate_incidence_evolution.csv)
+(last 6 months)
+5  But really what you need is the _raw_ data I used to compute (2)-(4). This
+[zipped](./post_raw.csv.gz)  file contains 1000 draws from the posteriors for every model(one for each
+channel and model (rate or incidence)). How were these used to derive the
+tables? Its an involved process but see
+[RMD](https://github.com/mozilla/missioncontrol-v2/blob/store_posterior_approach/mc2/missioncontrol_v2.Rmd)
+file and the  SQL queries it references. Note the zip file contains data for models
+computed in last `r downloads.days`  days. You'd need to scrape this page and
+combine data across zip files to build a complete history. Be sure to "dedupe" on `channel,os,c_version, model_date, date`.
+
+
+
 
 
 #### Model Summary

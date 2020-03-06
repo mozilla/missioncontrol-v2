@@ -566,6 +566,10 @@ file and the  SQL queries it references. Note the zip file contains data for mod
 computed in last `r downloads.days`  days. You'd need to scrape this page and
 combine data across zip files to build a complete history. Be sure to "dedupe" on `channel,os,c_version, model_date, date`.
 
+Feel free to ask questions on
+https://chat.mozilla.org/#/room/#stability:mozilla.org (our public Matrix
+forum).
+
 
 
 

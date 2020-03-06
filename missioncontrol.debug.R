@@ -60,14 +60,14 @@ quantile((al3[os=='Linux',posterior]+al3[os=='Darwin', posterior]+al3[os=='Windo
 ## well overall for 'x' is based on Linx, Windows, and Darwin
 ## but for 'y' its based on Windows and Darwin _only_
 
-## Consider case 1: based x's overall  on Windows and Darwin
+## Consider Case 1: based x's overall  on Windows and Darwin
 quantile((al2[os=='Darwin', posterior]+al2[os=='Windows_NT', posterior])/2,0.5)*100
 ## compare to y's overall (which is based on Windows and Darwin)
 y
 ## RelChange is (0.5807047  - 0.6069826)/0.6069826*100
 ## which is -4.329 % much more in line with the table above
 
-## Consider basing y on all three OS (but then they wont have same model_dates, but
+## Consider Case 2: basing y on all three OS (but then they wont have same model_dates, but
 ## the most recent model dates for each OS)
 ## then we use x since its based on all three OS
 x
@@ -82,3 +82,12 @@ quantile((al3[os=='Linux',posterior]+al3[os=='Darwin', posterior]+al3[os=='Windo
 
 ## so the summary is that the Current and Reference overalls have DIFFRENT component operating systems
 ## and when the different component operating systems are not the same the weirdness appears.
+
+
+## dedup on channel,os,c_version, model_date, date
+##al <- g$q(glue("select channel,os, c_version, model_date, date, nvc, modelname, rep, posterior from
+##`moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors
+##where  model_date>='{Sys.Date()-7}'"),-1)
+##fwrite(al,"/tmp/goog")
+## remember to gzip this file
+

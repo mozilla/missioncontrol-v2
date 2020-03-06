@@ -537,7 +537,7 @@ summary.on <- rbindlist(
 
 downloads.days <- 3
 if(exists("_donotrun_")){
-    al <- g$q(glue("select channel,os, c_version, model_date, date, nvc, modelname, rep, posterior from
+    al <- g$q(glue("select channel,os, c_version,major,minor,  model_date, date, nvc, modelname, rep, posterior from
 `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors
 where  model_date>='{Sys.Date()-downloads.days}'"),-1)
 }

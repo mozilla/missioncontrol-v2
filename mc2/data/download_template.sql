@@ -18,7 +18,7 @@ SELECT
     app_display_version, -- beta
     app_build_id         -- nightly
   FROM
-    `moz-fx-data-shared-prod`.telemetry.clients_daily_v6
+    `moz-fx-data-shared-prod`.telemetry.clients_daily
   WHERE
     submission_date_s3 >= '{cur_vers_release_date}'
     AND submission_date_s3 <= DATE_ADD(

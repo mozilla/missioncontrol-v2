@@ -127,9 +127,9 @@ def dl_raw(
     table="missioncontrol_v2_raw_data",
     dataset="analysis",
     project_id="moz-fx-data-derived-datasets",
+    base_project_id="moz-fx-data-derived-datasets",
     outname=None,
     cache=False,
-    base_project_id="moz-fx-data-derived-datasets",
 ):
     """
     Wrapper for download_bq.download_raw_data(). After running `main`,
@@ -159,11 +159,17 @@ def upload_model_data(
     json_fname=None,
     table_name="missioncontrol_v2_model_output",
     project_id="moz-fx-data-shared-prod",
+    base_project_id="moz-fx-data-bq-data-science",
     dataset="analysis",
     overwrite=False,
 ):
     query_func = mk_query_func(creds_loc=creds_loc)
-    bq_loc = BqLocation(table_name, dataset=dataset, project_id=project_id)
+    bq_loc = BqLocation(
+        table_name,
+        dataset=dataset,
+        project_id=project_id,
+        base_project_id=base_project_id,
+    )
     run_model_upload(
         query_func,
         feather_fname=feather_fname,
@@ -176,7 +182,7 @@ def upload_model_data(
 
 def print_rows_dau(bq_loc: BqLocation, creds_loc=None):
     bq_read_no_cache = mk_bq_reader(
-        creds_loc=creds_loc, base_project_id=bq_loc.project_id, cache=False
+        creds_loc=creds_loc, base_project_id=bq_loc.base_project_id, cache=False
     )
     summary = bq_read_no_cache(
         "select count(*) as n_rows, avg(dau_cversion) / 1e6"
@@ -204,6 +210,7 @@ def main(
     creds_loc=None,
     cache: bool = False,
     project_id="moz-fx-data-derived-datasets",
+    base_project_id="moz-fx-data-derived-datasets",
     dataset="analysis",
     table_name="wbeard_crash_rate_raw",
     drop_first: bool = False,
@@ -238,7 +245,12 @@ def main(
     add_schema, cache, drop_first, return_df, force = map(
         strong_bool, [add_schema, cache, drop_first, return_df, force]
     )
-    bq_loc = BqLocation(table_name, dataset=dataset, project_id=project_id)
+    bq_loc = BqLocation(
+        table_name,
+        dataset=dataset,
+        project_id=project_id,
+        base_project_id=base_project_id,
+    )
     if table_name == "missioncontrol_v2_raw_data":
         if cache:
             print(
@@ -255,7 +267,7 @@ def main(
     if drop_first:
         drop_table(table_name=table_name)
     bq_read = mk_bq_reader(
-        creds_loc=creds_loc, base_project_id=project_id, cache=cache
+        creds_loc=creds_loc, base_project_id=base_project_id, cache=cache
     )
     query_func = mk_query_func(creds_loc=creds_loc)
 

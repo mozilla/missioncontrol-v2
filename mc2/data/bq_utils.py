@@ -4,10 +4,12 @@ class BqLocation:
         table,
         dataset="analysis",
         project_id="moz-fx-data-derived-datasets",
+        base_project_id="moz-fx-data-derived-datasets",
     ):
         self.table = table
         self.dataset = dataset
         self.project_id = project_id
+        self.base_project_id = base_project_id
 
     @property
     def sql(self):

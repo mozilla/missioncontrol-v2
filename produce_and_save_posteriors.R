@@ -11,20 +11,21 @@ backup.mode <- command.line$backup
 loginfo(glue("loading data file from {command.line$data_file} and backup mode is {backup.mode}"))
 load(command.line$data_file)
 
+PROJECT_ID = 'moz-fx-data-derived-datasets'
 
 ######################################################################
 ## Produce Posteriors
 ######################################################################
 
 model.date <- max(dall.rel2$date)
-last.model.date <- system("bq query --format=prettyjson --nouse_legacy_sql 'select max(model_date) as x from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors'",intern=TRUE)
+last.model.date <- system(glue("bq query --format=prettyjson --nouse_legacy_sql 'select max(model_date) as x from `{PROJECT_ID}`.analysis.missioncontrol_v2_posteriors'"),intern=TRUE)
 last.model.date <- rjson::fromJSON(paste(last.model.date,collapse="\n"))[[1]]$x
 
 if(model.date == last.model.date & command.line$overwrite==1){
     loginfo("Overwriting model data from table since overwrite was chosen")
-    system(glue("bq query --format=prettyjson --nouse_legacy_sql 'delete from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors where model_date=\"{last.model.date}\" '"))
+    system(glue("bq query --format=prettyjson --nouse_legacy_sql 'delete from `{PROJECT_ID}`.analysis.missioncontrol_v2_posteriors where model_date=\"{last.model.date}\" '"))
     loginfo("Getting new model date")
-    last.model.date <- system("bq query --format=prettyjson --nouse_legacy_sql 'select max(model_date) as x from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors'",intern=TRUE)
+    last.model.date <- system(glue("bq query --format=prettyjson --nouse_legacy_sql 'select max(model_date) as x from `{PROJECT_ID}`.analysis.missioncontrol_v2_posteriors'"),intern=TRUE)
     last.model.date <- rjson::fromJSON(paste(last.model.date,collapse="\n"))[[1]]$x
 }
 
@@ -52,8 +53,8 @@ if(nrow(all.posteriors)>0 & backup.mode==1){
     ## Now write this
     atemp <- tempfile()
     fwrite(all.posteriors, file=atemp,row.names=FALSE,quote=TRUE,na=0)
-    system(glue("bq load  --noreplace --project_id moz-fx-data-derived-datasets   --source_format=CSV --skip_leading_rows=1 --null_marker=NA",
-            " analysis.missioncontrol_v2_posteriors {atemp} ./posterior_schema.json"))
+    system(glue("bq load  --noreplace   --source_format=CSV --skip_leading_rows=1 --null_marker=NA",
+            " {PROJECT_ID}:analysis.missioncontrol_v2_posteriors {atemp} ./posterior_schema.json"))
 }else loginfo("No data to write, all rows zero")
 
 ######################################################################
@@ -134,8 +135,8 @@ channel.summary[, smry:=w2]
 if(backup.mode==1){
     atemp <- tempfile()
     fwrite(channel.summary, file=atemp,row.names=FALSE,quote=TRUE,na=0)
-    system(glue("bq load --replace   --project_id moz-fx-data-derived-datasets  --source_format=CSV --skip_leading_rows=1 --null_marker=NA",
-                " analysis.missioncontrol_v2_channel_summaries {atemp} ./channel_summary_schema.json"))
+    system(glue("bq load --replace    --source_format=CSV --skip_leading_rows=1 --null_marker=NA",
+                " {PROJECT_ID}:analysis.missioncontrol_v2_channel_summaries {atemp} ./channel_summary_schema.json"))
     loginfo("Uploaded Channel Summary")
 }
 

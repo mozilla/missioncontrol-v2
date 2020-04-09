@@ -215,13 +215,13 @@ def upload(df, project_id="moz-fx-data-derived-datasets",
         df.to_csv(fp, index=False, na_rep="NA")
     print("CSV saved to {}".format(fp.name))
 
-    full_table_name = "analysis.{}".format(table_name)
+    full_table_name = "{}:analysis.{}".format(project_id,table_name)
     cmd = [
         "bq",
         "load",
         "--noreplace",
         "--project_id",
-        project_id,
+        "moz-fx-data-bq-data-science",
         "--source_format",
         "CSV",
         "--skip_leading_rows",
@@ -236,6 +236,7 @@ def upload(df, project_id="moz-fx-data-derived-datasets",
         cmd.append(schema)
 
     success_msg = "Success! Data uploaded to {}".format(full_table_name)
+    print(cmd)
     run_command(cmd, success_msg)
 
 

@@ -552,7 +552,6 @@ def pull_data_esr(download_meta_data, sql_template, bq_read):
         fp.write(esr_query)
     # aa
     data = bq_read(esr_query)
-
     # date, till, c_version_rel need to be datetime
     # This gets us the `release_date` and `till` columns,
     # latter based on future release dates

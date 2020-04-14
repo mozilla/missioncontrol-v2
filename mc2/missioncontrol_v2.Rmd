@@ -11,10 +11,6 @@ params:
 ---
 
 
-<head>
-<link href="https://fonts.googleapis.com/css?family=Nunito|Quattrocento+Sans|Roboto+Mono:300&display=swap" rel="stylesheet"> 
-</head>
-
 
 ```{js echo=FALSE}
 function addHeaderLinks() {
@@ -34,6 +30,7 @@ $(document).ready(function() {
 ```
 
 <style>
+@import url("https://fonts.googleapis.com/css?family=Nunito|Quattrocento+Sans|Roboto+Mono:300&display=swap");
 body {
     line-height: 1.4em;
     font-family: 'Quattrocento Sans', sans-serif;

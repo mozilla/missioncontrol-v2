@@ -26,8 +26,8 @@ options(future.globals.maxSize= 850*1024^2 )
 options(width=200)
 Lapply <- lapply #future_lapply
 
-BQCREDS <- Sys.getenv("GOOGLE_APPLICATION_CREDENTIALS", "~/gcloud.json")
-GCP_PROJECT_ID <- Sys.getenv("GCP_PROJECT_ID", "moz-fx-data-derived-datasets")
+#BQCREDS <- Sys.getenv("GOOGLE_APPLICATION_CREDENTIALS", "~/gcloud.json")
+PROJECT_ID <- GCP_PROJECT_ID <- Sys.getenv("GCP_PROJECT_ID", "moz-fx-data-derived-datasets")
 GCS_OUTPUT_PREFIX <- Sys.getenv("GCS_OUTPUT_PREFIX", "gs://moz-fx-data-derived-datasets-analysis/sguha/missioncontrol-v2")
 
 
@@ -386,7 +386,7 @@ ncurrent as Days_on_Current,
 o_version as Older_Version,
 nolder as Days_on_Older,
 asOf as asOf
-from  analysis.missioncontrol_v2_channel_summaries
+from  `{PROJECT_ID}`.analysis.missioncontrol_v2_channel_summaries
 where channel="{chan}" and os="Windows_NT"
 '))
 }
@@ -395,7 +395,7 @@ model.summary <- function(g){
     g$q("
 select
 JSON_EXTRACT_SCALAR(smry,'$.w')  as allmods
-from  analysis.missioncontrol_v2_channel_summaries
+from  `{PROJECT_ID}`.analysis.missioncontrol_v2_channel_summaries
 limit 1
 ")
 }
@@ -414,7 +414,7 @@ select 'overall' as os, 4 as sr
 ),
 b as (
 select sr,a.os,  nvc, dau_cversion, call
-from analysis.missioncontrol_v2_channel_summaries X  join a
+from  `{PROJECT_ID}`.analysis.missioncontrol_v2_channel_summaries X  join a
 on X.os= a.os
 where channel='{chan}'
 order by sr
@@ -458,14 +458,14 @@ select 'Linux' as os, 3 as sr
 union all
 select 'overall' as os, 4 as sr
 ),
-a0 as (select os,model_date,modelname,c_version as cv,rep,posterior as cp from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors
-     where c_version = (select max(c_version) from analysis.missioncontrol_v2_channel_summaries where os='Windows_NT' and channel='{chan}')
+a0 as (select os,model_date,modelname,c_version as cv,rep,posterior as cp from  `{PROJECT_ID}`.analysis.missioncontrol_v2_posteriors
+     where c_version = (select max(c_version) from  `{PROJECT_ID}`.analysis.missioncontrol_v2_channel_summaries where os='Windows_NT' and channel='{chan}')
      and channel='{chan}'
 ),
 a00 as ( select os, max(model_date) as max_model_date from a0 group by 1) ,
 a as (select a0.* from a0 join a00 on a0.os=a00.os and a0.model_date = a00.max_model_date),
 b0 as (select os,model_date,modelname,c_version as ov,rep,posterior as op from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors
-     where c_version = (select max(o_version) from analysis.missioncontrol_v2_channel_summaries where os='Windows_NT' and channel='{chan}')
+     where c_version = (select max(o_version) from  `{PROJECT_ID}`.analysis.missioncontrol_v2_channel_summaries where os='Windows_NT' and channel='{chan}')
      and channel='{chan}'
 ),
 b00 as ( select os, max(model_date) as max_model_date from b0 group by 1) ,
@@ -524,7 +524,7 @@ select os,modelname,c_version as cv,date as date,model_date,
 APPROX_QUANTILES(posterior, 100)[OFFSET(50)] as c,
 APPROX_QUANTILES(posterior, 100)[OFFSET(5)] as lo90,
 APPROX_QUANTILES(posterior, 100)[OFFSET(95)] as hi90,
-from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors
+from  `{PROJECT_ID}`.analysis.missioncontrol_v2_posteriors
 where channel='{chan}' and date>=DATE_SUB(CURRENT_DATE(), INTERVAL {nmonth} MONTH)
 --and os != 'overall'
 group by 1,2,3,4,5
@@ -541,7 +541,7 @@ b as (select
 c as (select * except(n_) from b where n_ = 1),
 d as (
 select  os, c_version as cv, major,minor,date, nvc as adoption, cmr,ccr,cmi,cci
-from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_raw_data
+from  `{PROJECT_ID}`.analysis.missioncontrol_v2_raw_data
 where channel = '{chan}'
 ),
 e as (
@@ -585,7 +585,7 @@ select os,modelname,c_version as cv,date as date,model_date,
 APPROX_QUANTILES(posterior, 100)[OFFSET(50)] as c,
 APPROX_QUANTILES(posterior, 100)[OFFSET(5)] as lo90,
 APPROX_QUANTILES(posterior, 100)[OFFSET(95)] as hi90,
-from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_posteriors
+from  `{PROJECT_ID}`.analysis.missioncontrol_v2_posteriors
 where channel='{chan}' and date>=DATE_SUB(CURRENT_DATE(), INTERVAL {nmonth} MONTH)
 --and os != 'overall'
 group by 1,2,3,4,5
@@ -600,7 +600,7 @@ b as (select
 c as (select * except(n_) from b where n_ = 1),
 d as (
 select  os, c_version as cv, major,minor,date, cmr,ccr,cmi,cci,nvc as adoption
-from `moz-fx-data-derived-datasets`.analysis.missioncontrol_v2_raw_data
+from  `{PROJECT_ID}`.analysis.missioncontrol_v2_raw_data
 where channel = '{chan}'
 ),
 e as (
@@ -622,7 +622,7 @@ from e
 ),
 g as (
 select os, cv,model_date,c,modelname, lo90,hi90,adoption from f
-where os!='overall' and  modelname in ('cr','ci') and cv=(select c_version from  analysis.missioncontrol_v2_channel_summaries where os='Windows_NT' and channel='{chan}')
+where os!='overall' and  modelname in ('cr','ci') and cv=(select c_version from   `{PROJECT_ID}`.analysis.missioncontrol_v2_channel_summaries where os='Windows_NT' and channel='{chan}')
 order by os,model_date
 )
 select * from g

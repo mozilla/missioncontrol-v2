@@ -11,7 +11,7 @@ backup.mode <- command.line$backup
 loginfo(glue("loading data file from {command.line$data_file} and backup mode is {backup.mode}"))
 load(command.line$data_file)
 
-PROJECT_ID = 'moz-fx-data-derived-datasets'
+
 
 ######################################################################
 ## Produce Posteriors
